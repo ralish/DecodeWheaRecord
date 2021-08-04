@@ -1,6 +1,8 @@
 DecodeWheaRecord
 ================
 
+[![license](https://img.shields.io/github/license/ralish/DecodeWheaRecord)](https://choosealicense.com/licenses/mit/)
+
 [![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/ralish/DecodeWheaRecord)
 
 A work-in-progress utility to decode hex-encoded Windows Hardware Event Architecture (WHEA) records.
