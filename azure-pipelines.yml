@@ -1,0 +1,26 @@
+trigger:
+  batch: true
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  solution: 'DecodeWheaRecord.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+
+steps:
+- task: NuGetToolInstaller@1
+
+- task: NuGetCommand@2
+  inputs:
+    command: 'restore'
+    restoreSolution: '$(solution)'
+    feedsToUse: 'select'
+
+- task: VSBuild@1
+  inputs:
+    solution: '$(solution)'
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+    maximumCpuCount: true
