@@ -1,0 +1,52 @@
+# EditorConfig
+# http://EditorConfig.org
+
+# Don't search any further up the directory tree
+root = true
+
+# Baseline
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# Application manifests
+[*.manifest]
+indent_size = 2
+
+# Markdown
+[*.md]
+trim_trailing_whitespace = false
+
+# MSBuild configurations
+[*.{props,targets}]
+indent_size = 2
+
+# Visual Studio projects
+[*.*proj]
+charset = unset
+indent_size = 2
+insert_final_newline = unset
+
+# Visual Studio solutions
+[*.sln]
+charset = utf-8-bom
+indent_style = tab
+
+# YAML
+[*.yml]
+indent_size = 2
+
+
+#######################################
+### .NET Code Quality Analysis (CA) ###
+#######################################
+
+[*.cs]
+# CA1305: Specify IFormatProvider
+dotnet_diagnostic.CA1305.severity = none
+
+# CA1812: Avoid uninstantiated internal classes
+dotnet_diagnostic.CA1812.severity = none

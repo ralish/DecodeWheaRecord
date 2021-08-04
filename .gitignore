@@ -1,0 +1,28 @@
+# Windows
+[Dd]esktop.ini
+ehthumbs.db
+ehthumbs_vista.db
+[Tt]humbs.db
+
+# Backups
+*.bak
+
+# Logs
+*.log
+log/
+logs/
+
+# Temporary
+*~
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Build
+bin/
+obj/
+
+# Visual Studio
+*.user
+.vs/
