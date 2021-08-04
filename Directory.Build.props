@@ -1,0 +1,10 @@
+<Project>
+
+  <PropertyGroup>
+    <RepoRoot>$([System.IO.Path]::GetFullPath($([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '..'))))\</RepoRoot>
+    <BaseIntermediateOutputPath>$(RepoRoot)obj\</BaseIntermediateOutputPath>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <OutputPath>$(RepoRoot)bin\$(Configuration)\</OutputPath>
+  </PropertyGroup>
+
+</Project>

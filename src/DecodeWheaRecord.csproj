@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Build configuration -->
+    <TargetFramework>net462</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <StartupObject>DecodeWheaRecord.Program</StartupObject>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <!-- AssemblyInfo metadata -->
+    <AssemblyTitle>Decode WHEA Record</AssemblyTitle>
+    <Version>0.1.0</Version>
+    <NeutralLanguage>en-AU</NeutralLanguage>
+    <Product>Decode WHEA Record</Product>
+    <Description>Decodes Windows Hardware Event Architecture records</Description>
+    <Authors>Samuel Leslie</Authors>
+    <Copyright>© Samuel Leslie. All rights reserved.</Copyright>
+    <!-- NuGet package metadata -->
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/ralish/DecodeWheaRecord</PackageProjectUrl>
+    <PackageTags>windows security audit</PackageTags>
+    <RepositoryUrl>https://github.com/ralish/DecodeWheaRecord</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryBranch>stable</RepositoryBranch>
+    <!-- .NET code quality -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+    <!-- .NET code style -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+  </ItemGroup>
+
+</Project>
