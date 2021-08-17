@@ -3,6 +3,7 @@
   <PropertyGroup>
     <!-- Build configuration -->
     <TargetFramework>net462</TargetFramework>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <OutputType>Exe</OutputType>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <StartupObject>DecodeWheaRecord.Program</StartupObject>
