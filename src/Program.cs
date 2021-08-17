@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -15,72 +14,63 @@ using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord {
     internal class Program {
+        private static byte[] _recordBytes;
+        private static int _recordOffset;
+
         public static void Main(string[] args) {
             if (args.Length == 0) {
-                Console.Out.WriteLine($"Usage: {Assembly.GetExecutingAssembly().GetName().Name} <WheaHexRecord>");
-                Environment.Exit(0);
+                ExitWithMessage($"Usage: {Assembly.GetExecutingAssembly().GetName().Name} <WheaHexRecord>", 0);
             } else if (args.Length > 1) {
-                Console.Error.WriteLine($"Expected a hex encoded WHEA record but received {args.Length} arguments.");
-                Environment.Exit(1);
+                ExitWithMessage($"Expected a hex encoded WHEA record but received {args.Length} arguments.");
             }
 
-            var recordBytes = ConvertHexToBytes(args[0]);
-            Console.Error.WriteLine($"WHEA error record converted to byte array: {recordBytes.Length} bytes");
+            _recordBytes = ConvertHexToBytes(args[0]);
 
-            var recordHeaderSize = Marshal.SizeOf<WHEA_ERROR_RECORD_HEADER>();
-            Console.Error.WriteLine($"[{nameof(WHEA_ERROR_RECORD_HEADER)}] Structure size: {recordHeaderSize} bytes");
+            var header = MarshalWheaRecord(typeof(WHEA_ERROR_RECORD_HEADER)) as WHEA_ERROR_RECORD_HEADER;
+            var headerJson = JsonConvert.SerializeObject(header, Formatting.Indented);
+            Console.Out.WriteLine(headerJson);
 
-            var recordHeaderBytes = new byte[recordHeaderSize];
-            for (var i = 0; i < recordHeaderBytes.Length; i++) {
-                recordHeaderBytes[i] = recordBytes[i];
+            for (var sectionIndex = 0; sectionIndex < header.SectionCount; sectionIndex++) {
+                var sectionDsc =
+                    MarshalWheaRecord(typeof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR)) as
+                        WHEA_ERROR_RECORD_SECTION_DESCRIPTOR;
+                var sectionDscJson = JsonConvert.SerializeObject(sectionDsc, Formatting.Indented);
+                Console.Out.WriteLine(sectionDscJson);
+
+                if (sectionDsc.SectionType == new Guid("81212a96-09ed-4996-9471-8d729c8e69ed")) {
+                    var fwRecordRef =
+                        MarshalWheaRecord(typeof(WHEA_FIRMWARE_ERROR_RECORD_REFERENCE)) as
+                            WHEA_FIRMWARE_ERROR_RECORD_REFERENCE;
+                    var fwRecordRefJson = JsonConvert.SerializeObject(fwRecordRef, Formatting.Indented);
+                    Console.Out.WriteLine(fwRecordRefJson);
+                }
+            }
+        }
+
+        private static WheaRecord MarshalWheaRecord(Type recordType) {
+            var recordSize = Marshal.SizeOf(recordType);
+
+            var remainingBytes = _recordBytes.Length - _recordOffset;
+            if (remainingBytes < recordSize) {
+                ExitWithMessage($"[{nameof(recordType)}] Provided record is too small: {remainingBytes} bytes");
             }
 
-            WHEA_ERROR_RECORD_HEADER recordHeader;
-            var hRecordHeader = GCHandle.Alloc(recordHeaderBytes, GCHandleType.Pinned);
+            var recordBytes = new byte[recordSize];
+            for (var i = 0; i < recordBytes.Length; i++) {
+                recordBytes[i] = _recordBytes[_recordOffset + i];
+            }
+
+            var record = Activator.CreateInstance(recordType) as WheaRecord;
+            var hRecord = GCHandle.Alloc(recordBytes, GCHandleType.Pinned);
             try {
-                recordHeader = Marshal.PtrToStructure<WHEA_ERROR_RECORD_HEADER>(hRecordHeader.AddrOfPinnedObject());
+                record = Marshal.PtrToStructure(hRecord.AddrOfPinnedObject(), recordType) as WheaRecord;
+                record.Validate();
             } finally {
-                hRecordHeader.Free();
-            }
-            Console.Error.WriteLine($"[{nameof(WHEA_ERROR_RECORD_HEADER)}] Section count: {recordHeader.SectionCount}");
-
-            var recordSectionDscSize = Marshal.SizeOf<WHEA_ERROR_RECORD_SECTION_DESCRIPTOR>();
-            Console.Error.WriteLine(
-                $"[{nameof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR)}] Structure size: {recordSectionDscSize} bytes");
-
-            var recordSectionDscs = new List<WHEA_ERROR_RECORD_SECTION_DESCRIPTOR>();
-            var recordSectionDscOffset = recordHeaderSize;
-
-            for (var recordSectionDscIdx = 0; recordSectionDscIdx < recordHeader.SectionCount; recordSectionDscIdx++) {
-                var recordSectionDscBytes = new byte[recordSectionDscSize];
-                for (var i = 0; i < recordSectionDscBytes.Length; i++) {
-                    recordSectionDscBytes[i] = recordBytes[recordSectionDscOffset + i];
-                }
-                recordSectionDscOffset += recordSectionDscSize;
-
-                WHEA_ERROR_RECORD_SECTION_DESCRIPTOR recordSectionDsc;
-                var hRecordSectionDsc = GCHandle.Alloc(recordSectionDscBytes, GCHandleType.Pinned);
-                try {
-                    recordSectionDsc =
-                        Marshal.PtrToStructure<WHEA_ERROR_RECORD_SECTION_DESCRIPTOR>(
-                            hRecordSectionDsc.AddrOfPinnedObject());
-                } finally {
-                    hRecordSectionDsc.Free();
-                }
-
-                recordSectionDscs.Add(recordSectionDsc);
+                hRecord.Free();
             }
 
-            var recordSize = recordHeaderSize + (recordSectionDscs.Count * recordSectionDscSize);
-            Console.Error.WriteLine($"Total size of marshaled structures: {recordSize}\n");
-
-            var recordHeaderJson = JsonConvert.SerializeObject(recordHeader, Formatting.Indented);
-            Console.Out.WriteLine(recordHeaderJson);
-
-            foreach (var recordSectionDsc in recordSectionDscs) {
-                var recordSectionDscJson = JsonConvert.SerializeObject(recordSectionDsc, Formatting.Indented);
-                Console.Out.WriteLine(recordSectionDscJson);
-            }
+            _recordOffset += recordSize;
+            return record;
         }
     }
 }

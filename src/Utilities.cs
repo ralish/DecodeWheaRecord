@@ -7,7 +7,7 @@ namespace DecodeWheaRecord {
     internal static class Utilities {
         internal static byte[] ConvertHexToBytes(string hexString) {
             if (hexString.Length % 2 != 0) {
-                throw new ArgumentException("Hex string has an odd number of bytes.");
+                ExitWithMessage($"Hex string has an odd number of bytes: {hexString.Length}");
             }
 
             var byteArray = new byte[hexString.Length / 2];
@@ -19,14 +19,22 @@ namespace DecodeWheaRecord {
             return byteArray;
         }
 
+        internal static void ExitWithMessage(string message, int code = 1) {
+            if (code == 0) {
+                Console.Out.WriteLine(message);
+            } else {
+                Console.Error.WriteLine(message);
+            }
+
+            Environment.Exit(code);
+        }
+
         internal static string GetEnabledFlagsAsString(Enum flags) {
             var enabledFlags = new List<string>();
 
             foreach (Enum flag in Enum.GetValues(flags.GetType())) {
-                var flagName = flag.ToString();
-
                 if (flags.HasFlag(flag)) {
-                    enabledFlags.Add(flagName);
+                    enabledFlags.Add(flag.ToString());
                 }
             }
 
