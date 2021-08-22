@@ -13,7 +13,7 @@ using static DecodeWheaRecord.Utilities;
 
 
 namespace DecodeWheaRecord {
-    internal class Program {
+    internal static class Program {
         private static byte[] _recordBytes;
         private static int _recordOffset;
 
