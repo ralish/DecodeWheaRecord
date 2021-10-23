@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -27,6 +28,8 @@ namespace DecodeWheaRecord {
             _recordBytes = ConvertHexToBytes(args[0]);
 
             var header = MarshalWheaRecord(typeof(WHEA_ERROR_RECORD_HEADER)) as WHEA_ERROR_RECORD_HEADER;
+            Debug.Assert(header != null, nameof(header) + " != null");
+
             var headerJson = JsonConvert.SerializeObject(header, Formatting.Indented);
             Console.Out.WriteLine(headerJson);
 
@@ -34,6 +37,8 @@ namespace DecodeWheaRecord {
                 var sectionDsc =
                     MarshalWheaRecord(typeof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR)) as
                         WHEA_ERROR_RECORD_SECTION_DESCRIPTOR;
+                Debug.Assert(sectionDsc != null, nameof(sectionDsc) + " != null");
+
                 var sectionDscJson = JsonConvert.SerializeObject(sectionDsc, Formatting.Indented);
                 Console.Out.WriteLine(sectionDscJson);
 
@@ -60,10 +65,11 @@ namespace DecodeWheaRecord {
                 recordBytes[i] = _recordBytes[_recordOffset + i];
             }
 
-            var record = Activator.CreateInstance(recordType) as WheaRecord;
+            WheaRecord record;
             var hRecord = GCHandle.Alloc(recordBytes, GCHandleType.Pinned);
             try {
                 record = Marshal.PtrToStructure(hRecord.AddrOfPinnedObject(), recordType) as WheaRecord;
+                Debug.Assert(record != null, nameof(record) + " != null");
                 record.Validate();
             } finally {
                 hRecord.Free();
