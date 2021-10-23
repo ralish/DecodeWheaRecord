@@ -1,5 +1,7 @@
 // @formatter:off
+// ReSharper disable ClassNeverInstantiated.Global
 // ReSharper disable InconsistentNaming
+// ReSharper disable MemberCanBePrivate.Global
 
 #pragma warning disable CS0649  // Field is never assigned to
 
@@ -17,7 +19,7 @@ namespace DecodeWheaRecord {
         #region Enumerations
 
         [Flags]
-        private enum WHEA_ERROR_RECORD_HEADER_FLAGS : uint {
+        public enum WHEA_ERROR_RECORD_HEADER_FLAGS : uint {
             Recovered           = 0x1,
             PreviousError       = 0x2,
             Simulated           = 0x4,
@@ -30,14 +32,14 @@ namespace DecodeWheaRecord {
         }
 
         [Flags]
-        private enum WHEA_ERROR_RECORD_HEADER_VALIDBITS : uint {
+        public enum WHEA_ERROR_RECORD_HEADER_VALIDBITS : uint {
             PlatformId  = 0x1,
             Timestamp   = 0x2,
             PartitionId = 0x4
         }
 
         [Flags]
-        private enum WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_FLAGS : uint {
+        public enum WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_FLAGS : uint {
             Primary                 = 0x1,
             ContainmentWarning      = 0x2,
             Reset                   = 0x4,
@@ -49,7 +51,7 @@ namespace DecodeWheaRecord {
         }
 
         [Flags]
-        private enum WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS : byte {
+        public enum WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS : byte {
             FRUId       = 0x1,
             FRUText     = 0x2,
             Reserved1   = 0x4,
@@ -60,7 +62,7 @@ namespace DecodeWheaRecord {
             Reserved6   = 0x80
         }
 
-        private enum WHEA_ERROR_SEVERITY {
+        public enum WHEA_ERROR_SEVERITY {
             WheaErrSevRecoverable   = 0,
             WheaErrSevFatal         = 1,
             WheaErrSevCorrected     = 2,
@@ -68,14 +70,14 @@ namespace DecodeWheaRecord {
         }
 
         // Unofficial
-        private enum WHEA_FIRMWARE_ERROR_RECORD_REFERENCE_TYPE : byte {
+        public enum WHEA_FIRMWARE_ERROR_RECORD_REFERENCE_TYPE : byte {
             IpfSal      = 0,
             SocFwType1  = 1,
             SocFwType2  = 2
         }
 
         [Flags]
-        private enum WHEA_PERSISTENCE_INFO_FLAGS : byte {
+        public enum WHEA_PERSISTENCE_INFO_FLAGS : byte {
             Attribute1  = 0x1,
             Attribute2  = 0x2,
             DoNotLog    = 0x4,
@@ -87,7 +89,7 @@ namespace DecodeWheaRecord {
         }
 
         [Flags]
-        private enum WHEA_TIMESTAMP_FLAGS : byte {
+        public enum WHEA_TIMESTAMP_FLAGS : byte {
             Precise = 0x1
         }
 
@@ -95,13 +97,13 @@ namespace DecodeWheaRecord {
 
         #region GUIDs
 
-        internal static readonly Dictionary<Guid, string> CreatorIds = new Dictionary<Guid, string>{
+        public static readonly Dictionary<Guid, string> CreatorIds = new Dictionary<Guid, string>{
             // Microsoft extensions
             { Guid.Parse("cf07c4bd-b789-4e18-b3c4-1f732cb57131"), "Microsoft" },
             { Guid.Parse("57217c8d-5e66-44fb-8033-9b74cacedf5b"), "Device Driver" }
         };
 
-        internal static readonly Dictionary<Guid, string> NotifyTypes = new Dictionary<Guid, string>{
+        public static readonly Dictionary<Guid, string> NotifyTypes = new Dictionary<Guid, string>{
             // Standard types
             { Guid.Parse("3d61a466-ab40-409a-a698-f362d464b38f"), "Boot Error Record (BOOT)" },
             { Guid.Parse("2dce8bb1-bdd7-450e-b9ad-9cf4ebd4f890"), "Corrected Machine Check (CMC)" }, // DevSkim: ignore DS187371
@@ -124,7 +126,7 @@ namespace DecodeWheaRecord {
             { Guid.Parse("3e62a467-ab40-409a-a698-f362d464b38f"), "GENERIC_NOTIFY_TYPE_GUID" }
         };
 
-        internal static readonly Dictionary<Guid, string> SectionTypes = new Dictionary<Guid, string>{
+        public static readonly Dictionary<Guid, string> SectionTypes = new Dictionary<Guid, string>{
             // Standard types
             { Guid.Parse("5b51fef7-c79d-4434-8f1b-aa62de3e2c64"), "DMAr Generic" },
             { Guid.Parse("81212a96-09ed-4996-9471-8d729c8e69ed"), "Firmware Error Record Reference" },
@@ -161,7 +163,7 @@ namespace DecodeWheaRecord {
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        internal class WHEA_ERROR_RECORD : WheaRecord {
+        public class WHEA_ERROR_RECORD : WheaRecord {
             public WHEA_ERROR_RECORD_HEADER                 Header;
 
             // FIXME: Hard-coded for our sample
@@ -170,10 +172,10 @@ namespace DecodeWheaRecord {
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-        internal class WHEA_ERROR_RECORD_HEADER : WheaRecord {
+        public class WHEA_ERROR_RECORD_HEADER : WheaRecord {
             // Should always be "CPER"
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            private char[]                              Signature;
+            public char[]                               Signature;
 
             [JsonProperty(Order = 2)]
             public WHEA_REVISION                        Revision;
@@ -185,8 +187,8 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 4)]
             public ushort                               SectionCount;
 
-            private WHEA_ERROR_SEVERITY                 Severity;
-            private WHEA_ERROR_RECORD_HEADER_VALIDBITS  ValidBits;
+            public WHEA_ERROR_SEVERITY                  Severity;
+            public WHEA_ERROR_RECORD_HEADER_VALIDBITS   ValidBits;
 
             [JsonProperty(Order = 7)]
             public uint                                 Length;
@@ -200,13 +202,13 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 10)]
             public Guid                                 PartitionId;
 
-            internal Guid                               CreatorId;
-            internal Guid                               NotifyType;
+            public Guid                                 CreatorId;
+            public Guid                                 NotifyType;
 
             [JsonProperty(Order = 13)]
             public ulong                                RecordId;
 
-            private WHEA_ERROR_RECORD_HEADER_FLAGS      Flags;
+            public WHEA_ERROR_RECORD_HEADER_FLAGS       Flags;
 
             [JsonProperty(Order = 15)]
             public WHEA_PERSISTENCE_INFO                PersistenceInfo;
@@ -247,7 +249,7 @@ namespace DecodeWheaRecord {
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-        internal class WHEA_ERROR_RECORD_SECTION_DESCRIPTOR : WheaRecord {
+        public class WHEA_ERROR_RECORD_SECTION_DESCRIPTOR : WheaRecord {
             [JsonProperty(Order = 1)]
             public uint                                             SectionOffset;
 
@@ -257,21 +259,21 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 3)]
             public WHEA_REVISION                                    Revision;
 
-            private WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS  ValidBits;
+            public WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS   ValidBits;
 
             [JsonProperty(Order = 5)]
             public char                                             Reserved;
 
-            private WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_FLAGS      Flags;
-            internal Guid                                           SectionType;
+            public WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_FLAGS       Flags;
+            public Guid                                             SectionType;
 
             [JsonProperty(Order = 8)]
             public Guid                                             FRUId;
 
-            private WHEA_ERROR_SEVERITY                             SectionSeverity;
+            public WHEA_ERROR_SEVERITY                              SectionSeverity;
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 20)]
-            private char[]                                          FRUText;
+            public char[]                                           FRUText;
 
             [JsonProperty("ValidBits", Order = 4)]
             public string ValidBitsEnabled => GetEnabledFlagsAsString(ValidBits);
@@ -291,18 +293,18 @@ namespace DecodeWheaRecord {
 
         // Expanded from out-of-date struct in official headers
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-        internal class WHEA_FIRMWARE_ERROR_RECORD_REFERENCE : WheaRecord {
-            private WHEA_FIRMWARE_ERROR_RECORD_REFERENCE_TYPE   Type;
+        public class WHEA_FIRMWARE_ERROR_RECORD_REFERENCE : WheaRecord {
+            public WHEA_FIRMWARE_ERROR_RECORD_REFERENCE_TYPE    Type;
 
             [JsonProperty(Order = 2)]
             public char                                         Revision;
 
-            private byte                                        Reserved1;
-            private byte                                        Reserved2;
-            private byte                                        Reserved3;
-            private byte                                        Reserved4;
-            private byte                                        Reserved5;
-            private byte                                        Reserved6;
+            public byte                                         Reserved1;
+            public byte                                         Reserved2;
+            public byte                                         Reserved3;
+            public byte                                         Reserved4;
+            public byte                                         Reserved5;
+            public byte                                         Reserved6;
 
             [JsonProperty(Order = 3)]
             public ulong                                        RecordId;
@@ -315,9 +317,9 @@ namespace DecodeWheaRecord {
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-        internal class WHEA_PERSISTENCE_INFO : WheaRecord {
+        public class WHEA_PERSISTENCE_INFO : WheaRecord {
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 2)]
-            private char[]                      Signature;
+            public char[]                       Signature;
 
             [JsonProperty(Order = 2)]
             public byte                         Length1;
@@ -331,7 +333,7 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 5)]
             public ushort                       Identifier;
 
-            private WHEA_PERSISTENCE_INFO_FLAGS Flags;
+            public WHEA_PERSISTENCE_INFO_FLAGS  Flags;
 
             [JsonProperty("Signature", Order = 1)]
             public string SignatureString => new string(Signature);
@@ -341,13 +343,13 @@ namespace DecodeWheaRecord {
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-        internal class WHEA_REVISION : WheaRecord {
+        public class WHEA_REVISION : WheaRecord {
             public char MajorRevision;
             public char MinorRevision;
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        internal class WHEA_TIMESTAMP : WheaRecord {
+        public class WHEA_TIMESTAMP : WheaRecord {
             [JsonProperty(Order = 1)]
             public byte                     Seconds;
 
@@ -357,7 +359,7 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 3)]
             public byte                     Hours;
 
-            private WHEA_TIMESTAMP_FLAGS    Flags;
+            public WHEA_TIMESTAMP_FLAGS     Flags;
 
             [JsonProperty(Order = 5)]
             public byte                     Day;
