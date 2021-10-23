@@ -104,7 +104,7 @@ namespace DecodeWheaRecord {
         internal static readonly Dictionary<Guid, string> NotifyTypes = new Dictionary<Guid, string>{
             // Standard types
             { Guid.Parse("3d61a466-ab40-409a-a698-f362d464b38f"), "Boot Error Record (BOOT)" },
-            { Guid.Parse("2dce8bb1-bdd7-450e-b9ad-9cf4ebd4f890"), "Corrected Machine Check (CMC)" },
+            { Guid.Parse("2dce8bb1-bdd7-450e-b9ad-9cf4ebd4f890"), "Corrected Machine Check (CMC)" }, // DevSkim: ignore DS187371
             { Guid.Parse("4e292f96-d843-4a55-a8c2-d481f27ebeee"), "Corrected Platform Error (CPE)" },
             { Guid.Parse("667dd791-c6b3-4c27-8a6b-0f8e722deb41"), "DMA Remapping Error (DMAr)" },
             { Guid.Parse("cc5263e8-9308-454a-89d0-340bd39bc98e"), "INIT Record (INIT)" },
