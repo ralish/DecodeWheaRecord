@@ -1,7 +1,7 @@
 {
     // File paths to language mappings
     "files.associations": {
-        "**/*.sln": "properties"
+        "*.sln": "properties"
     },
 
     // Important to disable for EditorConfig to apply correctly
