@@ -7,7 +7,6 @@ pool:
 variables:
   solution: DecodeWheaRecord.sln
   buildPlatform: Any CPU
-  buildConfiguration: Release
 
 steps:
 - task: NuGetToolInstaller@1
@@ -22,5 +21,24 @@ steps:
   inputs:
     solution: $(solution)
     platform: $(buildPlatform)
-    configuration: $(buildConfiguration)
+    configuration: Debug
     maximumCpuCount: true
+
+- task: VSBuild@1
+  inputs:
+    solution: $(solution)
+    platform: $(buildPlatform)
+    configuration: Release
+    maximumCpuCount: true
+
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: bin/Release
+    artifact: DecodeWheaRecord-$(build.SourceVersion)
+    publishLocation: pipeline
+
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: bin/Debug
+    artifact: DecodeWheaRecord-$(build.SourceVersion)-dbg
+    publishLocation: pipeline
