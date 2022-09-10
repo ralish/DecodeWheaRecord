@@ -25,10 +25,10 @@ trim_trailing_whitespace = false
 indent_size = 2
 
 # Visual Studio projects
-[*.*proj]
+[*.*proj{,.user}]
 charset = unset
 indent_size = 2
-insert_final_newline = unset
+insert_final_newline = false
 
 # Visual Studio solutions
 [*.sln]

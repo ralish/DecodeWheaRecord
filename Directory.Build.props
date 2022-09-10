@@ -1,10 +1,17 @@
-<Project>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
   <PropertyGroup>
+    <!-- Path to root of the repository -->
     <RepoRoot>$([System.IO.Path]::GetFullPath($([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '..'))))\</RepoRoot>
+
+    <!-- Store intermediate build outputs in a top-level obj directory -->
     <BaseIntermediateOutputPath>$(RepoRoot)obj\</BaseIntermediateOutputPath>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+
+    <!-- Store build outputs in a top-level bin directory -->
     <OutputPath>$(RepoRoot)bin\$(Configuration)\</OutputPath>
+
+    <!-- Default to the Debug configuration if none specified -->
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
   </PropertyGroup>
 
 </Project>
