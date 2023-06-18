@@ -174,6 +174,7 @@ namespace DecodeWheaRecord {
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
         public class WHEA_ERROR_RECORD_HEADER : WheaRecord {
             // Should always be "CPER"
+            [NonSerialized]
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
             public char[]                               Signature;
 
@@ -187,7 +188,10 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 4)]
             public ushort                               SectionCount;
 
+            [NonSerialized]
             public WHEA_ERROR_SEVERITY                  Severity;
+
+            [NonSerialized]
             public WHEA_ERROR_RECORD_HEADER_VALIDBITS   ValidBits;
 
             [JsonProperty(Order = 7)]
@@ -202,12 +206,16 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 10)]
             public Guid                                 PartitionId;
 
+            [NonSerialized]
             public Guid                                 CreatorId;
+
+            [NonSerialized]
             public Guid                                 NotifyType;
 
             [JsonProperty(Order = 13)]
             public ulong                                RecordId;
 
+            [NonSerialized]
             public WHEA_ERROR_RECORD_HEADER_FLAGS       Flags;
 
             [JsonProperty(Order = 15)]
@@ -259,19 +267,25 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 3)]
             public WHEA_REVISION                                    Revision;
 
+            [NonSerialized]
             public WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS   ValidBits;
 
             [JsonProperty(Order = 5)]
             public char                                             Reserved;
 
+            [NonSerialized]
             public WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_FLAGS       Flags;
+
+            [NonSerialized]
             public Guid                                             SectionType;
 
             [JsonProperty(Order = 8)]
             public Guid                                             FRUId;
 
+            [NonSerialized]
             public WHEA_ERROR_SEVERITY                              SectionSeverity;
 
+            [NonSerialized]
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 20)]
             public char[]                                           FRUText;
 
@@ -294,6 +308,7 @@ namespace DecodeWheaRecord {
         // Expanded from out-of-date struct in official headers
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
         public class WHEA_FIRMWARE_ERROR_RECORD_REFERENCE : WheaRecord {
+            [NonSerialized]
             public WHEA_FIRMWARE_ERROR_RECORD_REFERENCE_TYPE    Type;
 
             [JsonProperty(Order = 2)]
@@ -319,6 +334,7 @@ namespace DecodeWheaRecord {
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
         public class WHEA_PERSISTENCE_INFO : WheaRecord {
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 2)]
+            [NonSerialized]
             public char[]                       Signature;
 
             [JsonProperty(Order = 2)]
@@ -333,6 +349,7 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 5)]
             public ushort                       Identifier;
 
+            [NonSerialized]
             public WHEA_PERSISTENCE_INFO_FLAGS  Flags;
 
             [JsonProperty("Signature", Order = 1)]
@@ -359,6 +376,7 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 3)]
             public byte                     Hours;
 
+            [NonSerialized]
             public WHEA_TIMESTAMP_FLAGS     Flags;
 
             [JsonProperty(Order = 5)]

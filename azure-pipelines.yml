@@ -23,6 +23,9 @@ steps:
     platform: $(buildPlatform)
     configuration: Debug
     maximumCpuCount: true
+    restoreNugetPackages: true
+
+- task: VSTest@2
 
 - task: VSBuild@1
   inputs:

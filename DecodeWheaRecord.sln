@@ -5,6 +5,8 @@ VisualStudioVersion = 17.2.32630.192
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DecodeWheaRecord", "src\DecodeWheaRecord.csproj", "{27779526-0709-4F99-A286-378267AA5B75}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DecodeWheaRecord.Tests", "tests\DecodeWheaRecord.Tests.csproj", "{A7ACBE55-1FEE-45FF-A86A-EDC5F23C1823}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{27779526-0709-4F99-A286-378267AA5B75}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{27779526-0709-4F99-A286-378267AA5B75}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{27779526-0709-4F99-A286-378267AA5B75}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7ACBE55-1FEE-45FF-A86A-EDC5F23C1823}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7ACBE55-1FEE-45FF-A86A-EDC5F23C1823}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7ACBE55-1FEE-45FF-A86A-EDC5F23C1823}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7ACBE55-1FEE-45FF-A86A-EDC5F23C1823}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
