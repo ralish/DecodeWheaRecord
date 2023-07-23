@@ -6,7 +6,7 @@
             "type": "clr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/bin/Debug/DecodeWheaRecord.exe",
+            "program": "${workspaceFolder}/bin/DecodeWheaRecord/Debug/DecodeWheaRecord.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

@@ -24,8 +24,6 @@ steps:
     configuration: Debug
     maximumCpuCount: true
 
-- task: VSTest@2
-
 - task: VSBuild@1
   inputs:
     solution: $(solution)
@@ -33,14 +31,16 @@ steps:
     configuration: Release
     maximumCpuCount: true
 
+- task: VSTest@2
+
 - task: PublishPipelineArtifact@1
   inputs:
-    targetPath: bin/Release
+    targetPath: bin/DecodeWheaRecord/Release
     artifact: DecodeWheaRecord-$(build.SourceVersion)
     publishLocation: pipeline
 
 - task: PublishPipelineArtifact@1
   inputs:
-    targetPath: bin/Debug
+    targetPath: bin/DecodeWheaRecord/Debug
     artifact: DecodeWheaRecord-$(build.SourceVersion)-dbg
     publishLocation: pipeline

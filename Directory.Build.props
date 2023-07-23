@@ -2,13 +2,13 @@
 
   <PropertyGroup>
     <!-- Path to root of the repository -->
-    <RepoRoot>$([System.IO.Path]::GetFullPath($([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '..'))))\</RepoRoot>
-
-    <!-- Store build outputs in a top-level bin directory -->
-    <OutputPath>$(RepoRoot)bin\$(Configuration)\</OutputPath>
+    <RepoRoot>$([System.IO.Path]::GetFullPath($([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '..\..'))))\</RepoRoot>
 
     <!-- Default to the Debug configuration if none specified -->
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+
+    <!-- Store build outputs in a top-level bin/ directory -->
+    <OutputPath>$(RepoRoot)bin\$(MSBuildProjectName)\$(Configuration)\</OutputPath>
   </PropertyGroup>
 
 </Project>

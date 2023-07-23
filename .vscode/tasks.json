@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/DecodeWheaRecord.csproj",
+                "${workspaceFolder}/src/DecodeWheaRecord/DecodeWheaRecord.csproj",
                 "/consoleLoggerParameters:NoSummary",
                 "/property:GenerateFullPaths=true"
             ],
