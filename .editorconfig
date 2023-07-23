@@ -24,6 +24,12 @@ trim_trailing_whitespace = false
 [*.{props,targets}]
 indent_size = 2
 
+# ReSharper configuration
+[*.{DotSettings,DotSettings.user}]
+charset = utf-8-bom
+indent_style = tab
+insert_final_newline = false
+
 # Visual Studio projects
 [*.*proj{,.user}]
 charset = unset

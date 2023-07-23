@@ -1,6 +1,9 @@
 {
     // File paths to language mappings
     "files.associations": {
+        // ReSharper
+        "*.DotSettings": "xml",
+        "*.DotSettings.user": "xml",
         // Visual Studio
         "*.sln": "properties"
     },
