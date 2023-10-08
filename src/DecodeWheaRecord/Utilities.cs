@@ -18,8 +18,8 @@ namespace DecodeWheaRecord {
         }
 
         internal static void ExitUnsupportedEvent(string eventName) {
-            var msg = $"The \"{eventName}\" event is not yet supported.\n" +
-                      "Would you consider sending us the event to help us add support:\n" +
+            var msg = $"The \"{eventName}\" event is not yet supported.\n\n" +
+                      "Would you consider sending us the event to help us add support?\n" +
                       "https://github.com/ralish/DecodeWheaRecord/issues/new";
             ExitWithMessage(msg, 1);
         }
