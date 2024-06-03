@@ -3007,50 +3007,62 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 22)]
             public WHEA_DEVICE_DRIVER_DESCRIPTOR DeviceDriverDescriptor;
 
+            [UsedImplicitly]
             public bool ShouldSerializeXpfMceDescriptor() {
                 return _Type == WHEA_ERROR_SOURCE_TYPE.MCE;
             }
 
+            [UsedImplicitly]
             public bool ShouldSerializeXpfCmcDescriptor() {
                 return _Type == WHEA_ERROR_SOURCE_TYPE.CMC;
             }
 
+            [UsedImplicitly]
             public bool ShouldSerializeXpfNmiDescriptor() {
                 return _Type == WHEA_ERROR_SOURCE_TYPE.NMI;
             }
 
+            [UsedImplicitly]
             public bool ShouldSerializeIpfMcaDescriptor() {
                 return _Type == WHEA_ERROR_SOURCE_TYPE.IPFMCA;
             }
 
+            [UsedImplicitly]
             public bool ShouldSerializeIpfCmcDescriptor() {
                 return _Type == WHEA_ERROR_SOURCE_TYPE.IPFCMC;
             }
 
+            [UsedImplicitly]
             public bool ShouldSerializeIpfCpeDescriptor() {
                 return _Type == WHEA_ERROR_SOURCE_TYPE.IPFCPE;
             }
 
+            [UsedImplicitly]
             public bool ShouldSerializeAerRootportDescriptor() {
                 return _Type == WHEA_ERROR_SOURCE_TYPE.PCIe && AerRootportDescriptor.Validate();
             }
 
+            [UsedImplicitly]
             public bool ShouldSerializeAerEndpointDescriptor() {
                 return _Type == WHEA_ERROR_SOURCE_TYPE.PCIe && AerEndpointDescriptor.Validate();
             }
 
+            [UsedImplicitly]
             public bool ShouldSerializeAerBridgeDescriptor() {
                 return _Type == WHEA_ERROR_SOURCE_TYPE.PCIe && AerBridgeDescriptor.Validate();
             }
 
+            [UsedImplicitly]
             public bool ShouldSerializeGenErrDescriptor() {
                 return _Type == WHEA_ERROR_SOURCE_TYPE.Generic;
             }
 
+            [UsedImplicitly]
             public bool ShouldSerializeGenErrDescriptorV2() {
                 return _Type == WHEA_ERROR_SOURCE_TYPE.GenericV2;
             }
 
+            [UsedImplicitly]
             public bool ShouldSerializeDeviceDriverDescriptor() {
                 return _Type == WHEA_ERROR_SOURCE_TYPE.DeviceDriver;
             }
@@ -4669,22 +4681,27 @@ namespace DecodeWheaRecord {
                 return _Type == WHEA_NOTIFICATION_TYPE.Polled;
             }
 
+            [UsedImplicitly]
             public bool ShouldSerializeVector() {
                 return !IsPolled();
             }
 
+            [UsedImplicitly]
             public bool ShouldSerializeSwitchToPollingThreshold() {
                 return !IsPolled();
             }
 
+            [UsedImplicitly]
             public bool ShouldSerializeSwitchToPollingWindow() {
                 return !IsPolled();
             }
 
+            [UsedImplicitly]
             public bool ShouldSerializeErrorThreshold() {
                 return !IsPolled();
             }
 
+            [UsedImplicitly]
             public bool ShouldSerializeErrorThresholdWindow() {
                 return !IsPolled();
             }
