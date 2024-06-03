@@ -538,17 +538,16 @@ namespace DecodeWheaRecord {
                 }
 
                 const byte majorRevision = WHEA_ERROR_RECORD_REVISION >> 8;
-                if (Revision.MajorRevision != majorRevision) {
-                    var msg =
-                        $"[{nameof(WHEA_ERROR_RECORD_HEADER)}] Expected major revision {majorRevision} but MajorRevision member is: {Revision.MajorRevision}";
-                    ExitWithMessage(msg, 2);
-                }
-
-                const byte minorRevision = WHEA_ERROR_RECORD_REVISION & 0xFF;
-                if (Revision.MinorRevision != minorRevision) {
-                    var msg =
-                        $"[{nameof(WHEA_ERROR_RECORD_HEADER)}] Expected minor revision {minorRevision} but MinorRevision member is: {Revision.MinorRevision}";
-                    ExitWithMessage(msg, 2);
+                if (Revision.MajorRevision > majorRevision) {
+                    var msg = $"[{nameof(WHEA_ERROR_RECORD_HEADER)}] Major revision {Revision.MajorRevision} is greater than max supported: {majorRevision}";
+                    Console.Error.WriteLine(msg);
+                } else if (Revision.MajorRevision == majorRevision) {
+                    const byte minorRevision = WHEA_ERROR_RECORD_REVISION & 0xFF;
+                    if (Revision.MinorRevision > minorRevision) {
+                        var msg =
+                            $"[{nameof(WHEA_ERROR_RECORD_HEADER)}] Minor revision {Revision.MinorRevision} is greater than max supported: {minorRevision}";
+                        Console.Error.WriteLine(msg);
+                    }
                 }
 
                 if (SignatureEnd != WHEA_ERROR_RECORD_SIGNATURE_END) {
@@ -762,17 +761,17 @@ namespace DecodeWheaRecord {
 
             public override void Validate() {
                 const byte majorRevision = WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION >> 8;
-                if (Revision.MajorRevision != majorRevision) {
+                if (Revision.MajorRevision > majorRevision) {
                     var msg =
-                        $"[{nameof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR)}] Expected major revision {majorRevision} but MajorRevision member is: {Revision.MajorRevision}";
-                    ExitWithMessage(msg, 2);
-                }
-
-                const byte minorRevision = WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION & 0xFF;
-                if (Revision.MinorRevision != minorRevision) {
-                    var msg =
-                        $"[{nameof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR)}] Expected minor revision {minorRevision} but MinorRevision member is: {Revision.MinorRevision}";
-                    ExitWithMessage(msg, 2);
+                        $"[{nameof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR)}] Major revision {Revision.MajorRevision} is greater than max supported: {majorRevision}";
+                    Console.Error.WriteLine(msg);
+                } else if (Revision.MajorRevision == majorRevision) {
+                    const byte minorRevision = WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION & 0xFF;
+                    if (Revision.MinorRevision > minorRevision) {
+                        var msg =
+                            $"[{nameof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR)}] Minor revision {Revision.MinorRevision} is greater than max supported: {minorRevision}";
+                        Console.Error.WriteLine(msg);
+                    }
                 }
             }
         }

@@ -172,13 +172,11 @@ namespace DecodeWheaRecord {
                 if (Header.Length != _bytesProcessed) {
                     var msg = $"[{StructureName}] Header indicates error record contains {Header.Length} bytes but processed {_bytesProcessed} bytes.";
                     Console.Error.WriteLine(msg);
-                    //ExitWithMessage(msg, 2);
                 }
 
                 if (Header.Length != _bytesMarshalled) {
                     var msg = $"[{StructureName}] Header indicates error record contains {Header.Length} bytes but marshalled {_bytesMarshalled} bytes.";
                     Console.Error.WriteLine(msg);
-                    //ExitWithMessage(msg, 2);
                 }
 
                 return true;
@@ -499,13 +497,11 @@ namespace DecodeWheaRecord {
                 if (Header.Length != _bytesProcessed) {
                     var msg = $"[{StructureName}] Header indicates error record contains {Header.Length} bytes but processed {_bytesProcessed} bytes.";
                     Console.Error.WriteLine(msg);
-                    //ExitWithMessage(msg, 2);
                 }
 
                 if (Header.Length != _bytesMarshalled) {
                     var msg = $"[{StructureName}] Header indicates error record contains {Header.Length} bytes but marshalled {_bytesMarshalled} bytes.";
                     Console.Error.WriteLine(msg);
-                    //ExitWithMessage(msg, 2);
                 }
 
                 return true;
