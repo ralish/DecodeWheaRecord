@@ -10,8 +10,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
+
+using DecodeWheaRecord.Errors;
 
 using JetBrains.Annotations;
 
@@ -23,201 +26,285 @@ namespace DecodeWheaRecord {
     internal static class NativeMethods {
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         internal abstract class WheaRecord {
+            internal virtual int GetNativeSize() {
+                throw new NotImplementedException();
+            }
+
             public virtual void Validate() { }
         }
 
         #region GUIDs
 
+        /*
+         * Creator IDs
+         */
+
+        // Microsoft extensions
+        public static readonly Guid WHEA_RECORD_CREATOR_GUID = Guid.Parse("cf07c4bd-b789-4e18-b3c4-1f732cb57131");
+        public static readonly Guid DEFAULT_DEVICE_DRIVER_CREATOR_GUID = Guid.Parse("57217c8d-5e66-44fb-8033-9b74cacedf5b");
+
         public static readonly Dictionary<Guid, string> CreatorIds = new Dictionary<Guid, string> {
             // Microsoft extensions
-            { Guid.Parse("cf07c4bd-b789-4e18-b3c4-1f732cb57131"), "Microsoft" },    // WHEA_RECORD_CREATOR_GUID
-            { Guid.Parse("57217c8d-5e66-44fb-8033-9b74cacedf5b"), "Device Driver" } // DEFAULT_DEVICE_DRIVER_CREATOR_GUID
+            { WHEA_RECORD_CREATOR_GUID, "Microsoft" },
+            { DEFAULT_DEVICE_DRIVER_CREATOR_GUID, "Device Driver (default)" }
         };
+
+
+        /*
+         * Notification types
+         */
+
+        // Standard notifications
+        public static readonly Guid BOOT_NOTIFY_TYPE_GUID = Guid.Parse("3d61a466-ab40-409a-a698-f362d464b38f");
+        public static readonly Guid CMC_NOTIFY_TYPE_GUID = Guid.Parse("2dce8bb1-bdd7-450e-b9ad-9cf4ebd4f890");
+        public static readonly Guid CPE_NOTIFY_TYPE_GUID = Guid.Parse("4e292f96-d843-4a55-a8c2-d481f27ebeee");
+        public static readonly Guid INIT_NOTIFY_TYPE_GUID = Guid.Parse("cc5263e8-9308-454a-89d0-340bd39bc98e");
+        public static readonly Guid MCE_NOTIFY_TYPE_GUID = Guid.Parse("e8f56ffe-919c-4cc5-ba88-65abe14913bb");
+        public static readonly Guid NMI_NOTIFY_TYPE_GUID = Guid.Parse("5bad89ff-b7e6-42c9-814a-cf2485d6e98a");
+        public static readonly Guid PCIe_NOTIFY_TYPE_GUID = Guid.Parse("cf93c01f-1a16-4dfc-b8bc-9c4daf67c104");
+        public static readonly Guid PEI_NOTIFY_TYPE_GUID = Guid.Parse("09a9d5ac-5204-4214-96e5-94992e752bcd");
+        public static readonly Guid SEA_NOTIFY_TYPE_GUID = Guid.Parse("9a78788a-bbe8-11e4-809e-67611e5d46b0");
+        public static readonly Guid SEI_NOTIFY_TYPE_GUID = Guid.Parse("5c284c81-b0ae-4e87-a322-b04c85624323");
+
+        // Microsoft notifications
+        public static readonly Guid BMC_NOTIFY_TYPE_GUID = Guid.Parse("487565ba-6494-4367-95ca-4eff893522f6");
+        public static readonly Guid CMCI_NOTIFY_TYPE_GUID = Guid.Parse("919448b2-3739-4b7f-a8f1-e0062805c2a3");
+        public static readonly Guid DEVICE_DRIVER_NOTIFY_TYPE_GUID = Guid.Parse("0033f803-2e70-4e88-992c-6f26daf3db7a");
+        public static readonly Guid EXTINT_NOTIFY_TYPE_GUID = Guid.Parse("fe84086e-b557-43cf-ac1b-17982e078470");
+        public static readonly Guid GENERIC_NOTIFY_TYPE_GUID = Guid.Parse("3e62a467-ab40-409a-a698-f362d464b38f");
+        public static readonly Guid SCI_NOTIFY_TYPE_GUID = Guid.Parse("e9d59197-94ee-4a4f-8ad8-9b7d8bd93d2e");
 
         public static readonly Dictionary<Guid, string> NotifyTypes = new Dictionary<Guid, string> {
-            // Standard types
-            { Guid.Parse("3d61a466-ab40-409a-a698-f362d464b38f"), "Boot Error Record (BOOT)" },         // BOOT_NOTIFY_TYPE_GUID
-            { Guid.Parse("2dce8bb1-bdd7-450e-b9ad-9cf4ebd4f890"), "Corrected Machine Check (CMC)" },    // CMC_NOTIFY_TYPE_GUID
-            { Guid.Parse("4e292f96-d843-4a55-a8c2-d481f27ebeee"), "Corrected Platform Error (CPE)" },   // CPE_NOTIFY_TYPE_GUID
-            { Guid.Parse("667dd791-c6b3-4c27-8a6b-0f8e722deb41"), "DMA Remapping Error (DMAr)" },       // Not in headers
-            { Guid.Parse("cc5263e8-9308-454a-89d0-340bd39bc98e"), "INIT Error Record (INIT)" },         // INIT_NOTIFY_TYPE_GUID
-            { Guid.Parse("e8f56ffe-919c-4cc5-ba88-65abe14913bb"), "Machine Check Exception (MCE)" },    // MCE_NOTIFY_TYPE_GUID
-            { Guid.Parse("5bad89ff-b7e6-42c9-814a-cf2485d6e98a"), "Non-Maskable Interrupt (NMI)" },     // NMI_NOTIFY_TYPE_GUID
-            { Guid.Parse("cf93c01f-1a16-4dfc-b8bc-9c4daf67c104"), "PCI Express (PCIe) Error" },         // PCIe_NOTIFY_TYPE_GUID
-            { Guid.Parse("09a9d5ac-5204-4214-96e5-94992e752bcd"), "Platform Error Interrupt (PEI)" },   // PEI_NOTIFY_TYPE_GUID
-            { Guid.Parse("9a78788a-bbe8-11e4-809e-67611e5d46b0"), "Synchronous External Abort (SEA)" }, // SEA_NOTIFY_TYPE_GUID
-            { Guid.Parse("5c284c81-b0ae-4e87-a322-b04c85624323"), "SError Interrupt (SEI)" },           // SEI_NOTIFY_TYPE_GUID
-            { Guid.Parse("487565ba-6494-4367-95ca-4eff893522f6"), "BMC_NOTIFY_TYPE_GUID" },             // BMC_NOTIFY_TYPE_GUID
-            { Guid.Parse("919448b2-3739-4b7f-a8f1-e0062805c2a3"), "CMCI_NOTIFY_TYPE_GUID" },            // CMCI_NOTIFY_TYPE_GUID
-            { Guid.Parse("0033f803-2e70-4e88-992c-6f26daf3db7a"), "DEVICE_DRIVER_NOTIFY_TYPE_GUID" },   // DEVICE_DRIVER_NOTIFY_TYPE_GUID
-            { Guid.Parse("fe84086e-b557-43cf-ac1b-17982e078470"), "EXTINT_NOTIFY_TYPE_GUID" },          // EXTINT_NOTIFY_TYPE_GUID
-            { Guid.Parse("e9d59197-94ee-4a4f-8ad8-9b7d8bd93d2e"), "SCI_NOTIFY_TYPE_GUID" },             // SCI_NOTIFY_TYPE_GUID
+            // Standard notifications
+            { BOOT_NOTIFY_TYPE_GUID, "Boot Error Record (BOOT)" },
+            { CMC_NOTIFY_TYPE_GUID, "Corrected Machine Check (CMC)" },
+            { CPE_NOTIFY_TYPE_GUID, "Corrected Platform Error (CPE)" },
+            { INIT_NOTIFY_TYPE_GUID, "Init Error Record (INIT)" },
+            { MCE_NOTIFY_TYPE_GUID, "Machine Check Exception (MCE)" },
+            { NMI_NOTIFY_TYPE_GUID, "Non-Maskable Interrupt (NMI)" },
+            { PCIe_NOTIFY_TYPE_GUID, "PCI Express Error (PCIe)" },
+            { PEI_NOTIFY_TYPE_GUID, "Platform Error Interrupt (PEI)" },
+            { SEA_NOTIFY_TYPE_GUID, "Synchronous External Abort (SEA)" },
+            { SEI_NOTIFY_TYPE_GUID, "SError Interrupt (SEI)" },
 
-            // Microsoft extensions
-            { Guid.Parse("3e62a467-ab40-409a-a698-f362d464b38f"), "Generic Error Record" } // GENERIC_NOTIFY_TYPE_GUID
+            // Standard notifications not in headers
+            { Guid.Parse("69293bc9-41df-49a3-b4bd-4fb0db3041f6"), "Compute Express Link (CXL)" },
+            { Guid.Parse("667dd791-c6b3-4c27-8a6b-0f8e722deb41"), "DMA Remapping Error (DMAr)" },
+
+            // Microsoft notifications
+            { BMC_NOTIFY_TYPE_GUID, "Baseboard Management Controller (BMC)" },
+            { CMCI_NOTIFY_TYPE_GUID, "Corrected Machine Check Interrupt (CMCI)" },
+            { DEVICE_DRIVER_NOTIFY_TYPE_GUID, "Device Driver" },
+            { EXTINT_NOTIFY_TYPE_GUID, "External Interrupt" },
+            { GENERIC_NOTIFY_TYPE_GUID, "Generic Error Record" },
+            { SCI_NOTIFY_TYPE_GUID, "Service Control Interrupt (SCI)" }
         };
 
+
+        /*
+         * Section types
+         */
+
+        // Standard sections
+        public static readonly Guid ARM_PROCESSOR_ERROR_SECTION_GUID = Guid.Parse("e19e3d16-bc11-11e4-9caa-c2051d5d46b0");
+        public static readonly Guid FIRMWARE_ERROR_RECORD_REFERENCE_GUID = Guid.Parse("81212a96-09ed-4996-9471-8d729c8e69ed");
+        public static readonly Guid IPF_PROCESSOR_ERROR_SECTION_GUID = Guid.Parse("e429faf1-3cb7-11d4-bca7-0080c73c8881");
+        public static readonly Guid MEMORY_ERROR_SECTION_GUID = Guid.Parse("a5bc1114-6f64-4ede-b863-3e83ed7c83b1");
+        public static readonly Guid PCIEXPRESS_ERROR_SECTION_GUID = Guid.Parse("d995e954-bbc1-430f-ad91-b44dcb3c6f35");
+        public static readonly Guid PCIXBUS_ERROR_SECTION_GUID = Guid.Parse("c5753963-3b84-4095-bf78-eddad3f9c9dd");
+        public static readonly Guid PCIXDEVICE_ERROR_SECTION_GUID = Guid.Parse("eb5e4685-ca66-4769-b6a2-26068b001326");
+        public static readonly Guid PROCESSOR_GENERIC_ERROR_SECTION_GUID = Guid.Parse("9876ccad-47b4-4bdb-b65e-16f193c4f3db");
+        public static readonly Guid XPF_PROCESSOR_ERROR_SECTION_GUID = Guid.Parse("dc3ea0b0-a144-4797-b95b-53fa242b6e1d");
+
+        // Microsoft sections
+        public static readonly Guid GENERIC_SECTION_GUID = Guid.Parse("e71254e8-c1b9-4940-ab76-909703a4320f");
+        public static readonly Guid IPF_SAL_RECORD_SECTION_GUID = Guid.Parse("6f3380d1-6eb0-497f-a578-4d4c65a71617");
+        public static readonly Guid IPMI_MSR_DUMP_SECTION_GUID = Guid.Parse("1c15b445-9b06-4667-ac25-33c056b88803");
+        public static readonly Guid MEMORY_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID = Guid.Parse("0e36c93e-ca15-4a83-ba8a-cbe80f7f0017");
+        public static readonly Guid MU_TELEMETRY_SECTION_GUID = Guid.Parse("85183a8b-9c41-429c-939c-5c3c087ca280");
+        public static readonly Guid NMI_SECTION_GUID = Guid.Parse("e71254e7-c1b9-4940-ab76-909703a4320f");
+        public static readonly Guid PCIE_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID = Guid.Parse("e96eca99-53e2-4f52-9be7-d2dbe9508ed0");
+        public static readonly Guid PMEM_ERROR_SECTION_GUID = Guid.Parse("81687003-dbfd-4728-9ffd-f0904f97597d");
+        public static readonly Guid RECOVERY_INFO_SECTION_GUID = Guid.Parse("c34832a1-02c3-4c52-a9f1-9f1d5d7723fc");
+        public static readonly Guid WHEA_DPC_CAPABILITY_SECTION_GUID = Guid.Parse("ec49534b-30e7-4358-972f-eca6958fae3b");
+        public static readonly Guid WHEA_ERROR_PACKET_SECTION_GUID = Guid.Parse("e71254e9-c1b9-4940-ab76-909703a4320f");
+        public static readonly Guid XPF_MCA_SECTION_GUID = Guid.Parse("8a1e1d01-42f9-4557-9c33-565e5cc3f7e8");
+
         public static readonly Dictionary<Guid, string> SectionTypes = new Dictionary<Guid, string> {
-            // Standard types not present in headers
+            // Standard sections not in headers
             { Guid.Parse("5b51fef7-c79d-4434-8f1b-aa62de3e2c64"), "DMAr Generic" },
             { Guid.Parse("71761d37-32b2-45cd-a7d0-b0fedd93e8cf"), "Intel VT for Directed I/O specific DMAr section" },
             { Guid.Parse("036f84e1-7f37-428c-a79e-575fdfaa84ec"), "IOMMU specific DMAr section" },
 
             /*
-             * Section type:        Microsoft
-             * Symbolic name:       MU_TELEMETRY_SECTION_GUID
-             * Structure:           MU_TELEMETRY_SECTION
-             * Notes:               Name is a guess as the structure is undocumented.
-             *                      Incorrectly listed as a standard error section?
-             */
-            { Guid.Parse("85183a8b-9c41-429c-939c-5c3c087ca280"), "Microsoft Update Telemetry" },
-
-            /*
              * Section type:        Standard
-             * Symbolic name:       ARM_PROCESSOR_ERROR_SECTION_GUID
              * Structure:           WHEA_ARM_PROCESSOR_ERROR_SECTION
+             * Docs:                Undocumented
+             * Support:             Done
              */
-            { Guid.Parse("e19e3d16-bc11-11e4-9caa-c2051d5d46b0"), "ARM Processor Error" },
-
-            /*
-             * Section type:        Microsoft
-             * Symbolic name:       WHEA_ERROR_PACKET_SECTION_GUID
-             * Structure:           WHEA_ERROR_PACKET_V1 / WHEA_ERROR_PACKET_V2
-             */
-            { Guid.Parse("e71254e9-c1b9-4940-ab76-909703a4320f"), "Hardware Error Packet" },
-
-            /*
-             * Section type:        Microsoft
-             * Symbolic name:       RECOVERY_INFO_SECTION_GUID
-             * Structure:           WHEA_ERROR_RECOVERY_INFO_SECTION
-             * Notes:               Name is a guess as the structure is undocumented.
-             *                      Incorrectly listed as a standard error section?
-             */
-            { Guid.Parse("c34832a1-02c3-4c52-a9f1-9f1d5d7723fc"), "Error Recovery Information" },
+            { ARM_PROCESSOR_ERROR_SECTION_GUID, "ARM Processor Error" },
 
             /*
              * Section type:        Standard
-             * Symbolic name:       FIRMWARE_ERROR_RECORD_REFERENCE_GUID
              * Structure:           WHEA_FIRMWARE_ERROR_RECORD_REFERENCE
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_firmware_error_record_reference
+             * Support:             Done
              */
-            { Guid.Parse("81212a96-09ed-4996-9471-8d729c8e69ed"), "Firmware Error Record Reference" },
-
-            /*
-             * Section type:        Microsoft
-             * Symbolic name:       MEMORY_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID
-             * Structure:           WHEA_MEMORY_CORRECTABLE_ERROR_SECTION
-             */
-            { Guid.Parse("0e36c93e-ca15-4a83-ba8a-cbe80f7f0017"), "Correctable Memory Error" },
+            { FIRMWARE_ERROR_RECORD_REFERENCE_GUID, "Firmware Error Record Reference" },
 
             /*
              * Section type:        Standard
-             * Symbolic name:       MEMORY_ERROR_SECTION_GUID
-             * Structure:           WHEA_MEMORY_ERROR_SECTION
-             */
-            { Guid.Parse("a5bc1114-6f64-4ede-b863-3e83ed7c83b1"), "Memory Error" },
-
-            /*
-             * Section type:        Microsoft
-             * Symbolic name:       IPMI_MSR_DUMP_SECTION_GUID
-             * Structure:           WHEA_MSR_DUMP_SECTION
-             */
-            { Guid.Parse("1c15b445-9b06-4667-ac25-33c056b88803"), "IPMI MSR Dump" },
-
-            /*
-             * Section type:        Microsoft
-             * Symbolic name:       NMI_SECTION_GUID
-             * Structure:           WHEA_NMI_ERROR_SECTION
-             */
-            { Guid.Parse("e71254e7-c1b9-4940-ab76-909703a4320f"), "NMI Error" },
-
-            /*
-             * Section type:        Microsoft
-             * Symbolic name:       PCIE_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID
-             * Structure:           WHEA_PCIE_CORRECTABLE_ERROR_SECTION
-             */
-            { Guid.Parse("e96eca99-53e2-4f52-9be7-d2dbe9508ed0"), "Correctable PCIe Error" },
-
-            /*
-             * Section type:        Standard
-             * Symbolic name:       PCIEXPRESS_ERROR_SECTION_GUID
-             * Structure:           WHEA_PCIEXPRESS_ERROR_SECTION
-             */
-            { Guid.Parse("d995e954-bbc1-430f-ad91-b44dcb3c6f35"), "PCI Express Error" },
-
-            /*
-             * Section type:        Standard
-             * Symbolic name:       PCIXBUS_ERROR_SECTION_GUID
-             * Structure:           WHEA_PCIXBUS_ERROR_SECTION
-             */
-            { Guid.Parse("c5753963-3b84-4095-bf78-eddad3f9c9dd"), "PCI/PCI-X Bus Error" },
-
-            /*
-             * Section type:        Standard
-             * Symbolic name:       PCIXDEVICE_ERROR_SECTION_GUID
-             * Structure:           WHEA_PCIXDEVICE_ERROR_SECTION
-             */
-            { Guid.Parse("eb5e4685-ca66-4769-b6a2-26068b001326"), "PCI Component/Device Error" },
-
-            /*
-             * Section type:        Microsoft
-             * Symbolic name:       PMEM_ERROR_SECTION_GUID
-             * Structure:           WHEA_PMEM_ERROR_SECTION
-             */
-            { Guid.Parse("81687003-dbfd-4728-9ffd-f0904f97597d"), "Persistent Mememory Error" },
-
-            /*
-             * Section type:        Standard
-             * Symbolic name:       PROCESSOR_GENERIC_ERROR_SECTION_GUID
              * Structure:           WHEA_PROCESSOR_GENERIC_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_processor_generic_error_section
+             * Support:             Done
              */
-            { Guid.Parse("9876ccad-47b4-4bdb-b65e-16f193c4f3db"), "Generic Processor Error" },
+            { PROCESSOR_GENERIC_ERROR_SECTION_GUID, "Generic Processor Error" },
 
             /*
              * Section type:        Standard
-             * Symbolic name:       XPF_PROCESSOR_ERROR_SECTION_GUID
              * Structure:           WHEA_XPF_PROCESSOR_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_xpf_processor_error_section
+             * Support:             Done
              */
-            { Guid.Parse("dc3ea0b0-a144-4797-b95b-53fa242b6e1d"), "IA32/AMD64 Processor Error" },
+            { XPF_PROCESSOR_ERROR_SECTION_GUID, "IA32/AMD64 Processor Error" },
 
             /*
-             * TODO
-             * Section type:        Microsoft
-             * Symbolic name:       GENERIC_SECTION_GUID
-             * Structure:           TODO
-             */
-            { Guid.Parse("e71254e8-c1b9-4940-ab76-909703a4320f"), "GENERIC_SECTION_GUID" },
-
-            /*
-             * TODO
              * Section type:        Standard
-             * Symbolic name:       IPF_PROCESSOR_ERROR_SECTION_GUID
              * Structure:           TODO
+             * Docs:                TODO
+             * Support:             TODO
              */
-            { Guid.Parse("e429faf1-3cb7-11d4-bca7-0080c73c8881"), "IPF_PROCESSOR_ERROR_SECTION_GUID" },
+            { IPF_PROCESSOR_ERROR_SECTION_GUID, "IA64 Processor Error" },
 
             /*
-             * TODO
-             * Section type:        Microsoft
-             * Symbolic name:       IPF_SAL_RECORD_SECTION_GUID
-             * Structure:           TODO
+             * Section type:        Standard
+             * Structure:           WHEA_MEMORY_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_memory_error_section
+             * Support:             Done
              */
-            { Guid.Parse("6f3380d1-6eb0-497f-a578-4d4c65a71617"), "IPF_SAL_RECORD_SECTION_GUID" },
+            { MEMORY_ERROR_SECTION_GUID, "Memory Error" },
 
             /*
-             * TODO
-             * Section type:        Microsoft
-             * Symbolic name:       WHEA_DPC_CAPABILITY_SECTION_GUID
-             * Structure:           WHEA_PCI_DPC_SECTION (PCI_EXPRESS_DPC_CAPABILITY)
+             * Section type:        Standard
+             * Structure:           WHEA_PCIXDEVICE_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_pcixdevice_error_section
+             * Support:             Done
              */
-            { Guid.Parse("ec49534b-30e7-4358-972f-eca6958fae3b"), "WHEA_DPC_CAPABILITY_SECTION_GUID" },
+            { PCIXDEVICE_ERROR_SECTION_GUID, "PCI Component/Device Error" },
 
             /*
-             * TODO
+             * Section type:        Standard
+             * Structure:           WHEA_PCIEXPRESS_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_pciexpress_error_section
+             * Support:             Done
+             */
+            { PCIEXPRESS_ERROR_SECTION_GUID, "PCI Express Error" },
+
+            /*
+             * Section type:        Standard
+             * Structure:           WHEA_PCIXBUS_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_pcixbus_error_section
+             * Support:             Done
+             */
+            { PCIXBUS_ERROR_SECTION_GUID, "PCI/PCI-X Bus Error" },
+
+            /*
              * Section type:        Microsoft
-             * Symbolic name:       XPF_MCA_SECTION_GUID
+             * Structure:           WHEA_MEMORY_CORRECTABLE_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_memory_correctable_error_section
+             * Support:             Done
+             */
+            { MEMORY_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID, "Correctable Memory Error" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           WHEA_PCIE_CORRECTABLE_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_pcie_correctable_error_section_header
+             *                      https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_pcie_correctable_error_devices
+             * Support:             Done
+             */
+            { PCIE_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID, "Correctable PCIe Error" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           WHEA_ERROR_RECOVERY_INFO_SECTION
+             * Docs:                Undocumented
+             * Support:             Done
+             */
+            { RECOVERY_INFO_SECTION_GUID, "Error Recovery Information" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           WHEA_ERROR_PACKET_V1 / WHEA_ERROR_PACKET_V2
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_error_packet_v1
+             *                      https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_error_packet_v2
+             * Support:             Partial
+             */
+            { WHEA_ERROR_PACKET_SECTION_GUID, "Hardware Error Packet" },
+
+            /*
+             * Section type:        Microsoft
              * Structure:           WHEA_XPF_MCA_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_xpf_mca_section
+             * Support:             Done
              */
-            { Guid.Parse("8a1e1d01-42f9-4557-9c33-565e5cc3f7e8"), "XPF_MCA_SECTION_GUID" }
+            { XPF_MCA_SECTION_GUID, "IA32/AMD64 Machine Check Error" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           WHEA_MSR_DUMP_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_msr_dump_section
+             * Support:             Done
+             */
+            { IPMI_MSR_DUMP_SECTION_GUID, "MSR Dump" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           WHEA_NMI_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_nmi_error_section
+             * Support:             Done
+             */
+            { NMI_SECTION_GUID, "NMI Error" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           WHEA_PMEM_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_pmem_error_section
+             * Support:             Done
+             */
+            { PMEM_ERROR_SECTION_GUID, "Persistent Mememory Error" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           MU_TELEMETRY_SECTION
+             * Docs:                Undocumented
+             * Support:             Done
+             */
+            { MU_TELEMETRY_SECTION_GUID, "Project Mu Telemetry" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           TODO
+             * Docs:                TODO
+             * Support:             TODO
+             */
+            { GENERIC_SECTION_GUID, "GENERIC_SECTION_GUID" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           TODO
+             * Docs:                TODO
+             * Support:             TODO
+             */
+            { IPF_SAL_RECORD_SECTION_GUID, "IPF_SAL_RECORD_SECTION_GUID" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           WHEA_PCI_DPC_SECTION (PCI_EXPRESS_DPC_CAPABILITY)
+             * Docs:                TODO
+             * Support:             TODO
+             */
+            { WHEA_DPC_CAPABILITY_SECTION_GUID, "WHEA_DPC_CAPABILITY_SECTION_GUID" }
         };
 
         #endregion
@@ -238,19 +325,19 @@ namespace DecodeWheaRecord {
             CMC          = 1,  // Corrected Machine Check
             CPE          = 2,  // Corrected Platform Error
             NMI          = 3,  // Non-Maskable Interrupt
-            PCIe         = 4,  // PCI Express
+            PCIe         = 4,  // PCI Express error source
             Generic      = 5,  // Other types of error sources
-            INIT         = 6,  // Itanium INIT
-            BOOT         = 7,  // Boot error source
+            INIT         = 6,  // IA64 INIT error source
+            BOOT         = 7,  // BOOT error source
             SCIGeneric   = 8,  // Generic Hardware Error Source (via Service Control Interrupt)
             IPFMCA       = 9,  // Itanium Machine Check Abort
             IPFCMC       = 10, // Itanium Corrected Machine Check
             IPFCPE       = 11, // Itanium Corrected Platform Error
             GenericV2    = 12, // Other types of error sources v2
             SCIGenericV2 = 13, // Generic Hardware Error Source v2 (via Service Control Interrupt)
-            BMC          = 14, // Baseboard Management Controller
-            PMEM         = 15, // Persistent Memory (via Address Range Scrub)
-            DeviceDriver = 16, // Device Driver
+            BMC          = 14, // Baseboard Management Controller error source
+            PMEM         = 15, // Persistent Memory error source (via Address Range Scrub)
+            DeviceDriver = 16, // Device Driver error source
             SEA          = 17, // ARMv8 Synchronous External Abort
             SEI          = 18  // ARMv8 SError Interrupt
         }
@@ -299,7 +386,7 @@ namespace DecodeWheaRecord {
 
         // Originally defined directly in the WHEA_ERROR_STATUS structure
         [Flags]
-        public enum WHEA_ERROR_STATUS_FLAGS : uint {
+        public enum WHEA_ERROR_STATUS_FLAGS : byte {
             Address    = 0x1,
             Control    = 0x2,
             Data       = 0x4,
@@ -307,6 +394,12 @@ namespace DecodeWheaRecord {
             Requester  = 0x10,
             FirstError = 0x20,
             Overflow   = 0x40
+        }
+
+        // Originally defined directly in the WHEA_TIMESTAMP structure
+        [Flags]
+        public enum WHEA_TIMESTAMP_FLAGS : byte {
+            Precise = 0x1
         }
 
         // @formatter:int_align_fields false
@@ -334,9 +427,10 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 3)]
             public string Flags => GetEnabledFlagsAsString(_Flags);
 
-            // Add two padding bytes to match the original 64-bit structure
+            // Add five padding bytes to match the original 64-bit structure
 #pragma warning disable CS0169 // Field is never used
-            private ushort Reserved2;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
+            public byte[] Reserved2;
 #pragma warning restore CS0169 // Field is never used
         }
 
@@ -352,6 +446,49 @@ namespace DecodeWheaRecord {
         public sealed class WHEA_REVISION {
             public byte MinorRevision;
             public byte MajorRevision;
+
+            public override string ToString() {
+                return $"{MajorRevision}.{MinorRevision}";
+            }
+        }
+
+        /*
+         * Originally defined as a ULONGLONG bitfield. This structure has the
+         * same in memory format, but is simpler to interact with.
+         */
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public sealed class WHEA_TIMESTAMP {
+            [JsonProperty(Order = 1)]
+            public byte Seconds;
+
+            [JsonProperty(Order = 2)]
+            public byte Minutes;
+
+            [JsonProperty(Order = 3)]
+            public byte Hours;
+
+            private WHEA_TIMESTAMP_FLAGS _Flags;
+
+            [JsonProperty(Order = 4)]
+            public string Flags => GetEnabledFlagsAsString(_Flags);
+
+            [JsonProperty(Order = 5)]
+            public byte Day;
+
+            [JsonProperty(Order = 6)]
+            public byte Month;
+
+            [JsonProperty(Order = 7)]
+            public byte Year;
+
+            [JsonProperty(Order = 8)]
+            public byte Century;
+
+            // TODO: Surface flags
+            public override string ToString() {
+                var dt = new DateTime(Century * 100 + Year, Month, Day, Hours, Minutes, Seconds);
+                return dt.ToString(CultureInfo.CurrentCulture);
+            }
         }
 
         #endregion
@@ -374,12 +511,11 @@ namespace DecodeWheaRecord {
         private const uint WHEA_ERROR_RECORD_SIGNATURE_END = uint.MaxValue; // 0xFFFFFFFF
 
         /*
-         * The value of the signature does not appear to be defined in the
-         * header but Microsoft's documentation for the structure states it is
-         * "RE". It is reversed as we perform validation against the member as
-         * an ASCII string instead of a USHORT.
+         * The signature value is not defined in the header but Microsoft's
+         * documentation states it is "RE". It is reversed as validation is
+         * performed against the member as an ASCII string instead of a USHORT.
          */
-        public const string WHEA_PERSISTENCE_INFO_SIGNATURE = "ER";
+        private const string WHEA_PERSISTENCE_INFO_SIGNATURE = "ER";
 
         #endregion
 
@@ -416,12 +552,6 @@ namespace DecodeWheaRecord {
             DoNotLog   = 0x4
         }
 
-        // Originally defined directly in the WHEA_TIMESTAMP structure
-        [Flags]
-        public enum WHEA_TIMESTAMP_FLAGS : byte {
-            Precise = 0x1
-        }
-
         // @formatter:int_align_fields false
 
         #endregion
@@ -440,10 +570,13 @@ namespace DecodeWheaRecord {
                 }
             }
 
+            private WHEA_REVISION _Revision;
+
             [JsonProperty(Order = 2)]
-            public WHEA_REVISION Revision;
+            public string Revision => _Revision.ToString();
 
             [JsonProperty(Order = 3)]
+            [JsonConverter(typeof(HexStringJsonConverter))]
             public uint SignatureEnd;
 
             [JsonProperty(Order = 4)]
@@ -465,10 +598,12 @@ namespace DecodeWheaRecord {
              * descriptors, and error record sections.
              */
             [JsonProperty(Order = 7)]
-            public uint Length; // TODO: Validate in decoder
+            public uint Length; // TODO: Validate (in decoder?)
+
+            private WHEA_TIMESTAMP _Timestamp;
 
             [JsonProperty(Order = 8)]
-            public WHEA_TIMESTAMP Timestamp;
+            public string Timestamp => _Timestamp.ToString();
 
             [JsonProperty(Order = 9)]
             public Guid PlatformId;
@@ -538,14 +673,14 @@ namespace DecodeWheaRecord {
                 }
 
                 const byte majorRevision = WHEA_ERROR_RECORD_REVISION >> 8;
-                if (Revision.MajorRevision > majorRevision) {
-                    var msg = $"[{nameof(WHEA_ERROR_RECORD_HEADER)}] Major revision {Revision.MajorRevision} is greater than max supported: {majorRevision}";
+                if (_Revision.MajorRevision > majorRevision) {
+                    var msg = $"[{nameof(WHEA_ERROR_RECORD_HEADER)}] Major revision {_Revision.MajorRevision} is greater than max supported: {majorRevision}";
                     Console.Error.WriteLine(msg);
-                } else if (Revision.MajorRevision == majorRevision) {
+                } else if (_Revision.MajorRevision == majorRevision) {
                     const byte minorRevision = WHEA_ERROR_RECORD_REVISION & 0xFF;
-                    if (Revision.MinorRevision > minorRevision) {
+                    if (_Revision.MinorRevision > minorRevision) {
                         var msg =
-                            $"[{nameof(WHEA_ERROR_RECORD_HEADER)}] Minor revision {Revision.MinorRevision} is greater than max supported: {minorRevision}";
+                            $"[{nameof(WHEA_ERROR_RECORD_HEADER)}] Minor revision {_Revision.MinorRevision} is greater than max supported: {minorRevision}";
                         Console.Error.WriteLine(msg);
                     }
                 }
@@ -620,39 +755,6 @@ namespace DecodeWheaRecord {
             }
         }
 
-        /*
-         * Originally defined as a ULONGLONG bitfield. This structure has the
-         * same in memory format, but is simpler to interact with.
-         */
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_TIMESTAMP {
-            [JsonProperty(Order = 1)]
-            public byte Seconds;
-
-            [JsonProperty(Order = 2)]
-            public byte Minutes;
-
-            [JsonProperty(Order = 3)]
-            public byte Hours;
-
-            private WHEA_TIMESTAMP_FLAGS _Flags;
-
-            [JsonProperty(Order = 4)]
-            public string Flags => GetEnabledFlagsAsString(_Flags);
-
-            [JsonProperty(Order = 5)]
-            public byte Day;
-
-            [JsonProperty(Order = 6)]
-            public byte Month;
-
-            [JsonProperty(Order = 7)]
-            public byte Year;
-
-            [JsonProperty(Order = 8)]
-            public byte Century;
-        }
-
         #endregion
 
         #region WHEA Error Record Section Descriptor: Constants
@@ -663,8 +765,6 @@ namespace DecodeWheaRecord {
          * version, requiring some trivial bit shifting during validation.
          */
         private const ushort WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION = 0x300; // v3.0
-
-        private const ushort WHEA_PCIE_CORRECTABLE_ERROR_SECTION_COUNT_SIZE = 32;
 
         #endregion
 
@@ -713,8 +813,10 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 2)]
             public uint SectionLength; // TODO: Validate
 
+            private WHEA_REVISION _Revision;
+
             [JsonProperty(Order = 3)]
-            public WHEA_REVISION Revision;
+            public string Revision => _Revision.ToString();
 
             private WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS _ValidBits;
 
@@ -761,118 +863,19 @@ namespace DecodeWheaRecord {
 
             public override void Validate() {
                 const byte majorRevision = WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION >> 8;
-                if (Revision.MajorRevision > majorRevision) {
+                if (_Revision.MajorRevision > majorRevision) {
                     var msg =
-                        $"[{nameof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR)}] Major revision {Revision.MajorRevision} is greater than max supported: {majorRevision}";
+                        $"[{nameof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR)}] Major revision {_Revision.MajorRevision} is greater than max supported: {majorRevision}";
                     Console.Error.WriteLine(msg);
-                } else if (Revision.MajorRevision == majorRevision) {
+                } else if (_Revision.MajorRevision == majorRevision) {
                     const byte minorRevision = WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION & 0xFF;
-                    if (Revision.MinorRevision > minorRevision) {
+                    if (_Revision.MinorRevision > minorRevision) {
                         var msg =
-                            $"[{nameof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR)}] Minor revision {Revision.MinorRevision} is greater than max supported: {minorRevision}";
+                            $"[{nameof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR)}] Minor revision {_Revision.MinorRevision} is greater than max supported: {minorRevision}";
                         Console.Error.WriteLine(msg);
                     }
                 }
             }
-        }
-
-        #endregion
-
-        #region WHEA Error Record Section: MU_TELEMETRY_SECTION
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class MU_TELEMETRY_SECTION : WheaRecord {
-            public Guid ComponentID;
-            public Guid SubComponentID;
-            public uint Reserved;
-            public uint ErrorStatusValue;
-            public ulong AdditionalInfo1;
-            public ulong AdditionalInfo2;
-
-            public override void Validate() { }
-        }
-
-        #endregion
-
-        #region WHEA Error Record Section: WHEA_ARM_PROCESSOR_ERROR_SECTION
-
-        // @formatter:int_align_fields true
-
-        [Flags]
-        public enum WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS : uint {
-            MPIDR              = 0x1,
-            AffinityLevel      = 0x2,
-            RunningState       = 0x4,
-            VendorSpecificInfo = 0x8
-        }
-
-        // @formatter:int_align_fields false
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_ARM_PROCESSOR_ERROR_SECTION : WheaRecord {
-            private WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS _ValidBits;
-
-            [JsonProperty(Order = 1)]
-            public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
-
-            [JsonProperty(Order = 2)]
-            public ushort ErrorInformationStructures;
-
-            [JsonProperty(Order = 3)]
-            public ushort ContextInformationStructures;
-
-            // TODO: Description
-            [JsonProperty(Order = 4)]
-            public uint SectionLength; // TODO: Validate
-
-            [JsonProperty(Order = 5)]
-            public byte ErrorAffinityLevel;
-
-            [JsonProperty(Order = 6)]
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-            public byte[] Reserved;
-
-            [JsonProperty(Order = 7)]
-            public ulong MPIDR_EL1;
-
-            [JsonProperty(Order = 8)]
-            public ulong MIDR_EL1;
-
-            [JsonProperty(Order = 9)]
-            public uint RunningState;
-
-            [JsonProperty(Order = 10)]
-            public uint PSCIState;
-
-            /*
-             * TODO
-             * Variable length arrays need a custom marshaller.
-             */
-            //[JsonProperty(Order = 11)]
-            //public byte Data[];
-
-            [UsedImplicitly]
-            public bool ShouldSerializeErrorAffinityLevel() {
-                return (_ValidBits & WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS.AffinityLevel) == WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS.AffinityLevel;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeErrorMIDR_EL1() {
-                return (_ValidBits & WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS.VendorSpecificInfo) ==
-                       WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS.VendorSpecificInfo;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeErrorMPIDR_EL1() {
-                return (_ValidBits & WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS.MPIDR) == WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS.MPIDR;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeRunningState() {
-                return (_ValidBits & WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS.RunningState) == WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS.RunningState;
-            }
-
-            public override void Validate() { }
         }
 
         #endregion
@@ -1228,1572 +1231,6 @@ namespace DecodeWheaRecord {
                     ExitWithMessage(msg, 2);
                 }
             }
-        }
-
-        #endregion
-
-        #region WHEA Error Record Section: WHEA_ERROR_RECOVERY_INFO_SECTION
-
-        // @formatter:int_align_fields true
-
-        [Flags]
-        public enum WHEA_RECOVERY_ACTION : uint {
-            NoneAttempted    = 0x1,
-            TerminateProcess = 0x2,
-            ForwardedToVm    = 0x4,
-            MarkPageBad      = 0x8,
-            PoisonNotPresent = 0x10
-        }
-
-        public enum WHEA_RECOVERY_FAILURE_REASON : uint {
-            KernelCouldNotMarkMemoryBad        = 1,
-            KernelMarkMemoryBadTimedOut        = 2,
-            NoRecoveryContext                  = 3,
-            NotContinuable                     = 4,
-            Pcc                                = 5,
-            Overflow                           = 6,
-            NotSupported                       = 7,
-            MiscOrAddrNotValid                 = 8,
-            InvalidAddressMode                 = 9,
-            HighIrql                           = 10,
-            InsufficientAltContextWrappers     = 11,
-            InterruptsDisabled                 = 12,
-            SwapBusy                           = 13,
-            StackOverflow                      = 14,
-            UnexpectedFailure                  = 15,
-            KernelWillPageFaultBCAtCurrentIrql = 16,
-            FarNotValid                        = 17
-        }
-
-        public enum WHEA_RECOVERY_TYPE : uint {
-            ActionRequired = 1,
-            ActionOptional = 2
-        }
-
-        // @formatter:int_align_fields false
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-        public sealed class WHEA_ERROR_RECOVERY_INFO_SECTION : WheaRecord {
-            [JsonProperty(Order = 1)]
-            [MarshalAs(UnmanagedType.U1)]
-            public bool RecoveryKernel;
-
-            private WHEA_RECOVERY_ACTION _RecoveryAction;
-
-            [JsonProperty(Order = 2)]
-            public string RecoveryAction => Enum.GetName(typeof(WHEA_RECOVERY_ACTION), _RecoveryAction);
-
-            private WHEA_RECOVERY_TYPE _RecoveryType;
-
-            [JsonProperty(Order = 3)]
-            public string RecoveryType => Enum.GetName(typeof(WHEA_RECOVERY_TYPE), _RecoveryType);
-
-            [JsonProperty(Order = 4)]
-            public byte Irql;
-
-            [JsonProperty(Order = 5)]
-            [MarshalAs(UnmanagedType.U1)]
-            public bool RecoverySucceeded;
-
-            private WHEA_RECOVERY_FAILURE_REASON _FailureReason;
-
-            [JsonProperty(Order = 6)]
-            public string FailureReason => Enum.GetName(typeof(WHEA_RECOVERY_FAILURE_REASON), _FailureReason);
-
-            [JsonProperty(Order = 7)]
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 20)]
-            public string ProcessName;
-
-            public override void Validate() { }
-        }
-
-        #endregion
-
-        #region WHEA Error Record Section: WHEA_FIRMWARE_ERROR_RECORD_REFERENCE
-
-        // @formatter:int_align_fields true
-
-        // From preprocessor definitions (WHEA_FIRMWARE_RECORD_TYPE_*)
-        public enum WHEA_FIRMWARE_RECORD_TYPE : byte {
-            IpfSal     = 0,
-            SocFwType1 = 1, // Added
-            SocFwType2 = 2  // Added
-        }
-
-        // @formatter:int_align_fields false
-
-        /*
-         * Expanded from out-of-date struct in official header.
-         */
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_FIRMWARE_ERROR_RECORD_REFERENCE : WheaRecord {
-            private WHEA_FIRMWARE_RECORD_TYPE _Type;
-
-            [JsonProperty(Order = 1)]
-            public string Type => Enum.GetName(typeof(WHEA_FIRMWARE_RECORD_TYPE), _Type);
-
-            [JsonProperty(Order = 2)]
-            public char Revision; // Added
-
-            [JsonProperty(Order = 3)]
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
-            public byte[] Reserved;
-
-            [JsonProperty(Order = 4)]
-            public ulong FirmwareRecordId;
-
-            [JsonProperty(Order = 5)]
-            public Guid FirmwareRecordExt; // Added
-
-            public override void Validate() { }
-        }
-
-        #endregion
-
-        #region WHEA Error Record Section: WHEA_MEMORY_CORRECTABLE_ERROR_SECTION
-
-        // @formatter:int_align_fields true
-
-        [Flags]
-        public enum WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS : ulong {
-            SocketId              = 0x1,
-            ChannelId             = 0x2,
-            DimmSlot              = 0x4,
-            CorrectableErrorCount = 0x8
-        }
-
-        // @formatter:int_align_fields false
-
-        // TODO
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_MEMORY_CORRECTABLE_ERROR_SECTION : WheaRecord {
-            public override void Validate() { }
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_MEMORY_CORRECTABLE_ERROR_HEADER {
-            public ushort Version; // TODO: Validate
-            public ushort Count;
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_MEMORY_CORRECTABLE_ERROR_DATA {
-            private WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS _ValidBits;
-
-            [JsonProperty(Order = 1)]
-            public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
-
-            [JsonProperty(Order = 2)]
-            public uint SocketId;
-
-            [JsonProperty(Order = 3)]
-            public uint ChannelId;
-
-            [JsonProperty(Order = 4)]
-            public uint DimmSlot;
-
-            [JsonProperty(Order = 5)]
-            public uint CorrectableErrorCount;
-
-            [UsedImplicitly]
-            public bool ShouldSerializeChannelId() {
-                return (_ValidBits & WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.ChannelId) == WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.ChannelId;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeCorrectableErrorCount() {
-                return (_ValidBits & WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.CorrectableErrorCount) ==
-                       WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.CorrectableErrorCount;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeDimmSlot() {
-                return (_ValidBits & WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.DimmSlot) == WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.DimmSlot;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeSocketId() {
-                return (_ValidBits & WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.SocketId) == WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.SocketId;
-            }
-        }
-
-        #endregion
-
-        #region WHEA Error Record Section: WHEA_MEMORY_ERROR_SECTION
-
-        // @formatter:int_align_fields true
-
-        [Flags]
-        public enum WHEA_MEMORY_ERROR_SECTION_VALIDBITS : ulong {
-            ErrorStatus         = 0x1,
-            PhysicalAddress     = 0x2,
-            PhysicalAddressMask = 0x4,
-            Node                = 0x8,
-            Card                = 0x10,
-            Module              = 0x20,
-            Bank                = 0x40,
-            Device              = 0x80,
-            Row                 = 0x100,
-            Column              = 0x200,
-            BitPosition         = 0x400,
-            RequesterId         = 0x800,
-            ResponderId         = 0x1000,
-            TargetId            = 0x2000,
-            ErrorType           = 0x4000,
-            RankNumber          = 0x8000,
-            CardHandle          = 0x10000,
-            ModuleHandle        = 0x20000,
-            ExtendedRow         = 0x40000,
-            BankGroup           = 0x80000,
-            BankAddress         = 0x100000,
-            ChipIdentification  = 0x200000
-        }
-
-        // From preprocessor definitions (WHEA_MEMERRTYPE_*)
-        public enum WHEA_MEMORY_ERROR_TYPE : byte {
-            Unknown           = 0,
-            NoError           = 1,
-            SingleBitECC      = 2,
-            MultiBitECC       = 3,
-            SingleSymChipKill = 4,
-            MultiSymChipKill  = 5,
-            MasterAbort       = 6,
-            TargetAbort       = 7,
-            ParityError       = 8,
-            WatchdogTimeout   = 9,
-            InvalidAddress    = 10,
-            MirrorBroken      = 11,
-            MemorySparing     = 12
-        }
-
-        // @formatter:int_align_fields false
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_MEMORY_ERROR_SECTION : WheaRecord {
-            private WHEA_MEMORY_ERROR_SECTION_VALIDBITS _ValidBits;
-
-            [JsonProperty(Order = 1)]
-            public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
-
-            [JsonProperty(Order = 2)]
-            public WHEA_ERROR_STATUS ErrorStatus;
-
-            [JsonProperty(Order = 3)]
-            public ulong PhysicalAddress;
-
-            [JsonProperty(Order = 4)]
-            public ulong PhysicalAddressMask;
-
-            [JsonProperty(Order = 5)]
-            public ushort Node;
-
-            [JsonProperty(Order = 6)]
-            public ushort Card;
-
-            [JsonProperty(Order = 7)]
-            public ushort Module;
-
-            [JsonProperty(Order = 8)]
-            public ushort Bank;
-
-            [JsonProperty(Order = 9)]
-            public ushort Device;
-
-            [JsonProperty(Order = 10)]
-            public ushort Row;
-
-            [JsonProperty(Order = 11)]
-            public ushort Column;
-
-            [JsonProperty(Order = 12)]
-            public ushort BitPosition;
-
-            [JsonProperty(Order = 13)]
-            public ulong RequesterId;
-
-            [JsonProperty(Order = 14)]
-            public ulong ResponderId;
-
-            [JsonProperty(Order = 15)]
-            public ulong TargetId;
-
-            private WHEA_MEMORY_ERROR_TYPE _ErrorType;
-
-            [JsonProperty(Order = 16)]
-            public string ErrorType => GetEnabledFlagsAsString(_ErrorType);
-
-            // From Windows 10, version 1803
-            [JsonProperty(Order = 17)]
-            public byte Extended;
-
-            // From Windows 10, version 1803
-            [JsonProperty(Order = 18)]
-            public ushort RankNumber;
-
-            // From Windows 10, version 1803
-            [JsonProperty(Order = 19)]
-            public ushort CardHandle;
-
-            // From Windows 10, version 1803
-            [JsonProperty(Order = 20)]
-            public ushort ModuleHandle;
-
-            // TODO: Handle BankAddress, BankGroup, & ChipIdentification in ValidBits
-
-            [UsedImplicitly]
-            public bool ShouldSerializeBank() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Bank) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Bank;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeBitPosition() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.BitPosition) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.BitPosition;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeCard() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Card) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Card;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeCardHandle() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.CardHandle) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.CardHandle;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeColumn() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Column) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Column;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeDevice() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Device) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Device;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeErrorStatus() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ErrorStatus) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ErrorStatus;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeErrorType() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ErrorType) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ErrorType;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeExtended() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ExtendedRow) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ExtendedRow;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeModule() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Module) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Module;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeModuleHandle() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ModuleHandle) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ModuleHandle;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeNode() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Node) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Node;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializePhysicalAddress() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.PhysicalAddress) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.PhysicalAddress;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializePhysicalAddressMask() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.PhysicalAddressMask) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.PhysicalAddressMask;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeRankNumber() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.RankNumber) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.RankNumber;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeRequesterId() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.RequesterId) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.RequesterId;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeResponderId() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ResponderId) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ResponderId;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeRow() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Row) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Row;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeTargetId() {
-                return (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.TargetId) == WHEA_MEMORY_ERROR_SECTION_VALIDBITS.TargetId;
-            }
-
-            public override void Validate() { }
-        }
-
-        #endregion
-
-        #region WHEA Error Record Section: WHEA_MSR_DUMP_SECTION
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_MSR_DUMP_SECTION : WheaRecord {
-            public byte MsrDumpBuffer;
-
-            // TODO: Description
-            public uint MsrDumpLength; // TODO: Validate
-
-            /*
-             * TODO
-             * Variable length arrays need a custom marshaller.
-             */
-            //public byte[] MsrDumpData;
-
-            public override void Validate() { }
-        }
-
-        #endregion
-
-        #region WHEA Error Record Section: WHEA_NMI_ERROR_SECTION
-
-        // @formatter:int_align_fields true
-
-        [Flags]
-        public enum WHEA_NMI_ERROR_SECTION_FLAGS : uint {
-            HypervisorError = 0x1
-        }
-
-        // @formatter:int_align_fields false
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_NMI_ERROR_SECTION : WheaRecord {
-            [JsonProperty(Order = 1)]
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
-            public byte[] Data; // TODO
-
-            private WHEA_NMI_ERROR_SECTION_FLAGS _Flags;
-
-            [JsonProperty(Order = 2)]
-            public string Flags => GetEnabledFlagsAsString(_Flags);
-
-            public override void Validate() { }
-        }
-
-        #endregion
-
-        #region WHEA Error Record Section: WHEA_PCIE_CORRECTABLE_ERROR_SECTION
-
-        // @formatter:int_align_fields true
-
-        [Flags]
-        public enum WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS : ulong {
-            Segment               = 0x1,
-            Bus                   = 0x2,
-            Device                = 0x4,
-            Function              = 0x8,
-            Mask                  = 0x10,
-            CorrectableErrorCount = 0x20
-        }
-
-        // @formatter:int_align_fields false
-
-        // TODO
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_PCIE_CORRECTABLE_ERROR_SECTION : WheaRecord {
-            public override void Validate() { }
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_PCIE_CORRECTABLE_ERROR_SECTION_HEADER {
-            public ushort Version; // TODO: Validate
-            public ushort Count;
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_PCIE_CORRECTABLE_ERROR_DEVICES {
-            private WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS _ValidBits;
-
-            [JsonProperty(Order = 1)]
-            public string ValidBits => GetEnabledFlagsAsString(_ValidBits); // TODO: Add remaining ShouldSerialize methods
-
-            [JsonProperty(Order = 2)]
-            public WHEA_PCIE_ADDRESS Address;
-
-            [JsonProperty(Order = 3)]
-            public uint Mask;
-
-            [JsonProperty(Order = 4)]
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = WHEA_PCIE_CORRECTABLE_ERROR_SECTION_COUNT_SIZE)]
-            public uint[] CorrectableErrorCount;
-
-            [UsedImplicitly]
-            public bool ShouldSerializeCorrectableErrorCount() {
-                return (_ValidBits & WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS.CorrectableErrorCount) ==
-                       WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS.CorrectableErrorCount;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeMask() {
-                return (_ValidBits & WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS.Mask) == WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS.Mask;
-            }
-        }
-
-        #endregion
-
-        #region WHEA Error Record Section: WHEA_PCIEXPRESS_ERROR_SECTION
-
-        // @formatter:int_align_fields true
-
-        [Flags]
-        public enum WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS : ulong {
-            PortType            = 0x1,
-            Version             = 0x2,
-            CommandStatus       = 0x4,
-            DeviceId            = 0x8,
-            DeviceSerialNumber  = 0x10,
-            BridgeControlStatus = 0x20,
-            ExpressCapability   = 0x40,
-            AerInfo             = 0x80
-        }
-
-        // @formatter:int_align_fields false
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_PCIEXPRESS_ERROR_SECTION : WheaRecord {
-            private WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS _ValidBits;
-
-            [JsonProperty(Order = 1)]
-            public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
-
-            private WHEA_PCIEXPRESS_DEVICE_TYPE _PortType;
-
-            [JsonProperty(Order = 2)]
-            public string PortType => Enum.GetName(typeof(WHEA_PCIEXPRESS_DEVICE_TYPE), _PortType);
-
-            [JsonProperty(Order = 3)]
-            public WHEA_PCIEXPRESS_VERSION Version;
-
-            [JsonProperty(Order = 4)]
-            public WHEA_PCIEXPRESS_COMMAND_STATUS CommandStatus;
-
-            [JsonProperty(Order = 5)]
-            public uint Reserved;
-
-            [JsonProperty(Order = 6)]
-            public WHEA_PCIEXPRESS_DEVICE_ID DeviceId;
-
-            [JsonProperty(Order = 7)]
-            public ulong DeviceSerialNumber;
-
-            [JsonProperty(Order = 8)]
-            public WHEA_PCIEXPRESS_BRIDGE_CONTROL_STATUS BridgeControlStatus;
-
-            [JsonProperty(Order = 9)]
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 60)]
-            public byte[] ExpressCapability; // TODO
-
-            [JsonProperty(Order = 10)]
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 96)]
-            public byte[] AerInfo; // TODO
-
-            [UsedImplicitly]
-            public bool ShouldSerializeAerInfo() {
-                return (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.AerInfo) == WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.AerInfo;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeBridgeControlStatus() {
-                return (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.BridgeControlStatus) ==
-                       WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.BridgeControlStatus;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeCommandStatus() {
-                return (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.CommandStatus) == WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.CommandStatus;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeDeviceId() {
-                return (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.DeviceId) == WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.DeviceId;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeDeviceSerialNumber() {
-                return (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.DeviceSerialNumber) == WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.DeviceSerialNumber;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeExpressCapability() {
-                return (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.ExpressCapability) == WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.ExpressCapability;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializePortType() {
-                return (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.PortType) == WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.PortType;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeVersion() {
-                return (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.Version) == WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.Version;
-            }
-
-            public override void Validate() { }
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_PCIEXPRESS_BRIDGE_CONTROL_STATUS {
-            public ushort BridgeSecondaryStatus;
-            public ushort BridgeControl;
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_PCIEXPRESS_COMMAND_STATUS {
-            public ushort Command;
-            public ushort Status;
-        }
-
-        /*
-         * Originally defined as a struct of which three members are ULONGs as
-         * bitfields. This structure has the same in memory format, but is
-         * simpler to interact with.
-         */
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_PCIEXPRESS_DEVICE_ID {
-            [JsonProperty(Order = 1)]
-            public ushort VendorId;
-
-            [JsonProperty(Order = 2)]
-            public ushort DeviceId;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-            private byte[] _ClassCode;
-
-            [JsonProperty(Order = 3)]
-            public uint ClassCode => (uint)(_ClassCode[0] + (_ClassCode[1] << 8) + (_ClassCode[2] << 16));
-
-            [JsonProperty(Order = 4)]
-            public byte FunctionNumber;
-
-            [JsonProperty(Order = 5)]
-            public byte DeviceNumber;
-
-            [JsonProperty(Order = 6)]
-            public ushort Segment;
-
-            [JsonProperty(Order = 7)]
-            public byte PrimaryBusNumber;
-
-            [JsonProperty(Order = 8)]
-            public byte SecondaryBusNumber;
-
-            private ushort _SlotNumber; // Includes Reserved1 member (Bits 0-2)
-
-            [JsonProperty(Order = 9)]
-            public byte Reserved1 => (byte)(_SlotNumber & 0xFFF8); // Bits 0-2
-
-            [JsonProperty(Order = 10)]
-            public ushort SlotNumber => (ushort)(_SlotNumber >> 3); // Bits 3-15
-
-            [JsonProperty(Order = 11)]
-            public byte Reserved2;
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_PCIEXPRESS_VERSION {
-            public byte MinorVersion;
-            public byte MajorVersion;
-            public ushort Reserved;
-        }
-
-        #endregion
-
-        #region WHEA Error Record Section: WHEA_PCIXBUS_ERROR_SECTION
-
-        // @formatter:int_align_fields true
-
-        // Originally defined directly in the WHEA_PCIXBUS_COMMAND structure
-        [Flags]
-        public enum WHEA_PCIXBUS_COMMAND_FLAGS : byte {
-            PCIXCommand = 0x1
-        }
-
-        [Flags]
-        public enum WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS : ulong {
-            ErrorStatus = 0x1,
-            ErrorType   = 0x2,
-            BusId       = 0x4,
-            BusAddress  = 0x8,
-            BusData     = 0x10,
-            BusCommand  = 0x20,
-            RequesterId = 0x40,
-            CompleterId = 0x80,
-            TargetId    = 0x100
-        }
-
-        // From preprocessor definitions (PCIXBUS_ERRTYPE_*)
-        public enum WHEA_PCIXBUS_ERROR_TYPE : ushort {
-            Unknown          = 0,
-            DataParity       = 1,
-            System           = 2,
-            MasterAbort      = 3,
-            BusTimeout       = 4,
-            MasterDataParity = 5,
-            AddressParity    = 6,
-            CommandParity    = 7
-        }
-
-        // @formatter:int_align_fields false
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_PCIXBUS_ERROR_SECTION : WheaRecord {
-            private WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS _ValidBits;
-
-            [JsonProperty(Order = 1)]
-            public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
-
-            [JsonProperty(Order = 2)]
-            public WHEA_ERROR_STATUS ErrorStatus;
-
-            private WHEA_PCIXBUS_ERROR_TYPE _ErrorType;
-
-            [JsonProperty(Order = 3)]
-            public string ErrorType => Enum.GetName(typeof(WHEA_PCIXBUS_ERROR_TYPE), _ErrorType);
-
-            [JsonProperty(Order = 4)]
-            public WHEA_PCIXBUS_ID BusId;
-
-            [JsonProperty(Order = 5)]
-            public uint Reserved;
-
-            [JsonProperty(Order = 6)]
-            public ulong BusAddress;
-
-            [JsonProperty(Order = 7)]
-            public ulong BusData;
-
-            [JsonProperty(Order = 8)]
-            public WHEA_PCIXBUS_COMMAND BusCommand;
-
-            [JsonProperty(Order = 9)]
-            public ulong RequesterId;
-
-            [JsonProperty(Order = 10)]
-            public ulong CompleterId;
-
-            [JsonProperty(Order = 11)]
-            public ulong TargetId;
-
-            [UsedImplicitly]
-            public bool ShouldSerializeBusAddress() {
-                return (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusAddress) == WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusAddress;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeBusData() {
-                return (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusData) == WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusData;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeBusId() {
-                return (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusId) == WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusId;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeBusCommand() {
-                return (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusCommand) == WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusCommand;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeCompleterId() {
-                return (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.CompleterId) == WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.CompleterId;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeErrorStatus() {
-                return (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorStatus) == WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorStatus;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeErrorType() {
-                return (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorType) == WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorType;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeRequesterId() {
-                return (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.RequesterId) == WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.RequesterId;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeTargetId() {
-                return (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.TargetId) == WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.TargetId;
-            }
-
-            public override void Validate() { }
-        }
-
-        [StructLayout(LayoutKind.Explicit, Pack = 1)]
-        public sealed class WHEA_PCIXBUS_COMMAND {
-            [FieldOffset(0)]
-            private ulong _Command;
-
-            [JsonProperty(Order = 1)]
-            public ulong Command => _Command & 0xFF00000000000000; // Bits 0 - 55
-
-            [FieldOffset(56)]
-            private WHEA_PCIXBUS_COMMAND_FLAGS _Flags;
-
-            [JsonProperty(Order = 2)]
-            public string Flags => GetEnabledFlagsAsString(_Flags);
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_PCIXBUS_ID {
-            public byte BusNumber;
-            public byte BusSegment;
-        }
-
-        #endregion
-
-        #region WHEA Error Record Section: WHEA_PCIXDEVICE_ERROR_SECTION
-
-        // @formatter:int_align_fields true
-
-        [Flags]
-        public enum WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS : ulong {
-            ErrorStatus       = 0x1,
-            IdInfo            = 0x2,
-            MemoryNumber      = 0x4,
-            IoNumber          = 0x8,
-            RegisterDataPairs = 0x10
-        }
-
-        // @formatter:int_align_fields false
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_PCIXDEVICE_ERROR_SECTION : WheaRecord {
-            private WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS _ValidBits;
-
-            [JsonProperty(Order = 1)]
-            public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
-
-            [JsonProperty(Order = 2)]
-            public WHEA_ERROR_STATUS ErrorStatus;
-
-            [JsonProperty(Order = 3)]
-            public WHEA_PCIXDEVICE_ID IdInfo;
-
-            [JsonProperty(Order = 4)]
-            public uint MemoryNumber;
-
-            [JsonProperty(Order = 5)]
-            public uint IoNumber;
-
-            /*
-             * TODO
-             * Variable length arrays need a custom marshaller.
-             */
-            //[JsonProperty(Order = 6)]
-            //public WHEA_PCIXDEVICE_REGISTER_PAIR[] RegisterDataPairs;
-
-            [UsedImplicitly]
-            public bool ShouldSerializeErrorStatus() {
-                return (_ValidBits & WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.ErrorStatus) == WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.ErrorStatus;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeIdInfo() {
-                return (_ValidBits & WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.IdInfo) == WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.IdInfo;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeIoNumber() {
-                return (_ValidBits & WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.IoNumber) == WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.IoNumber;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeMemoryNumber() {
-                return (_ValidBits & WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.MemoryNumber) == WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.MemoryNumber;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeRegisterDataPairs() {
-                return (_ValidBits & WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.RegisterDataPairs) == WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.RegisterDataPairs;
-            }
-
-            public override void Validate() { }
-        }
-
-        /*
-         * Originally defined as a struct of which two members are ULONGs as
-         * bitfields. This structure has the same in memory format, but is
-         * simpler to interact with.
-         */
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_PCIXDEVICE_ID {
-            [JsonProperty(Order = 1)]
-            public ushort VendorId;
-
-            [JsonProperty(Order = 2)]
-            public ushort DeviceId;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-            private byte[] _ClassCode;
-
-            [JsonProperty(Order = 3)]
-            public uint ClassCode => (uint)(_ClassCode[0] + (_ClassCode[1] << 8) + (_ClassCode[2] << 16));
-
-            [JsonProperty(Order = 4)]
-            public byte FunctionNumber;
-
-            [JsonProperty(Order = 5)]
-            public byte DeviceNumber;
-
-            [JsonProperty(Order = 6)]
-            public byte BusNumber;
-
-            [JsonProperty(Order = 7)]
-            public byte SegmentNumber;
-
-            [JsonProperty(Order = 8)]
-            public byte Reserved1;
-
-            [JsonProperty(Order = 9)]
-            public uint Reserved2;
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_PCIXDEVICE_REGISTER_PAIR {
-            public ulong Register;
-            public ulong Data;
-        }
-
-        #endregion
-
-        #region WHEA Error Record Section: WHEA_PMEM_ERROR_SECTION
-
-        // @formatter:int_align_fields true
-
-        [Flags]
-        public enum WHEA_PMEM_ERROR_SECTION_VALIDBITS : ulong {
-            ErrorStatus  = 0x1,
-            NFITHandle   = 0x2,
-            LocationInfo = 0x4
-        }
-
-        // @formatter:int_align_fields false
-
-        private const int WHEA_PMEM_ERROR_SECTION_LOCATION_INFO_SIZE = 64;
-        private const int WHEA_PMEM_ERROR_SECTION_MAX_PAGES = 50; // TODO
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_PMEM_ERROR_SECTION : WheaRecord {
-            private WHEA_PMEM_ERROR_SECTION_VALIDBITS _ValidBits;
-
-            [JsonProperty(Order = 1)]
-            public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
-
-            [JsonProperty(Order = 2)]
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = WHEA_PMEM_ERROR_SECTION_LOCATION_INFO_SIZE)]
-            public byte[] LocationInfo; // TODO
-
-            [JsonProperty(Order = 3)]
-            public WHEA_ERROR_STATUS ErrorStatus;
-
-            [JsonProperty(Order = 4)]
-            public uint NFITHandle;
-
-            [JsonProperty(Order = 5)]
-            public uint PageRangeCount;
-
-            /*
-             * TODO
-             * Variable length arrays need a custom marshaller.
-             */
-            //[JsonProperty(Order = 6)]
-            //public WHEA_PMEM_PAGE_RANGE[] PageRange;
-
-            [UsedImplicitly]
-            public bool ShouldSerializeErrorStatus() {
-                return (_ValidBits & WHEA_PMEM_ERROR_SECTION_VALIDBITS.ErrorStatus) == WHEA_PMEM_ERROR_SECTION_VALIDBITS.ErrorStatus;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeLocationInfo() {
-                return (_ValidBits & WHEA_PMEM_ERROR_SECTION_VALIDBITS.LocationInfo) == WHEA_PMEM_ERROR_SECTION_VALIDBITS.LocationInfo;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeNFITHandle() {
-                return (_ValidBits & WHEA_PMEM_ERROR_SECTION_VALIDBITS.NFITHandle) == WHEA_PMEM_ERROR_SECTION_VALIDBITS.NFITHandle;
-            }
-
-            public override void Validate() { }
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_PMEM_PAGE_RANGE {
-            public ulong StartingPfn;
-            public ulong PageCount;
-            public ulong MarkedBadBitmap;
-        }
-
-        #endregion
-
-        #region WHEA Error Record Section: WHEA_PROCESSOR_GENERIC_ERROR_SECTION
-
-        // @formatter:int_align_fields true
-
-        // From preprocessor definitions (GENPROC_FLAGS_*)
-        [Flags]
-        public enum WHEA_PROCESSOR_GENERIC_ERROR_SECTION_FLAGS : byte {
-            Restartable = 0x1,
-            PreciseIP   = 0x2,
-            Overflow    = 0x4,
-            Corrected   = 0x8
-        }
-
-        [Flags]
-        public enum WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS : ulong {
-            ProcessorType      = 0x1,
-            InstructionSet     = 0x2,
-            ErrorType          = 0x4,
-            Operation          = 0x8,
-            Flags              = 0x10,
-            Level              = 0x20,
-            CPUVersion         = 0x40,
-            CPUBrandString     = 0x80,
-            ProcessorId        = 0x100,
-            TargetAddress      = 0x200,
-            RequesterId        = 0x400,
-            ResponderId        = 0x800,
-            InstructionPointer = 0x1000,
-            NativeModelId      = 0x2000
-        }
-
-        // From preprocessor definitions (GENPROC_PROCERRTYPE_*)
-        public enum WHEA_PROCESSOR_GENERIC_ERROR_TYPE : byte {
-            Unknown = 0,
-            Cache   = 1,
-            TLB     = 2,
-            Bus     = 4,
-            MAE     = 8
-        }
-
-        // From preprocessor definitions (GENPROC_PROCISA_*)
-        public enum WHEA_PROCESSOR_GENERIC_ISA_TYPE : byte {
-            x86   = 0,
-            Ipf   = 1,
-            x64   = 2,
-            Arm32 = 4,
-            Arm64 = 8
-        }
-
-        // From preprocessor definitions (GENPROC_OP_*)
-        public enum WHEA_PROCESSOR_GENERIC_OP_TYPE : byte {
-            Generic        = 0,
-            DataRead       = 1,
-            DataWrite      = 2,
-            InstructionExe = 3
-        }
-
-        // From preprocessor definitions (GENPROC_PROCTYPE_*)
-        public enum WHEA_PROCESSOR_GENERIC_TYPE : byte {
-            Xpf = 0,
-            Ipf = 1,
-            Arm = 2
-        }
-
-        // @formatter:int_align_fields false
-
-        [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Ansi, Pack = 1)]
-        public sealed class WHEA_PROCESSOR_GENERIC_ERROR_SECTION : WheaRecord {
-            [FieldOffset(0)]
-            private WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS _ValidBits;
-
-            [JsonProperty(Order = 1)]
-            public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
-
-            [FieldOffset(8)]
-            private WHEA_PROCESSOR_GENERIC_TYPE _ProcessorType;
-
-            [JsonProperty(Order = 2)]
-            public string ProcessorType => Enum.GetName(typeof(WHEA_PROCESSOR_GENERIC_TYPE), _ProcessorType);
-
-            [FieldOffset(9)]
-            private WHEA_PROCESSOR_GENERIC_ISA_TYPE _InstructionSet;
-
-            [JsonProperty(Order = 3)]
-            public string InstructionSet => Enum.GetName(typeof(WHEA_PROCESSOR_GENERIC_ISA_TYPE), _InstructionSet);
-
-            [FieldOffset(10)]
-            private WHEA_PROCESSOR_GENERIC_ERROR_TYPE _ErrorType;
-
-            [JsonProperty(Order = 4)]
-            public string ErrorType => Enum.GetName(typeof(WHEA_PROCESSOR_GENERIC_ERROR_TYPE), _ErrorType);
-
-            [FieldOffset(11)]
-            private WHEA_PROCESSOR_GENERIC_OP_TYPE _Operation;
-
-            [JsonProperty(Order = 5)]
-            public string Operation => Enum.GetName(typeof(WHEA_PROCESSOR_GENERIC_OP_TYPE), _Operation);
-
-            [FieldOffset(12)]
-            private WHEA_PROCESSOR_GENERIC_ERROR_SECTION_FLAGS _Flags;
-
-            [JsonProperty(Order = 6)]
-            public string Flags => GetEnabledFlagsAsString(_Flags);
-
-            [FieldOffset(13)]
-            [JsonProperty(Order = 7)]
-            public byte Level;
-
-            [FieldOffset(14)]
-            [JsonProperty(Order = 8)]
-            public ushort Reserved;
-
-            // TODO
-            //[FieldOffset(16)]
-            //[JsonProperty(Order = 9)]
-            //public ulong CPUVersion;
-
-            [FieldOffset(16)]
-            [JsonProperty(Order = 10)]
-            public WHEA_PROCESSOR_FAMILY_INFO CPUVersionX86; // Original name: CPUVersion
-
-            [FieldOffset(24)]
-            [JsonProperty(Order = 11)]
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-            public string CPUBrandString;
-
-            [FieldOffset(152)]
-            [JsonProperty(Order = 12)]
-            public ulong ProcessorId;
-
-            [FieldOffset(160)]
-            [JsonProperty(Order = 13)]
-            public ulong TargetAddress;
-
-            [FieldOffset(168)]
-            [JsonProperty(Order = 14)]
-            public ulong RequesterId;
-
-            [FieldOffset(176)]
-            [JsonProperty(Order = 15)]
-            public ulong ResponderId;
-
-            [FieldOffset(184)]
-            [JsonProperty(Order = 16)]
-            public ulong InstructionPointer;
-
-            // TODO: Handle NativeModelId in ValidBits
-
-            [UsedImplicitly]
-            public bool ShouldSerializeCPUBrandString() {
-                return (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUBrandString) ==
-                       WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUBrandString;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeCPUVersion() {
-                if ((_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUVersion) == WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUVersion)
-                    if (ShouldSerializeProcessorType() && _ProcessorType != WHEA_PROCESSOR_GENERIC_TYPE.Xpf)
-                        return true;
-
-                return false;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeCPUVersionX86() {
-                if ((_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUVersion) == WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUVersion)
-                    if (ShouldSerializeProcessorType() && _ProcessorType == WHEA_PROCESSOR_GENERIC_TYPE.Xpf)
-                        return true;
-
-                return false;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeErrorType() {
-                return (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ErrorType) == WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ErrorType;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeFlags() {
-                return (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.Flags) == WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.Flags;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeInstructionPointer() {
-                return (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.InstructionPointer) ==
-                       WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.InstructionPointer;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeInstructionSet() {
-                return (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.InstructionSet) ==
-                       WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.InstructionSet;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeLevel() {
-                return (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.Level) == WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.Level;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeOperation() {
-                return (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.Operation) == WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.Operation;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeProcessorId() {
-                return (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ProcessorId) == WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ProcessorId;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeProcessorType() {
-                return (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ProcessorType) ==
-                       WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ProcessorType;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeRequesterId() {
-                return (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.RequesterId) == WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.RequesterId;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeResponderId() {
-                return (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ResponderId) == WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ResponderId;
-            }
-
-            [UsedImplicitly]
-            public bool ShouldSerializeTargetAddress() {
-                return (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.TargetAddress) ==
-                       WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.TargetAddress;
-            }
-        }
-
-        /*
-         * Originally defined as a struct with the first of two ULONG members
-         * being a bitfield. This structure has the same in memory format, but
-         * is simpler to interact with.
-         */
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_PROCESSOR_FAMILY_INFO {
-            private uint _ProcInfo;
-
-            [JsonProperty(Order = 1)]
-            public byte Stepping => (byte)(_ProcInfo & 0xF); // Bits 0-3
-
-            [JsonProperty(Order = 2)]
-            public byte Model => (byte)((_ProcInfo & 0xF0) >> 4); // Bits 4-7
-
-            [JsonProperty(Order = 3)]
-            public byte Family => (byte)((_ProcInfo & 0xF00) >> 8); // Bits 8-11
-
-            [JsonProperty(Order = 4)]
-            public byte ProcessorType => (byte)((_ProcInfo & 0x3000) >> 12); // Bits 12-13
-
-            [JsonProperty(Order = 5)]
-            public byte Reserved1 => (byte)((_ProcInfo & 0xC000) >> 14); // Bits 14-15
-
-            [JsonProperty(Order = 6)]
-            public byte ExtendedModel => (byte)((_ProcInfo & 0xF0000) >> 16); // Bits 16-19
-
-            [JsonProperty(Order = 7)]
-            public byte ExtendedFamily => (byte)((_ProcInfo & 0xFF00000) >> 20); // Bits 20-27
-
-            [JsonProperty(Order = 8)]
-            public byte Reserved2 => (byte)(_ProcInfo >> 28); // Bits 28-31
-
-            [JsonProperty(Order = 9)]
-            public uint NativeModelId;
-        }
-
-        #endregion
-
-        #region WHEA Error Record Section: WHEA_XPF_PROCESSOR_ERROR_SECTION
-
-        // @formatter:int_align_fields true
-
-        // From preprocessor definitions (XPF_BUS_CHECK_ADDRESS_*)
-        public enum WHEA_XPF_BUS_CHECK_ADDRESS : byte {
-            Memory   = 0,
-            Reserved = 1,
-            IO       = 2,
-            Other    = 3
-        }
-
-        // From preprocessor definitions (XPF_BUS_CHECK_OPERATION_*)
-        public enum WHEA_XPF_BUS_CHECK_OPERATION : byte {
-            Generic          = 0,
-            GenericRead      = 1,
-            GenericWrite     = 2,
-            DataRead         = 3,
-            DataWrite        = 4,
-            InstructionFetch = 5,
-            Prefetch         = 6
-        }
-
-        // From preprocessor definitions (XPF_BUS_CHECK_PARTICIPATION_*)
-        public enum WHEA_XPF_BUS_CHECK_PARTICIPATION : byte {
-            ProcessorOriginated = 0,
-            ProcessorResponded  = 1,
-            ProcessorObserved   = 2,
-            Generic             = 3
-        }
-
-        // From preprocessor definitions (XPF_BUS_CHECK_TRANSACTIONTYPE_*)
-        public enum WHEA_XPF_BUS_CHECK_TRANSACTION_TYPE : byte {
-            Instruction = 0,
-            DataAccess  = 1,
-            Generic     = 2
-        }
-
-        // From preprocessor definitions (XPF_CACHE_CHECK_OPERATION_*)
-        public enum WHEA_XPF_CACHE_CHECK_OPERATION : byte {
-            Generic          = 0,
-            GenericRead      = 1,
-            GenericWrite     = 2,
-            DataRead         = 3,
-            DataWrite        = 4,
-            InstructionFetch = 5,
-            Prefetch         = 6,
-            Eviction         = 7,
-            Snoop            = 8
-        }
-
-        // From preprocessor definitions (XPF_CACHE_CHECK_TRANSACTIONTYPE_*)
-        public enum WHEA_XPF_CACHE_CHECK_TRANSACTION_TYPE : byte {
-            Instruction = 0,
-            DataAccess  = 1,
-            Generic     = 2
-        }
-
-        // From preprocessor definitions (XPF_CONTEXT_INFO_*)
-        public enum WHEA_XPF_CONTEXT_INFO_TYPE : byte {
-            UnclassifiedData = 0,
-            MSRRegisters     = 1,
-            Context32        = 2,
-            Context64        = 3,
-            FxSave           = 4,
-            DebugRegisters32 = 5,
-            DebugRegisters64 = 6,
-            MmRegisters      = 7
-        }
-
-        // From preprocessor definitions (XPF_MS_CHECK_ERRORTYPE_*)
-        public enum WHEA_XPF_MS_CHECK_ERROR_TYPE : byte {
-            NoError              = 0,
-            Unclassified         = 1,
-            McRomParity          = 2,
-            External             = 3,
-            Frc                  = 4,
-            InternalUnclassified = 5
-        }
-
-        // TODO
-        [Flags]
-        public enum WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS : ulong { }
-
-        [Flags]
-        public enum WHEA_XPF_PROCINFO_VALIDBITS : ulong {
-            CheckInfo          = 0x1,
-            TargetId           = 0x2,
-            RequesterId        = 0x4,
-            ResponderId        = 0x8,
-            InstructionPointer = 0x10
-        }
-
-        // From preprocessor definitions (XPF_TLB_CHECK_OPERATION_*)
-        public enum WHEA_XPF_TLB_CHECK_OPERATION : byte {
-            Generic          = 0,
-            GenericRead      = 1,
-            GenericWrite     = 2,
-            DataRead         = 3,
-            DataWrite        = 4,
-            InstructionFetch = 5,
-            Prefetch         = 6
-        }
-
-        // From preprocessor definitions (XPF_TLB_CHECK_TRANSACTIONTYPE_*)
-        public enum WHEA_XPF_TLB_CHECK_TRANSACTION_TYPE : byte {
-            Instruction = 0,
-            DataAccess  = 1,
-            Generic     = 2
-        }
-
-        // @formatter:int_align_fields false
-
-        // TODO
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_XPF_PROCESSOR_ERROR_SECTION : WheaRecord { }
-
-        [StructLayout(LayoutKind.Explicit, Pack = 1)]
-        public sealed class WHEA_XPF_PROCINFO {
-            [FieldOffset(0)]
-            [JsonProperty(Order = 1)]
-            public Guid CheckInfoId;
-
-            [FieldOffset(16)]
-            private WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS _ValidBits; // TODO: Add ShouldSerialize methods
-
-            [JsonProperty(Order = 2)]
-            public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
-
-            [FieldOffset(24)]
-            [JsonProperty(Order = 3)]
-            public WHEA_XPF_CACHE_CHECK CacheCheck;
-
-            [FieldOffset(24)]
-            [JsonProperty(Order = 4)]
-            public WHEA_XPF_TLB_CHECK TlbCheck;
-
-            [FieldOffset(24)]
-            [JsonProperty(Order = 5)]
-            public WHEA_XPF_BUS_CHECK BusCheck;
-
-            [FieldOffset(24)]
-            [JsonProperty(Order = 6)]
-            public WHEA_XPF_MS_CHECK MsCheck;
-
-            [FieldOffset(32)]
-            [JsonProperty(Order = 7)]
-            public ulong TargetId;
-
-            [FieldOffset(32)]
-            [JsonProperty(Order = 8)]
-            public ulong RequesterId;
-
-            [FieldOffset(32)]
-            [JsonProperty(Order = 9)]
-            public ulong ResponderId;
-
-            [FieldOffset(32)]
-            [JsonProperty(Order = 10)]
-            public ulong InstructionPointer;
-        }
-
-        // TODO
-        [StructLayout(LayoutKind.Explicit, Pack = 1)]
-        public sealed class WHEA_XPF_BUS_CHECK { }
-
-        // TODO
-        [StructLayout(LayoutKind.Explicit, Pack = 1)]
-        public sealed class WHEA_XPF_CACHE_CHECK { }
-
-        // TODO
-        [StructLayout(LayoutKind.Explicit, Pack = 1)]
-        public sealed class WHEA_XPF_MS_CHECK { }
-
-        // TODO
-        [StructLayout(LayoutKind.Explicit, Pack = 1)]
-        public sealed class WHEA_XPF_TLB_CHECK { }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_XPF_CONTEXT_INFO {
-            private WHEA_XPF_CONTEXT_INFO_TYPE _RegisterContextType;
-
-            [JsonProperty(Order = 1)]
-            public string RegisterContextType => Enum.GetName(typeof(WHEA_XPF_CONTEXT_INFO_TYPE), _RegisterContextType);
-
-            [JsonProperty(Order = 2)]
-            public ushort RegisterDataSize;
-
-            [JsonProperty(Order = 3)]
-            public uint MSRAddress;
-
-            [JsonProperty(Order = 4)]
-            public ulong MmRegisterAddress;
-
-            /*
-             * TODO
-             * Variable length arrays need a custom marshaller.
-             */
-            //[JsonProperty(Order = 5)]
-            //public byte[] RegisterData;
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_X86_REGISTER_STATE {
-            public uint Eax;
-            public uint Ebx;
-            public uint Ecx;
-            public uint Edx;
-            public uint Esi;
-            public uint Edi;
-            public uint Ebp;
-            public uint Esp;
-            public ushort Cs;
-            public ushort Ds;
-            public ushort Ss;
-            public ushort Es;
-            public ushort Fs;
-            public ushort Gs;
-            public uint Eflags;
-            public uint Eip;
-            public uint Cr0;
-            public uint Cr1;
-            public uint Cr2;
-            public uint Cr3;
-            public uint Cr4;
-            public ulong Gdtr;
-            public ulong Idtr;
-            public ushort Ldtr;
-            public ushort Tr;
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_X64_REGISTER_STATE {
-            public ulong Rax;
-            public ulong Rbx;
-            public ulong Rcx;
-            public ulong Rdx;
-            public ulong Rsi;
-            public ulong Rdi;
-            public ulong Rbp;
-            public ulong Rsp;
-            public ulong R8;
-            public ulong R9;
-            public ulong R10;
-            public ulong R11;
-            public ulong R12;
-            public ulong R13;
-            public ulong R14;
-            public ulong R15;
-            public ushort Cs;
-            public ushort Ds;
-            public ushort Ss;
-            public ushort Es;
-            public ushort Fs;
-            public ushort Gs;
-            public uint Reserved;
-            public ulong Rflags;
-            public ulong Eip;
-            public ulong Cr0;
-            public ulong Cr1;
-            public ulong Cr2;
-            public ulong Cr3;
-            public ulong Cr4;
-            public ulong Cr8;
-            public WHEA128A Gdtr;
-            public WHEA128A Idtr;
-            public ushort Ldtr;
-            public ushort Tr;
-        }
-
-        /*
-         * TODO
-         * Original struct uses DECLSPEC_ALIGN(16).
-         */
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA128A {
-            public ulong Low;
-            public long High;
         }
 
         #endregion
@@ -4721,9 +3158,10 @@ namespace DecodeWheaRecord {
                 if (_Type == WHEA_NOTIFICATION_TYPE.Cmci
                     || _Type == WHEA_NOTIFICATION_TYPE.Mce
                     || _Type == WHEA_NOTIFICATION_TYPE.GpioSignal
-                    || _Type == WHEA_NOTIFICATION_TYPE.Sdei)
+                    || _Type == WHEA_NOTIFICATION_TYPE.Sdei) {
                     Console.Error.WriteLine(
                         $"[{nameof(WHEA_NOTIFICATION_DESCRIPTOR)}] Type \"{Type}\" is not explicitly mapped to a structure; defaulting to Interrupt.");
+                }
             }
         }
 
