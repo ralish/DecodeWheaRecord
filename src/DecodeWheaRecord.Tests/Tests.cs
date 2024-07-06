@@ -9,6 +9,10 @@ namespace DecodeWheaRecord.Tests {
             Console.Error.WriteLine($"*** {TestContext.CurrentContext.Test.Name} ***");
         }
 
+        /*
+         * Errors
+         */
+
         [Test]
         public void TestErrorDeviceDriver() {
             Program.MainTest(new[] {

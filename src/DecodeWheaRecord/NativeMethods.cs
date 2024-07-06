@@ -10,6 +10,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -28,196 +29,293 @@ namespace DecodeWheaRecord {
 
         #region GUIDs
 
+        /*
+         * Creator IDs
+         */
+
+        // Microsoft extensions
+        public static readonly Guid WHEA_RECORD_CREATOR_GUID = Guid.Parse("cf07c4bd-b789-4e18-b3c4-1f732cb57131");
+        public static readonly Guid DEFAULT_DEVICE_DRIVER_CREATOR_GUID = Guid.Parse("57217c8d-5e66-44fb-8033-9b74cacedf5b");
+
         public static readonly Dictionary<Guid, string> CreatorIds = new Dictionary<Guid, string> {
             // Microsoft extensions
-            { Guid.Parse("cf07c4bd-b789-4e18-b3c4-1f732cb57131"), "Microsoft" },    // WHEA_RECORD_CREATOR_GUID
-            { Guid.Parse("57217c8d-5e66-44fb-8033-9b74cacedf5b"), "Device Driver" } // DEFAULT_DEVICE_DRIVER_CREATOR_GUID
+            { WHEA_RECORD_CREATOR_GUID, "Microsoft" },
+            { DEFAULT_DEVICE_DRIVER_CREATOR_GUID, "Device Driver (default)" }
         };
+
+
+        /*
+         * Notification types
+         */
+
+        // Standard notifications
+        public static readonly Guid BOOT_NOTIFY_TYPE_GUID = Guid.Parse("3d61a466-ab40-409a-a698-f362d464b38f");
+        public static readonly Guid CMC_NOTIFY_TYPE_GUID = Guid.Parse("2dce8bb1-bdd7-450e-b9ad-9cf4ebd4f890");
+        public static readonly Guid CPE_NOTIFY_TYPE_GUID = Guid.Parse("4e292f96-d843-4a55-a8c2-d481f27ebeee");
+        public static readonly Guid INIT_NOTIFY_TYPE_GUID = Guid.Parse("cc5263e8-9308-454a-89d0-340bd39bc98e");
+        public static readonly Guid MCE_NOTIFY_TYPE_GUID = Guid.Parse("e8f56ffe-919c-4cc5-ba88-65abe14913bb");
+        public static readonly Guid NMI_NOTIFY_TYPE_GUID = Guid.Parse("5bad89ff-b7e6-42c9-814a-cf2485d6e98a");
+        public static readonly Guid PCIe_NOTIFY_TYPE_GUID = Guid.Parse("cf93c01f-1a16-4dfc-b8bc-9c4daf67c104");
+        public static readonly Guid PEI_NOTIFY_TYPE_GUID = Guid.Parse("09a9d5ac-5204-4214-96e5-94992e752bcd");
+        public static readonly Guid SEA_NOTIFY_TYPE_GUID = Guid.Parse("9a78788a-bbe8-11e4-809e-67611e5d46b0");
+        public static readonly Guid SEI_NOTIFY_TYPE_GUID = Guid.Parse("5c284c81-b0ae-4e87-a322-b04c85624323");
+
+        // Microsoft notifications
+        public static readonly Guid BMC_NOTIFY_TYPE_GUID = Guid.Parse("487565ba-6494-4367-95ca-4eff893522f6");
+        public static readonly Guid CMCI_NOTIFY_TYPE_GUID = Guid.Parse("919448b2-3739-4b7f-a8f1-e0062805c2a3");
+        public static readonly Guid DEVICE_DRIVER_NOTIFY_TYPE_GUID = Guid.Parse("0033f803-2e70-4e88-992c-6f26daf3db7a");
+        public static readonly Guid EXTINT_NOTIFY_TYPE_GUID = Guid.Parse("fe84086e-b557-43cf-ac1b-17982e078470");
+        public static readonly Guid GENERIC_NOTIFY_TYPE_GUID = Guid.Parse("3e62a467-ab40-409a-a698-f362d464b38f");
+        public static readonly Guid SCI_NOTIFY_TYPE_GUID = Guid.Parse("e9d59197-94ee-4a4f-8ad8-9b7d8bd93d2e");
 
         public static readonly Dictionary<Guid, string> NotifyTypes = new Dictionary<Guid, string> {
-            // Standard types
-            { Guid.Parse("3d61a466-ab40-409a-a698-f362d464b38f"), "Boot Error Record (BOOT)" },         // BOOT_NOTIFY_TYPE_GUID
-            { Guid.Parse("2dce8bb1-bdd7-450e-b9ad-9cf4ebd4f890"), "Corrected Machine Check (CMC)" },    // CMC_NOTIFY_TYPE_GUID
-            { Guid.Parse("4e292f96-d843-4a55-a8c2-d481f27ebeee"), "Corrected Platform Error (CPE)" },   // CPE_NOTIFY_TYPE_GUID
-            { Guid.Parse("667dd791-c6b3-4c27-8a6b-0f8e722deb41"), "DMA Remapping Error (DMAr)" },       // Not in headers
-            { Guid.Parse("cc5263e8-9308-454a-89d0-340bd39bc98e"), "INIT Error Record (INIT)" },         // INIT_NOTIFY_TYPE_GUID
-            { Guid.Parse("e8f56ffe-919c-4cc5-ba88-65abe14913bb"), "Machine Check Exception (MCE)" },    // MCE_NOTIFY_TYPE_GUID
-            { Guid.Parse("5bad89ff-b7e6-42c9-814a-cf2485d6e98a"), "Non-Maskable Interrupt (NMI)" },     // NMI_NOTIFY_TYPE_GUID
-            { Guid.Parse("cf93c01f-1a16-4dfc-b8bc-9c4daf67c104"), "PCI Express (PCIe) Error" },         // PCIe_NOTIFY_TYPE_GUID
-            { Guid.Parse("09a9d5ac-5204-4214-96e5-94992e752bcd"), "Platform Error Interrupt (PEI)" },   // PEI_NOTIFY_TYPE_GUID
-            { Guid.Parse("9a78788a-bbe8-11e4-809e-67611e5d46b0"), "Synchronous External Abort (SEA)" }, // SEA_NOTIFY_TYPE_GUID
-            { Guid.Parse("5c284c81-b0ae-4e87-a322-b04c85624323"), "SError Interrupt (SEI)" },           // SEI_NOTIFY_TYPE_GUID
-            { Guid.Parse("487565ba-6494-4367-95ca-4eff893522f6"), "BMC_NOTIFY_TYPE_GUID" },             // BMC_NOTIFY_TYPE_GUID
-            { Guid.Parse("919448b2-3739-4b7f-a8f1-e0062805c2a3"), "CMCI_NOTIFY_TYPE_GUID" },            // CMCI_NOTIFY_TYPE_GUID
-            { Guid.Parse("0033f803-2e70-4e88-992c-6f26daf3db7a"), "DEVICE_DRIVER_NOTIFY_TYPE_GUID" },   // DEVICE_DRIVER_NOTIFY_TYPE_GUID
-            { Guid.Parse("fe84086e-b557-43cf-ac1b-17982e078470"), "EXTINT_NOTIFY_TYPE_GUID" },          // EXTINT_NOTIFY_TYPE_GUID
-            { Guid.Parse("e9d59197-94ee-4a4f-8ad8-9b7d8bd93d2e"), "SCI_NOTIFY_TYPE_GUID" },             // SCI_NOTIFY_TYPE_GUID
+            // Standard notifications
+            { BOOT_NOTIFY_TYPE_GUID, "Boot Error Record (BOOT)" },
+            { CMC_NOTIFY_TYPE_GUID, "Corrected Machine Check (CMC)" },
+            { CPE_NOTIFY_TYPE_GUID, "Corrected Platform Error (CPE)" },
+            { INIT_NOTIFY_TYPE_GUID, "Init Error Record (INIT)" },
+            { MCE_NOTIFY_TYPE_GUID, "Machine Check Exception (MCE)" },
+            { NMI_NOTIFY_TYPE_GUID, "Non-Maskable Interrupt (NMI)" },
+            { PCIe_NOTIFY_TYPE_GUID, "PCI Express Error (PCIe)" },
+            { PEI_NOTIFY_TYPE_GUID, "Platform Error Interrupt (PEI)" },
+            { SEA_NOTIFY_TYPE_GUID, "Synchronous External Abort (SEA)" },
+            { SEI_NOTIFY_TYPE_GUID, "SError Interrupt (SEI)" },
 
-            // Microsoft extensions
-            { Guid.Parse("3e62a467-ab40-409a-a698-f362d464b38f"), "Generic Error Record" } // GENERIC_NOTIFY_TYPE_GUID
+            // Standard notifications not in headers
+            { Guid.Parse("69293bc9-41df-49a3-b4bd-4fb0db3041f6"), "Compute Express Link (CXL)" },
+            { Guid.Parse("667dd791-c6b3-4c27-8a6b-0f8e722deb41"), "DMA Remapping Error (DMAr)" },
+
+            // Microsoft notifications
+            { BMC_NOTIFY_TYPE_GUID, "Baseboard Management Controller (BMC)" },
+            { CMCI_NOTIFY_TYPE_GUID, "Corrected Machine Check Interrupt (CMCI)" },
+            { DEVICE_DRIVER_NOTIFY_TYPE_GUID, "Device Driver" },
+            { EXTINT_NOTIFY_TYPE_GUID, "External Interrupt" },
+            { GENERIC_NOTIFY_TYPE_GUID, "Generic Error Record" },
+            { SCI_NOTIFY_TYPE_GUID, "Service Control Interrupt (SCI)" }
         };
 
+
+        /*
+         * Processor check info types
+         */
+
+        public static readonly Guid WHEA_BUSCHECK_GUID = Guid.Parse("1cf3f8b3-c5b1-49a2-aa59-5eef92ffa63c");
+        public static readonly Guid WHEA_CACHECHECK_GUID = Guid.Parse("a55701f5-e3ef-43de-ac72-249b573fad2c");
+        public static readonly Guid WHEA_MSCHECK_GUID = Guid.Parse("48ab7f57-dc34-4f6c-a7d3-b0b5b0a74314");
+        public static readonly Guid WHEA_TLBCHECK_GUID = Guid.Parse("fc06b535-5e1f-4562-9f25-0a3b9adb63c3");
+
+        public static readonly Dictionary<Guid, string> ProcessorCheckInfoTypes = new Dictionary<Guid, string> {
+            { WHEA_BUSCHECK_GUID, "Bus" },
+            { WHEA_CACHECHECK_GUID, "Cache" },
+            { WHEA_MSCHECK_GUID, "Microarchitecture-specific" },
+            { WHEA_TLBCHECK_GUID, "Translation Lookaside Buffer" }
+        };
+
+
+        /*
+         * Section types
+         */
+
+        // Standard sections
+        public static readonly Guid ARM_PROCESSOR_ERROR_SECTION_GUID = Guid.Parse("e19e3d16-bc11-11e4-9caa-c2051d5d46b0");
+        public static readonly Guid FIRMWARE_ERROR_RECORD_REFERENCE_GUID = Guid.Parse("81212a96-09ed-4996-9471-8d729c8e69ed");
+        public static readonly Guid IPF_PROCESSOR_ERROR_SECTION_GUID = Guid.Parse("e429faf1-3cb7-11d4-bca7-0080c73c8881");
+        public static readonly Guid MEMORY_ERROR_SECTION_GUID = Guid.Parse("a5bc1114-6f64-4ede-b863-3e83ed7c83b1");
+        public static readonly Guid PCIEXPRESS_ERROR_SECTION_GUID = Guid.Parse("d995e954-bbc1-430f-ad91-b44dcb3c6f35");
+        public static readonly Guid PCIXBUS_ERROR_SECTION_GUID = Guid.Parse("c5753963-3b84-4095-bf78-eddad3f9c9dd");
+        public static readonly Guid PCIXDEVICE_ERROR_SECTION_GUID = Guid.Parse("eb5e4685-ca66-4769-b6a2-26068b001326");
+        public static readonly Guid PROCESSOR_GENERIC_ERROR_SECTION_GUID = Guid.Parse("9876ccad-47b4-4bdb-b65e-16f193c4f3db");
+        public static readonly Guid XPF_PROCESSOR_ERROR_SECTION_GUID = Guid.Parse("dc3ea0b0-a144-4797-b95b-53fa242b6e1d");
+
+        // Microsoft sections
+        public static readonly Guid GENERIC_SECTION_GUID = Guid.Parse("e71254e8-c1b9-4940-ab76-909703a4320f");
+        public static readonly Guid IPF_SAL_RECORD_SECTION_GUID = Guid.Parse("6f3380d1-6eb0-497f-a578-4d4c65a71617");
+        public static readonly Guid IPMI_MSR_DUMP_SECTION_GUID = Guid.Parse("1c15b445-9b06-4667-ac25-33c056b88803");
+        public static readonly Guid MEMORY_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID = Guid.Parse("0e36c93e-ca15-4a83-ba8a-cbe80f7f0017");
+        public static readonly Guid MU_TELEMETRY_SECTION_GUID = Guid.Parse("85183a8b-9c41-429c-939c-5c3c087ca280");
+        public static readonly Guid NMI_SECTION_GUID = Guid.Parse("e71254e7-c1b9-4940-ab76-909703a4320f");
+        public static readonly Guid PCIE_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID = Guid.Parse("e96eca99-53e2-4f52-9be7-d2dbe9508ed0");
+        public static readonly Guid PMEM_ERROR_SECTION_GUID = Guid.Parse("81687003-dbfd-4728-9ffd-f0904f97597d");
+        public static readonly Guid RECOVERY_INFO_SECTION_GUID = Guid.Parse("c34832a1-02c3-4c52-a9f1-9f1d5d7723fc");
+        public static readonly Guid WHEA_DPC_CAPABILITY_SECTION_GUID = Guid.Parse("ec49534b-30e7-4358-972f-eca6958fae3b");
+        public static readonly Guid WHEA_ERROR_PACKET_SECTION_GUID = Guid.Parse("e71254e9-c1b9-4940-ab76-909703a4320f");
+        public static readonly Guid XPF_MCA_SECTION_GUID = Guid.Parse("8a1e1d01-42f9-4557-9c33-565e5cc3f7e8");
+
         public static readonly Dictionary<Guid, string> SectionTypes = new Dictionary<Guid, string> {
-            // Standard types not present in headers
+            // Standard sections not in headers
             { Guid.Parse("5b51fef7-c79d-4434-8f1b-aa62de3e2c64"), "DMAr Generic" },
             { Guid.Parse("71761d37-32b2-45cd-a7d0-b0fedd93e8cf"), "Intel VT for Directed I/O specific DMAr section" },
             { Guid.Parse("036f84e1-7f37-428c-a79e-575fdfaa84ec"), "IOMMU specific DMAr section" },
 
             /*
-             * Section type:        Microsoft
-             * Symbolic name:       MU_TELEMETRY_SECTION_GUID
-             * Structure:           MU_TELEMETRY_SECTION
-             * Notes:               Name is a guess as the structure is undocumented.
-             *                      Incorrectly listed as a standard error section?
-             */
-            { Guid.Parse("85183a8b-9c41-429c-939c-5c3c087ca280"), "Microsoft Update Telemetry" },
-
-            /*
              * Section type:        Standard
-             * Symbolic name:       ARM_PROCESSOR_ERROR_SECTION_GUID
              * Structure:           WHEA_ARM_PROCESSOR_ERROR_SECTION
+             * Docs:                Undocumented
+             * Support:             Partial
              */
-            { Guid.Parse("e19e3d16-bc11-11e4-9caa-c2051d5d46b0"), "ARM Processor Error" },
-
-            /*
-             * Section type:        Microsoft
-             * Symbolic name:       WHEA_ERROR_PACKET_SECTION_GUID
-             * Structure:           WHEA_ERROR_PACKET_V1 / WHEA_ERROR_PACKET_V2
-             */
-            { Guid.Parse("e71254e9-c1b9-4940-ab76-909703a4320f"), "Hardware Error Packet" },
-
-            /*
-             * Section type:        Microsoft
-             * Symbolic name:       RECOVERY_INFO_SECTION_GUID
-             * Structure:           WHEA_ERROR_RECOVERY_INFO_SECTION
-             * Notes:               Name is a guess as the structure is undocumented.
-             *                      Incorrectly listed as a standard error section?
-             */
-            { Guid.Parse("c34832a1-02c3-4c52-a9f1-9f1d5d7723fc"), "Error Recovery Information" },
+            { ARM_PROCESSOR_ERROR_SECTION_GUID, "ARM Processor Error" },
 
             /*
              * Section type:        Standard
-             * Symbolic name:       FIRMWARE_ERROR_RECORD_REFERENCE_GUID
              * Structure:           WHEA_FIRMWARE_ERROR_RECORD_REFERENCE
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_firmware_error_record_reference
+             * Support:             Done
              */
-            { Guid.Parse("81212a96-09ed-4996-9471-8d729c8e69ed"), "Firmware Error Record Reference" },
-
-            /*
-             * Section type:        Microsoft
-             * Symbolic name:       MEMORY_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID
-             * Structure:           WHEA_MEMORY_CORRECTABLE_ERROR_SECTION
-             */
-            { Guid.Parse("0e36c93e-ca15-4a83-ba8a-cbe80f7f0017"), "Correctable Memory Error" },
+            { FIRMWARE_ERROR_RECORD_REFERENCE_GUID, "Firmware Error Record Reference" },
 
             /*
              * Section type:        Standard
-             * Symbolic name:       MEMORY_ERROR_SECTION_GUID
-             * Structure:           WHEA_MEMORY_ERROR_SECTION
-             */
-            { Guid.Parse("a5bc1114-6f64-4ede-b863-3e83ed7c83b1"), "Memory Error" },
-
-            /*
-             * Section type:        Microsoft
-             * Symbolic name:       IPMI_MSR_DUMP_SECTION_GUID
-             * Structure:           WHEA_MSR_DUMP_SECTION
-             */
-            { Guid.Parse("1c15b445-9b06-4667-ac25-33c056b88803"), "IPMI MSR Dump" },
-
-            /*
-             * Section type:        Microsoft
-             * Symbolic name:       NMI_SECTION_GUID
-             * Structure:           WHEA_NMI_ERROR_SECTION
-             */
-            { Guid.Parse("e71254e7-c1b9-4940-ab76-909703a4320f"), "NMI Error" },
-
-            /*
-             * Section type:        Microsoft
-             * Symbolic name:       PCIE_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID
-             * Structure:           WHEA_PCIE_CORRECTABLE_ERROR_SECTION
-             */
-            { Guid.Parse("e96eca99-53e2-4f52-9be7-d2dbe9508ed0"), "Correctable PCIe Error" },
-
-            /*
-             * Section type:        Standard
-             * Symbolic name:       PCIEXPRESS_ERROR_SECTION_GUID
-             * Structure:           WHEA_PCIEXPRESS_ERROR_SECTION
-             */
-            { Guid.Parse("d995e954-bbc1-430f-ad91-b44dcb3c6f35"), "PCI Express Error" },
-
-            /*
-             * Section type:        Standard
-             * Symbolic name:       PCIXBUS_ERROR_SECTION_GUID
-             * Structure:           WHEA_PCIXBUS_ERROR_SECTION
-             */
-            { Guid.Parse("c5753963-3b84-4095-bf78-eddad3f9c9dd"), "PCI/PCI-X Bus Error" },
-
-            /*
-             * Section type:        Standard
-             * Symbolic name:       PCIXDEVICE_ERROR_SECTION_GUID
-             * Structure:           WHEA_PCIXDEVICE_ERROR_SECTION
-             */
-            { Guid.Parse("eb5e4685-ca66-4769-b6a2-26068b001326"), "PCI Component/Device Error" },
-
-            /*
-             * Section type:        Microsoft
-             * Symbolic name:       PMEM_ERROR_SECTION_GUID
-             * Structure:           WHEA_PMEM_ERROR_SECTION
-             */
-            { Guid.Parse("81687003-dbfd-4728-9ffd-f0904f97597d"), "Persistent Mememory Error" },
-
-            /*
-             * Section type:        Standard
-             * Symbolic name:       PROCESSOR_GENERIC_ERROR_SECTION_GUID
              * Structure:           WHEA_PROCESSOR_GENERIC_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_processor_generic_error_section
+             * Support:             Partial
              */
-            { Guid.Parse("9876ccad-47b4-4bdb-b65e-16f193c4f3db"), "Generic Processor Error" },
+            { PROCESSOR_GENERIC_ERROR_SECTION_GUID, "Generic Processor Error" },
 
             /*
              * Section type:        Standard
-             * Symbolic name:       XPF_PROCESSOR_ERROR_SECTION_GUID
              * Structure:           WHEA_XPF_PROCESSOR_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_xpf_processor_error_section
+             * Support:             Partial
              */
-            { Guid.Parse("dc3ea0b0-a144-4797-b95b-53fa242b6e1d"), "IA32/AMD64 Processor Error" },
+            { XPF_PROCESSOR_ERROR_SECTION_GUID, "IA32/AMD64 Processor Error" },
 
             /*
-             * TODO
-             * Section type:        Microsoft
-             * Symbolic name:       GENERIC_SECTION_GUID
-             * Structure:           TODO
-             */
-            { Guid.Parse("e71254e8-c1b9-4940-ab76-909703a4320f"), "GENERIC_SECTION_GUID" },
-
-            /*
-             * TODO
              * Section type:        Standard
-             * Symbolic name:       IPF_PROCESSOR_ERROR_SECTION_GUID
              * Structure:           TODO
+             * Docs:                TODO
+             * Support:             TODO
              */
-            { Guid.Parse("e429faf1-3cb7-11d4-bca7-0080c73c8881"), "IPF_PROCESSOR_ERROR_SECTION_GUID" },
+            { IPF_PROCESSOR_ERROR_SECTION_GUID, "IA64 Processor Error" },
 
             /*
-             * TODO
-             * Section type:        Microsoft
-             * Symbolic name:       IPF_SAL_RECORD_SECTION_GUID
-             * Structure:           TODO
+             * Section type:        Standard
+             * Structure:           WHEA_MEMORY_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_memory_error_section
+             * Support:             Partial
              */
-            { Guid.Parse("6f3380d1-6eb0-497f-a578-4d4c65a71617"), "IPF_SAL_RECORD_SECTION_GUID" },
+            { MEMORY_ERROR_SECTION_GUID, "Memory Error" },
 
             /*
-             * TODO
-             * Section type:        Microsoft
-             * Symbolic name:       WHEA_DPC_CAPABILITY_SECTION_GUID
-             * Structure:           WHEA_PCI_DPC_SECTION (PCI_EXPRESS_DPC_CAPABILITY)
+             * Section type:        Standard
+             * Structure:           WHEA_PCIXDEVICE_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_pcixdevice_error_section
+             * Support:             Partial
              */
-            { Guid.Parse("ec49534b-30e7-4358-972f-eca6958fae3b"), "WHEA_DPC_CAPABILITY_SECTION_GUID" },
+            { PCIXDEVICE_ERROR_SECTION_GUID, "PCI Component/Device Error" },
 
             /*
-             * TODO
+             * Section type:        Standard
+             * Structure:           WHEA_PCIEXPRESS_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_pciexpress_error_section
+             * Support:             Partial
+             */
+            { PCIEXPRESS_ERROR_SECTION_GUID, "PCI Express Error" },
+
+            /*
+             * Section type:        Standard
+             * Structure:           WHEA_PCIXBUS_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_pcixbus_error_section
+             * Support:             Done
+             */
+            { PCIXBUS_ERROR_SECTION_GUID, "PCI/PCI-X Bus Error" },
+
+            /*
              * Section type:        Microsoft
-             * Symbolic name:       XPF_MCA_SECTION_GUID
+             * Structure:           WHEA_MEMORY_CORRECTABLE_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_memory_correctable_error_section
+             * Support:             Partial
+             */
+            { MEMORY_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID, "Correctable Memory Error" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           WHEA_PCIE_CORRECTABLE_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_pcie_correctable_error_section_header
+             *                      https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_pcie_correctable_error_devices
+             * Support:             Partial
+             */
+            { PCIE_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID, "Correctable PCIe Error" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           WHEA_ERROR_RECOVERY_INFO_SECTION
+             * Docs:                Undocumented
+             * Support:             Done
+             */
+            { RECOVERY_INFO_SECTION_GUID, "Error Recovery Information" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           WHEA_ERROR_PACKET_V1 / WHEA_ERROR_PACKET_V2
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_error_packet_v1
+             *                      https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_error_packet_v2
+             * Support:             Partial
+             */
+            { WHEA_ERROR_PACKET_SECTION_GUID, "Hardware Error Packet" },
+
+            /*
+             * Section type:        Microsoft
              * Structure:           WHEA_XPF_MCA_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_xpf_mca_section
+             * Support:             TODO
              */
-            { Guid.Parse("8a1e1d01-42f9-4557-9c33-565e5cc3f7e8"), "XPF_MCA_SECTION_GUID" }
+            { XPF_MCA_SECTION_GUID, "IA32/AMD64 Machine Check Error" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           WHEA_MSR_DUMP_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_msr_dump_section
+             * Support:             Partial
+             */
+            { IPMI_MSR_DUMP_SECTION_GUID, "MSR Dump" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           WHEA_NMI_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_nmi_error_section
+             * Support:             Partial
+             */
+            { NMI_SECTION_GUID, "NMI Error" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           WHEA_PMEM_ERROR_SECTION
+             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_pmem_error_section
+             * Support:             Partial
+             */
+            { PMEM_ERROR_SECTION_GUID, "Persistent Mememory Error" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           MU_TELEMETRY_SECTION
+             * Docs:                Undocumented
+             * Support:             Done
+             */
+            { MU_TELEMETRY_SECTION_GUID, "Project Mu Telemetry" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           TODO
+             * Docs:                TODO
+             * Support:             TODO
+             */
+            { GENERIC_SECTION_GUID, "GENERIC_SECTION_GUID" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           TODO
+             * Docs:                TODO
+             * Support:             TODO
+             */
+            { IPF_SAL_RECORD_SECTION_GUID, "IPF_SAL_RECORD_SECTION_GUID" },
+
+            /*
+             * Section type:        Microsoft
+             * Structure:           WHEA_PCI_DPC_SECTION (PCI_EXPRESS_DPC_CAPABILITY)
+             * Docs:                TODO
+             * Support:             TODO
+             */
+            { WHEA_DPC_CAPABILITY_SECTION_GUID, "WHEA_DPC_CAPABILITY_SECTION_GUID" }
         };
 
         #endregion
@@ -238,19 +336,19 @@ namespace DecodeWheaRecord {
             CMC          = 1,  // Corrected Machine Check
             CPE          = 2,  // Corrected Platform Error
             NMI          = 3,  // Non-Maskable Interrupt
-            PCIe         = 4,  // PCI Express
+            PCIe         = 4,  // PCI Express error source
             Generic      = 5,  // Other types of error sources
-            INIT         = 6,  // Itanium INIT
-            BOOT         = 7,  // Boot error source
+            INIT         = 6,  // IA64 INIT error source
+            BOOT         = 7,  // BOOT error source
             SCIGeneric   = 8,  // Generic Hardware Error Source (via Service Control Interrupt)
             IPFMCA       = 9,  // Itanium Machine Check Abort
             IPFCMC       = 10, // Itanium Corrected Machine Check
             IPFCPE       = 11, // Itanium Corrected Platform Error
             GenericV2    = 12, // Other types of error sources v2
             SCIGenericV2 = 13, // Generic Hardware Error Source v2 (via Service Control Interrupt)
-            BMC          = 14, // Baseboard Management Controller
-            PMEM         = 15, // Persistent Memory (via Address Range Scrub)
-            DeviceDriver = 16, // Device Driver
+            BMC          = 14, // Baseboard Management Controller error source
+            PMEM         = 15, // Persistent Memory error source (via Address Range Scrub)
+            DeviceDriver = 16, // Device Driver error source
             SEA          = 17, // ARMv8 Synchronous External Abort
             SEI          = 18  // ARMv8 SError Interrupt
         }
@@ -299,7 +397,7 @@ namespace DecodeWheaRecord {
 
         // Originally defined directly in the WHEA_ERROR_STATUS structure
         [Flags]
-        public enum WHEA_ERROR_STATUS_FLAGS : uint {
+        public enum WHEA_ERROR_STATUS_FLAGS : byte {
             Address    = 0x1,
             Control    = 0x2,
             Data       = 0x4,
@@ -307,6 +405,12 @@ namespace DecodeWheaRecord {
             Requester  = 0x10,
             FirstError = 0x20,
             Overflow   = 0x40
+        }
+
+        // Originally defined directly in the WHEA_TIMESTAMP structure
+        [Flags]
+        public enum WHEA_TIMESTAMP_FLAGS : byte {
+            Precise = 0x1
         }
 
         // @formatter:int_align_fields false
@@ -334,9 +438,10 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 3)]
             public string Flags => GetEnabledFlagsAsString(_Flags);
 
-            // Add two padding bytes to match the original 64-bit structure
+            // Add five padding bytes to match the original 64-bit structure
 #pragma warning disable CS0169 // Field is never used
-            private ushort Reserved2;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
+            public byte[] Reserved2;
 #pragma warning restore CS0169 // Field is never used
         }
 
@@ -352,6 +457,49 @@ namespace DecodeWheaRecord {
         public sealed class WHEA_REVISION {
             public byte MinorRevision;
             public byte MajorRevision;
+
+            public override string ToString() {
+                return $"{MajorRevision}.{MinorRevision}";
+            }
+        }
+
+        /*
+         * Originally defined as a ULONGLONG bitfield. This structure has the
+         * same in memory format, but is simpler to interact with.
+         */
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public sealed class WHEA_TIMESTAMP {
+            [JsonProperty(Order = 1)]
+            public byte Seconds;
+
+            [JsonProperty(Order = 2)]
+            public byte Minutes;
+
+            [JsonProperty(Order = 3)]
+            public byte Hours;
+
+            private WHEA_TIMESTAMP_FLAGS _Flags;
+
+            [JsonProperty(Order = 4)]
+            public string Flags => GetEnabledFlagsAsString(_Flags);
+
+            [JsonProperty(Order = 5)]
+            public byte Day;
+
+            [JsonProperty(Order = 6)]
+            public byte Month;
+
+            [JsonProperty(Order = 7)]
+            public byte Year;
+
+            [JsonProperty(Order = 8)]
+            public byte Century;
+
+            // TODO: Surface flags
+            public override string ToString() {
+                var dt = new DateTime(Century * 100 + Year, Month, Day, Hours, Minutes, Seconds);
+                return dt.ToString(CultureInfo.CurrentCulture);
+            }
         }
 
         #endregion
@@ -374,12 +522,11 @@ namespace DecodeWheaRecord {
         private const uint WHEA_ERROR_RECORD_SIGNATURE_END = uint.MaxValue; // 0xFFFFFFFF
 
         /*
-         * The value of the signature does not appear to be defined in the
-         * header but Microsoft's documentation for the structure states it is
-         * "RE". It is reversed as we perform validation against the member as
-         * an ASCII string instead of a USHORT.
+         * The signature value is not defined in the header but Microsoft's
+         * documentation states it is "RE". It is reversed as validation is
+         * performed against the member as an ASCII string instead of a USHORT.
          */
-        public const string WHEA_PERSISTENCE_INFO_SIGNATURE = "ER";
+        private const string WHEA_PERSISTENCE_INFO_SIGNATURE = "ER";
 
         #endregion
 
@@ -416,12 +563,6 @@ namespace DecodeWheaRecord {
             DoNotLog   = 0x4
         }
 
-        // Originally defined directly in the WHEA_TIMESTAMP structure
-        [Flags]
-        public enum WHEA_TIMESTAMP_FLAGS : byte {
-            Precise = 0x1
-        }
-
         // @formatter:int_align_fields false
 
         #endregion
@@ -440,8 +581,10 @@ namespace DecodeWheaRecord {
                 }
             }
 
+            private WHEA_REVISION _Revision;
+
             [JsonProperty(Order = 2)]
-            public WHEA_REVISION Revision;
+            public string Revision => _Revision.ToString();
 
             [JsonProperty(Order = 3)]
             public uint SignatureEnd;
@@ -465,10 +608,12 @@ namespace DecodeWheaRecord {
              * descriptors, and error record sections.
              */
             [JsonProperty(Order = 7)]
-            public uint Length; // TODO: Validate in decoder
+            public uint Length; // TODO: Validate (in decoder?)
+
+            private WHEA_TIMESTAMP _Timestamp;
 
             [JsonProperty(Order = 8)]
-            public WHEA_TIMESTAMP Timestamp;
+            public string Timestamp => _Timestamp.ToString();
 
             [JsonProperty(Order = 9)]
             public Guid PlatformId;
@@ -538,14 +683,14 @@ namespace DecodeWheaRecord {
                 }
 
                 const byte majorRevision = WHEA_ERROR_RECORD_REVISION >> 8;
-                if (Revision.MajorRevision > majorRevision) {
-                    var msg = $"[{nameof(WHEA_ERROR_RECORD_HEADER)}] Major revision {Revision.MajorRevision} is greater than max supported: {majorRevision}";
+                if (_Revision.MajorRevision > majorRevision) {
+                    var msg = $"[{nameof(WHEA_ERROR_RECORD_HEADER)}] Major revision {_Revision.MajorRevision} is greater than max supported: {majorRevision}";
                     Console.Error.WriteLine(msg);
-                } else if (Revision.MajorRevision == majorRevision) {
+                } else if (_Revision.MajorRevision == majorRevision) {
                     const byte minorRevision = WHEA_ERROR_RECORD_REVISION & 0xFF;
-                    if (Revision.MinorRevision > minorRevision) {
+                    if (_Revision.MinorRevision > minorRevision) {
                         var msg =
-                            $"[{nameof(WHEA_ERROR_RECORD_HEADER)}] Minor revision {Revision.MinorRevision} is greater than max supported: {minorRevision}";
+                            $"[{nameof(WHEA_ERROR_RECORD_HEADER)}] Minor revision {_Revision.MinorRevision} is greater than max supported: {minorRevision}";
                         Console.Error.WriteLine(msg);
                     }
                 }
@@ -620,39 +765,6 @@ namespace DecodeWheaRecord {
             }
         }
 
-        /*
-         * Originally defined as a ULONGLONG bitfield. This structure has the
-         * same in memory format, but is simpler to interact with.
-         */
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_TIMESTAMP {
-            [JsonProperty(Order = 1)]
-            public byte Seconds;
-
-            [JsonProperty(Order = 2)]
-            public byte Minutes;
-
-            [JsonProperty(Order = 3)]
-            public byte Hours;
-
-            private WHEA_TIMESTAMP_FLAGS _Flags;
-
-            [JsonProperty(Order = 4)]
-            public string Flags => GetEnabledFlagsAsString(_Flags);
-
-            [JsonProperty(Order = 5)]
-            public byte Day;
-
-            [JsonProperty(Order = 6)]
-            public byte Month;
-
-            [JsonProperty(Order = 7)]
-            public byte Year;
-
-            [JsonProperty(Order = 8)]
-            public byte Century;
-        }
-
         #endregion
 
         #region WHEA Error Record Section Descriptor: Constants
@@ -713,8 +825,10 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 2)]
             public uint SectionLength; // TODO: Validate
 
+            private WHEA_REVISION _Revision;
+
             [JsonProperty(Order = 3)]
-            public WHEA_REVISION Revision;
+            public string Revision => _Revision.ToString();
 
             private WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS _ValidBits;
 
@@ -761,15 +875,15 @@ namespace DecodeWheaRecord {
 
             public override void Validate() {
                 const byte majorRevision = WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION >> 8;
-                if (Revision.MajorRevision > majorRevision) {
+                if (_Revision.MajorRevision > majorRevision) {
                     var msg =
-                        $"[{nameof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR)}] Major revision {Revision.MajorRevision} is greater than max supported: {majorRevision}";
+                        $"[{nameof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR)}] Major revision {_Revision.MajorRevision} is greater than max supported: {majorRevision}";
                     Console.Error.WriteLine(msg);
-                } else if (Revision.MajorRevision == majorRevision) {
+                } else if (_Revision.MajorRevision == majorRevision) {
                     const byte minorRevision = WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION & 0xFF;
-                    if (Revision.MinorRevision > minorRevision) {
+                    if (_Revision.MinorRevision > minorRevision) {
                         var msg =
-                            $"[{nameof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR)}] Minor revision {Revision.MinorRevision} is greater than max supported: {minorRevision}";
+                            $"[{nameof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR)}] Minor revision {_Revision.MinorRevision} is greater than max supported: {minorRevision}";
                         Console.Error.WriteLine(msg);
                     }
                 }
@@ -800,7 +914,7 @@ namespace DecodeWheaRecord {
 
         [Flags]
         public enum WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS : uint {
-            MPIDR              = 0x1,
+            MPIDR              = 0x1, // Multiprocessor Affinity Register
             AffinityLevel      = 0x2,
             RunningState       = 0x4,
             VendorSpecificInfo = 0x8
@@ -833,16 +947,16 @@ namespace DecodeWheaRecord {
             public byte[] Reserved;
 
             [JsonProperty(Order = 7)]
-            public ulong MPIDR_EL1;
+            public ulong MPIDR_EL1; // Multiprocessor Affinity Register
 
             [JsonProperty(Order = 8)]
-            public ulong MIDR_EL1;
+            public ulong MIDR_EL1; // Main ID Register
 
             [JsonProperty(Order = 9)]
             public uint RunningState;
 
             [JsonProperty(Order = 10)]
-            public uint PSCIState;
+            public uint PSCIState; // Power State Coordination Interface
 
             /*
              * TODO
@@ -868,11 +982,29 @@ namespace DecodeWheaRecord {
             }
 
             [UsedImplicitly]
+            public bool ShouldSerializePSCIState() {
+                // Field is valid when bit 32 of RunningState is unset
+                return ShouldSerializeRunningState() && (RunningState & 0xF0000000) == 0;
+            }
+
+            [UsedImplicitly]
             public bool ShouldSerializeRunningState() {
                 return (_ValidBits & WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS.RunningState) == WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS.RunningState;
             }
 
-            public override void Validate() { }
+            public override void Validate() {
+                // At least one error information structure should be present
+                if (ErrorInformationStructures == 0) {
+                    var msg = $"[{nameof(WHEA_ARM_PROCESSOR_ERROR_SECTION)}] {nameof(ErrorInformationStructures)} is not >= 1.";
+                    Console.Error.WriteLine(msg);
+                }
+
+                // PSCIState should be zero when bit 0 of RunningState is set
+                if (ShouldSerializeRunningState() && (RunningState & 0x1) == 1 && PSCIState != 0) {
+                    var msg = $"[{nameof(WHEA_ARM_PROCESSOR_ERROR_SECTION)}] {nameof(RunningState)} indicates {nameof(PSCIState)} should be zero.";
+                    Console.Error.WriteLine(msg);
+                }
+            }
         }
 
         #endregion
@@ -1237,7 +1369,7 @@ namespace DecodeWheaRecord {
         // @formatter:int_align_fields true
 
         [Flags]
-        public enum WHEA_RECOVERY_ACTION : uint {
+        public enum WHEA_RECOVERY_ACTION : ulong {
             NoneAttempted    = 0x1,
             TerminateProcess = 0x2,
             ForwardedToVm    = 0x4,
@@ -1289,7 +1421,7 @@ namespace DecodeWheaRecord {
             public string RecoveryType => Enum.GetName(typeof(WHEA_RECOVERY_TYPE), _RecoveryType);
 
             [JsonProperty(Order = 4)]
-            public byte Irql;
+            public byte Irql; // TODO: KIRQL
 
             [JsonProperty(Order = 5)]
             [MarshalAs(UnmanagedType.U1)]
@@ -1322,18 +1454,15 @@ namespace DecodeWheaRecord {
 
         // @formatter:int_align_fields false
 
-        /*
-         * Expanded from out-of-date struct in official header.
-         */
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_FIRMWARE_ERROR_RECORD_REFERENCE : WheaRecord {
+        public class WHEA_FIRMWARE_ERROR_RECORD_REFERENCE : WheaRecord {
             private WHEA_FIRMWARE_RECORD_TYPE _Type;
 
             [JsonProperty(Order = 1)]
             public string Type => Enum.GetName(typeof(WHEA_FIRMWARE_RECORD_TYPE), _Type);
 
             [JsonProperty(Order = 2)]
-            public char Revision; // Added
+            public byte Revision; // Added (subtracted from Reserved)
 
             [JsonProperty(Order = 3)]
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
@@ -1342,8 +1471,22 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 4)]
             public ulong FirmwareRecordId;
 
+            public override void Validate() {
+                // FirmwareRecordId should be NULL for Revision >= 1
+                if (Revision >= 1 && FirmwareRecordId != 0) {
+                    var msg = $"[{nameof(WHEA_FIRMWARE_ERROR_RECORD_REFERENCE)}] {nameof(Revision)} is >= 1 but {nameof(FirmwareRecordId)} is not NULL.";
+                    Console.Error.WriteLine(msg);
+                }
+            }
+        }
+
+        /*
+         * Expands out-of-date structure in header.
+         */
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public sealed class WHEA_FIRMWARE_ERROR_RECORD_REFERENCE_TYPE2 : WHEA_FIRMWARE_ERROR_RECORD_REFERENCE {
             [JsonProperty(Order = 5)]
-            public Guid FirmwareRecordExt; // Added
+            public Guid FirmwareRecordExt;
 
             public override void Validate() { }
         }
@@ -1364,16 +1507,26 @@ namespace DecodeWheaRecord {
 
         // @formatter:int_align_fields false
 
-        // TODO
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         public sealed class WHEA_MEMORY_CORRECTABLE_ERROR_SECTION : WheaRecord {
+            public WHEA_MEMORY_CORRECTABLE_ERROR_HEADER Header;
+
+            /*
+             * TODO
+             * Variable length arrays need a custom marshaller.
+             */
+            //public WHEA_MEMORY_CORRECTABLE_ERROR_DATA[] Data;
+
             public override void Validate() { }
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         public sealed class WHEA_MEMORY_CORRECTABLE_ERROR_HEADER {
+            // TODO: Description
             public ushort Version; // TODO: Validate
-            public ushort Count;
+
+            // TODO: Description
+            public ushort Count; // TODO: Validate
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -1538,7 +1691,7 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 20)]
             public ushort ModuleHandle;
 
-            // TODO: Handle BankAddress, BankGroup, & ChipIdentification in ValidBits
+            // TODO: BankAddress, BankGroup, & ChipIdentification in ValidBits
 
             [UsedImplicitly]
             public bool ShouldSerializeBank() {
@@ -1703,16 +1856,26 @@ namespace DecodeWheaRecord {
 
         // @formatter:int_align_fields false
 
-        // TODO
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         public sealed class WHEA_PCIE_CORRECTABLE_ERROR_SECTION : WheaRecord {
+            public WHEA_PCIE_CORRECTABLE_ERROR_SECTION_HEADER Header;
+
+            /*
+             * TODO
+             * Variable length arrays need a custom marshaller.
+             */
+            //public WHEA_PCIE_CORRECTABLE_ERROR_DEVICES[] Devices;
+
             public override void Validate() { }
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         public sealed class WHEA_PCIE_CORRECTABLE_ERROR_SECTION_HEADER {
+            // TODO: Description
             public ushort Version; // TODO: Validate
-            public ushort Count;
+
+            // TODO: Description
+            public ushort Count; // TODO: Validate
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -1776,8 +1939,9 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 2)]
             public string PortType => Enum.GetName(typeof(WHEA_PCIEXPRESS_DEVICE_TYPE), _PortType);
 
+            // TODO: Description
             [JsonProperty(Order = 3)]
-            public WHEA_PCIEXPRESS_VERSION Version;
+            public WHEA_PCIEXPRESS_VERSION Version; // TODO: Validate
 
             [JsonProperty(Order = 4)]
             public WHEA_PCIEXPRESS_COMMAND_STATUS CommandStatus;
@@ -1866,10 +2030,10 @@ namespace DecodeWheaRecord {
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         public sealed class WHEA_PCIEXPRESS_DEVICE_ID {
             [JsonProperty(Order = 1)]
-            public ushort VendorId;
+            public ushort VendorID;
 
             [JsonProperty(Order = 2)]
-            public ushort DeviceId;
+            public ushort DeviceID;
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
             private byte[] _ClassCode;
@@ -2287,11 +2451,11 @@ namespace DecodeWheaRecord {
 
         // From preprocessor definitions (GENPROC_PROCISA_*)
         public enum WHEA_PROCESSOR_GENERIC_ISA_TYPE : byte {
-            x86   = 0,
-            Ipf   = 1,
-            x64   = 2,
-            Arm32 = 4,
-            Arm64 = 8
+            X86   = 0,
+            IPF   = 1,
+            X64   = 2,
+            ARM32 = 4,
+            ARM64 = 8
         }
 
         // From preprocessor definitions (GENPROC_OP_*)
@@ -2304,9 +2468,9 @@ namespace DecodeWheaRecord {
 
         // From preprocessor definitions (GENPROC_PROCTYPE_*)
         public enum WHEA_PROCESSOR_GENERIC_TYPE : byte {
-            Xpf = 0,
-            Ipf = 1,
-            Arm = 2
+            XPF = 0,
+            IPF = 1,
+            ARM = 2
         }
 
         // @formatter:int_align_fields false
@@ -2357,41 +2521,37 @@ namespace DecodeWheaRecord {
             [JsonProperty(Order = 8)]
             public ushort Reserved;
 
-            // TODO
-            //[FieldOffset(16)]
-            //[JsonProperty(Order = 9)]
-            //public ulong CPUVersion;
-
+            // TODO: Itanium & ARM
             [FieldOffset(16)]
-            [JsonProperty(Order = 10)]
+            [JsonProperty(Order = 9)]
             public WHEA_PROCESSOR_FAMILY_INFO CPUVersionX86; // Original name: CPUVersion
 
             [FieldOffset(24)]
-            [JsonProperty(Order = 11)]
+            [JsonProperty(Order = 10)]
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
             public string CPUBrandString;
 
             [FieldOffset(152)]
-            [JsonProperty(Order = 12)]
+            [JsonProperty(Order = 11)]
             public ulong ProcessorId;
 
             [FieldOffset(160)]
-            [JsonProperty(Order = 13)]
+            [JsonProperty(Order = 12)]
             public ulong TargetAddress;
 
             [FieldOffset(168)]
-            [JsonProperty(Order = 14)]
+            [JsonProperty(Order = 13)]
             public ulong RequesterId;
 
             [FieldOffset(176)]
-            [JsonProperty(Order = 15)]
+            [JsonProperty(Order = 14)]
             public ulong ResponderId;
 
             [FieldOffset(184)]
-            [JsonProperty(Order = 16)]
+            [JsonProperty(Order = 15)]
             public ulong InstructionPointer;
 
-            // TODO: Handle NativeModelId in ValidBits
+            // TODO: NativeModelId in ValidBits
 
             [UsedImplicitly]
             public bool ShouldSerializeCPUBrandString() {
@@ -2401,18 +2561,22 @@ namespace DecodeWheaRecord {
 
             [UsedImplicitly]
             public bool ShouldSerializeCPUVersion() {
-                if ((_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUVersion) == WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUVersion)
-                    if (ShouldSerializeProcessorType() && _ProcessorType != WHEA_PROCESSOR_GENERIC_TYPE.Xpf)
+                if ((_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUVersion) == WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUVersion) {
+                    if (ShouldSerializeProcessorType() && _ProcessorType != WHEA_PROCESSOR_GENERIC_TYPE.XPF) {
                         return true;
+                    }
+                }
 
                 return false;
             }
 
             [UsedImplicitly]
             public bool ShouldSerializeCPUVersionX86() {
-                if ((_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUVersion) == WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUVersion)
-                    if (ShouldSerializeProcessorType() && _ProcessorType == WHEA_PROCESSOR_GENERIC_TYPE.Xpf)
+                if ((_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUVersion) == WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUVersion) {
+                    if (ShouldSerializeProcessorType() && _ProcessorType == WHEA_PROCESSOR_GENERIC_TYPE.XPF) {
                         return true;
+                    }
+                }
 
                 return false;
             }
@@ -2516,6 +2680,316 @@ namespace DecodeWheaRecord {
 
         #endregion
 
+        #region WHEA Error Record Section: WHEA_XPF_MCA_SECTION
+
+        // @formatter:int_align_fields true
+
+        [Flags]
+        public enum MCG_STATUS : ulong {
+            RestartIpValid         = 0x1,
+            ErrorIpValid           = 0x2,
+            MachineCheckInProgress = 0x4,
+            LocalMceValid          = 0x8
+        }
+
+        [Flags]
+        public enum MCI_STATUS_BITS_COMMON_FLAGS : uint {
+            // Reserved
+            ContextCorrupt   = 0x2000000,
+            AddressValid     = 0x4000000,
+            MiscValid        = 0x8000000,
+            ErrorEnabled     = 0x10000000,
+            UncorrectedError = 0x20000000,
+            StatusOverFlow   = 0x40000000,
+            Valid            = 0x80000000
+        }
+
+        [Flags]
+        public enum MCI_STATUS_AMD_BITS_FLAGS : uint {
+            // ImplementationSpecific2 (Bits 0-10)
+            Poison   = 0x800,
+            Deferred = 0x1000,
+
+            // ImplementationSpecific1 (Bits 13-24)
+            ContextCorrupt   = 0x2000000,
+            AddressValid     = 0x4000000,
+            MiscValid        = 0x8000000,
+            ErrorEnabled     = 0x10000000,
+            UncorrectedError = 0x20000000,
+            StatusOverFlow   = 0x40000000,
+            Valid            = 0x80000000
+        }
+
+        [Flags]
+        public enum MCI_STATUS_INTEL_BITS_FLAGS : uint {
+            // OtherInfo (Bits 0-4)
+            FirmwareUpdateError = 0x20,
+
+            // CorrectedErrorCount (Bits 6-20)
+            // ThresholdErrorStatus (Bits 21-22)
+            ActionRequired   = 0x800000,
+            Signalling       = 0x1000000,
+            ContextCorrupt   = 0x2000000,
+            AddressValid     = 0x4000000,
+            MiscValid        = 0x8000000,
+            ErrorEnabled     = 0x10000000,
+            UncorrectedError = 0x20000000,
+            StatusOverFlow   = 0x40000000,
+            Valid            = 0x80000000
+        }
+
+        [Flags]
+        public enum MGC_CAP_FLAGS : ulong {
+            // CountField (Bits 0-7)
+            ControlMsrPresent           = 0x100,
+            ExtendedMsrsPresent         = 0x200,
+            SignalingExtensionPresent   = 0x400,
+            ThresholdErrorStatusPresent = 0x800,
+
+            // Reserved (Bits 12-15)
+            // ExtendedRegisterCount (Bits 16-23)
+            SoftwareErrorRecoverySupported = 0x1000000,
+            EnhancedMachineCheckCapability = 0x2000000,
+            ExtendedErrorLogging           = 0x4000000,
+            LocalMachineCheckException     = 0x8000000
+        }
+
+        public enum WHEA_CPU_VENDOR : uint {
+            Other = 0,
+            Intel = 1,
+            Amd   = 2
+        }
+
+        // @formatter:int_align_fields false
+
+        private const int WHEA_AMD_EXT_REG_NUM = 10;
+        private const int WHEA_XPF_MCA_EXBANK_COUNT = 32;
+        private const int WHEA_XPF_MCA_EXTREG_MAX_COUNT = 24;
+
+        [StructLayout(LayoutKind.Explicit, Pack = 1)]
+        public sealed class WHEA_XPF_MCA_SECTION : WheaRecord {
+            [FieldOffset(0)]
+            [JsonProperty(Order = 1)]
+            public uint VersionNumber;
+
+            [FieldOffset(4)]
+            private WHEA_CPU_VENDOR _CpuVendor;
+
+            [JsonProperty(Order = 2)]
+            public string CpuVendor => Enum.GetName(typeof(WHEA_CPU_VENDOR), _CpuVendor);
+
+            [FieldOffset(8)]
+            [JsonProperty(Order = 3)]
+            public long Timestamp; // TODO: LARGE_INTEGER
+
+            [FieldOffset(16)]
+            [JsonProperty(Order = 4)]
+            public uint ProcessorNumber;
+
+            [FieldOffset(20)]
+            private MCG_STATUS _GlobalStatus;
+
+            [JsonProperty(Order = 5)]
+            public string GlobalStatus => GetEnabledFlagsAsString(_GlobalStatus);
+
+            [FieldOffset(28)]
+            [JsonProperty(Order = 6)]
+            public ulong InstructionPointer;
+
+            [FieldOffset(36)]
+            [JsonProperty(Order = 7)]
+            public uint BankNumber;
+
+            [FieldOffset(40)]
+            [JsonProperty(Order = 8)]
+            public MCI_STATUS_BITS_COMMON CommonBits;
+
+            [FieldOffset(40)]
+            [JsonProperty(Order = 9)]
+            public MCI_STATUS_AMD_BITS AmdBits;
+
+            [FieldOffset(40)]
+            [JsonProperty(Order = 10)]
+            public MCI_STATUS_INTEL_BITS IntelBits;
+
+            [FieldOffset(48)]
+            [JsonProperty(Order = 11)]
+            public ulong Address;
+
+            [FieldOffset(56)]
+            [JsonProperty(Order = 12)]
+            public ulong Misc;
+
+            [FieldOffset(64)]
+            [JsonProperty(Order = 13)]
+            public uint ExtendedRegisterCount;
+
+            [FieldOffset(68)]
+            [JsonProperty(Order = 14)]
+            public uint ApicId;
+
+            [FieldOffset(72)]
+            [JsonProperty(Order = 15)]
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = WHEA_XPF_MCA_EXTREG_MAX_COUNT)]
+            public ulong[] ExtendedRegisters;
+
+            /*
+            [FieldOffset(72)]
+            [JsonProperty(Order = 16)]
+            public WHEA_AMD_EXTENDED_REGISTERS AMDExtendedRegisters;
+            */
+
+            [FieldOffset(264)]
+            [JsonProperty(Order = 17)]
+            public MGC_CAP GlobalCapability;
+
+            [UsedImplicitly]
+            public bool ShouldSerializeAmdBits() {
+                return _CpuVendor == WHEA_CPU_VENDOR.Amd;
+            }
+
+            [UsedImplicitly]
+            public bool ShouldSerializeAMDExtendedRegisters() {
+                return _CpuVendor == WHEA_CPU_VENDOR.Amd;
+            }
+
+            [UsedImplicitly]
+            public bool ShouldSerializeCommonBits() {
+                return _CpuVendor == WHEA_CPU_VENDOR.Other;
+            }
+
+            [UsedImplicitly]
+            public bool ShouldSerializeExtendedRegisters() {
+                return _CpuVendor == WHEA_CPU_VENDOR.Intel;
+            }
+
+            [UsedImplicitly]
+            public bool ShouldSerializeIntelBits() {
+                return _CpuVendor == WHEA_CPU_VENDOR.Intel;
+            }
+
+
+            /*
+            [FieldOffset(272)]
+            [JsonProperty(Order = 16)]
+            public ulong RecoveryInfo; // TODO: XPF_RECOVERY_INFO
+
+            [FieldOffset(292)]
+            [JsonProperty(Order = 17)]
+            public uint ExBankCount;
+
+            [FieldOffset(296)]
+            [JsonProperty(Order = 18)]
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = WHEA_XPF_MCA_EXBANK_COUNT)]
+            public uint[] BankNumberEx;
+
+            [FieldOffset(424)]
+            [JsonProperty(Order = 19)]
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = WHEA_XPF_MCA_EXBANK_COUNT)]
+            public ulong[] StatusEx; // TODO: MCI_STATUS
+
+            [FieldOffset(680)]
+            [JsonProperty(Order = 20)]
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = WHEA_XPF_MCA_EXBANK_COUNT)]
+            public ulong[] AddressEx;
+
+            [FieldOffset(936)]
+            [JsonProperty(Order = 21)]
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = WHEA_XPF_MCA_EXBANK_COUNT)]
+            public ulong[] MiscEx;
+            */
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public sealed class MCI_STATUS_BITS_COMMON {
+            [JsonProperty(Order = 1)]
+            public ushort McaErrorCode;
+
+            [JsonProperty(Order = 2)]
+            public ushort ModelErrorCode;
+
+            private MCI_STATUS_BITS_COMMON_FLAGS _Flags;
+
+            [JsonProperty(Order = 3)]
+            public string Flags => GetEnabledFlagsAsString(_Flags);
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public sealed class MCI_STATUS_AMD_BITS {
+            [JsonProperty(Order = 1)]
+            public ushort McaErrorCode;
+
+            [JsonProperty(Order = 2)]
+            public ushort ModelErrorCode;
+
+            private MCI_STATUS_AMD_BITS_FLAGS _Flags;
+
+            [JsonProperty(Order = 3)]
+            public string Flags => GetEnabledFlagsAsString(_Flags);
+
+            [JsonProperty(Order = 4)]
+            public ushort ImplementationSpecific1 => (ushort)(((uint)_Flags >> 12) & 0xFFF);
+
+            [JsonProperty(Order = 5)]
+            public ushort ImplementationSpecific2 => (ushort)((uint)_Flags & 0x7FF);
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public sealed class MCI_STATUS_INTEL_BITS {
+            [JsonProperty(Order = 1)]
+            public ushort McaErrorCode;
+
+            [JsonProperty(Order = 2)]
+            public ushort ModelErrorCode;
+
+            private MCI_STATUS_INTEL_BITS_FLAGS _Flags;
+
+            [JsonProperty(Order = 3)]
+            public string Flags => GetEnabledFlagsAsString(_Flags);
+
+            [JsonProperty(Order = 4)]
+            public byte OtherInfo => (byte)((uint)_Flags & 0x1F);
+
+            [JsonProperty(Order = 5)]
+            public ushort CorrectedErrorCount => (ushort)(((uint)_Flags >> 5) & 0x7FFF);
+
+            [JsonProperty(Order = 6)]
+            public byte ThresholdErrorStatus => (byte)(((uint)_Flags >> 20) & 0x3);
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public sealed class MGC_CAP {
+            private MGC_CAP_FLAGS _Flags;
+
+            [JsonProperty(Order = 1)]
+            public string Flags => GetEnabledFlagsAsString(_Flags);
+
+            [JsonProperty(Order = 2)]
+            public byte CountField => (byte)_Flags;
+
+            [JsonProperty(Order = 3)]
+            public byte ExtendedRegisterCount => (byte)((uint)_Flags >> 15);
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public sealed class WHEA_AMD_EXTENDED_REGISTERS {
+            public ulong IPID;
+            public ulong SYND;
+            public ulong CONFIG;
+            public ulong DESTAT;
+            public ulong DEADDR;
+            public ulong MISC1;
+            public ulong MISC2;
+            public ulong MISC3;
+            public ulong MISC4;
+            public ulong RasCap;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = WHEA_XPF_MCA_EXTREG_MAX_COUNT - WHEA_AMD_EXT_REG_NUM)]
+            public ulong[] Reserved;
+        }
+
+        #endregion
+
         #region WHEA Error Record Section: WHEA_XPF_PROCESSOR_ERROR_SECTION
 
         // @formatter:int_align_fields true
@@ -2575,15 +3049,15 @@ namespace DecodeWheaRecord {
         }
 
         // From preprocessor definitions (XPF_CONTEXT_INFO_*)
-        public enum WHEA_XPF_CONTEXT_INFO_TYPE : byte {
-            UnclassifiedData = 0,
-            MSRRegisters     = 1,
-            Context32        = 2,
-            Context64        = 3,
-            FxSave           = 4,
-            DebugRegisters32 = 5,
-            DebugRegisters64 = 6,
-            MmRegisters      = 7
+        public enum WHEA_XPF_CONTEXT_INFO_TYPE : ushort {
+            UnclassifiedData  = 0,
+            MSRRegisters      = 1,
+            ContextX32        = 2,
+            ContextX64        = 3,
+            FxSave            = 4,
+            DebugRegistersX32 = 5,
+            DebugRegistersX64 = 6,
+            MmRegisters       = 7
         }
 
         // From preprocessor definitions (XPF_MS_CHECK_ERRORTYPE_*)
@@ -2596,9 +3070,16 @@ namespace DecodeWheaRecord {
             InternalUnclassified = 5
         }
 
-        // TODO
+        /*
+         * Originally defined as a ULONGLONG bitfield, but out of the 14 non-
+         * reserved bits only two are flags. We define just those flags here
+         * and handle the other bits in WHEA_XPF_PROCESSOR_ERROR_SECTION.
+         */
         [Flags]
-        public enum WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS : ulong { }
+        public enum WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS : byte {
+            LocalAPICId = 0x1,
+            CpuId       = 0x2
+        }
 
         [Flags]
         public enum WHEA_XPF_PROCINFO_VALIDBITS : ulong {
@@ -2629,9 +3110,56 @@ namespace DecodeWheaRecord {
 
         // @formatter:int_align_fields false
 
-        // TODO
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public sealed class WHEA_XPF_PROCESSOR_ERROR_SECTION : WheaRecord { }
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
+        public sealed class WHEA_XPF_PROCESSOR_ERROR_SECTION : WheaRecord {
+            /*
+             * Originally defined as a ULONGLONG bitfield, except only two bits
+             * are flags with the remaining non-reserved bits composed of two
+             * 6-bit integers. The actual flags are defined in a structure with
+             * the original WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS name.
+             */
+            private ulong _RawValidBits;
+
+            private WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS _ValidBits => (WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS)(_RawValidBits & 0x3);
+
+            [JsonProperty(Order = 1)]
+            public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
+
+            [JsonProperty(Order = 2)]
+            public byte ProcInfoCount => (byte)((_RawValidBits & 0xFF) >> 2); // Bits 2-7
+
+            [JsonProperty(Order = 3)]
+            public byte ContextInfoCount => (byte)((_RawValidBits & 0x3F00) >> 8); // Bits 8-13
+
+            [JsonProperty(Order = 4)]
+            public ulong LocalAPICId;
+
+            [JsonProperty(Order = 5)]
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 48)]
+            public byte[] CpuId;
+
+            /*
+             * TODO
+             * Variable length arrays need a custom marshaller.
+             */
+            //public WHEA_XPF_PROCINFO[] ProcInfo;
+
+            /*
+             * TODO
+             * Variable length arrays need a custom marshaller.
+             */
+            //public WHEA_XPF_CONTEXT_INFO[] ContextInfo;
+
+            [UsedImplicitly]
+            public bool ShouldSerializeCpuId() {
+                return (_ValidBits & WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS.CpuId) == WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS.CpuId;
+            }
+
+            [UsedImplicitly]
+            public bool ShouldSerializeLocalAPICId() {
+                return (_ValidBits & WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS.LocalAPICId) == WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS.LocalAPICId;
+            }
+        }
 
         [StructLayout(LayoutKind.Explicit, Pack = 1)]
         public sealed class WHEA_XPF_PROCINFO {
@@ -2640,24 +3168,24 @@ namespace DecodeWheaRecord {
             public Guid CheckInfoId;
 
             [FieldOffset(16)]
-            private WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS _ValidBits; // TODO: Add ShouldSerialize methods
+            private WHEA_XPF_PROCINFO_VALIDBITS _ValidBits;
 
             [JsonProperty(Order = 2)]
             public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
 
-            [FieldOffset(24)]
+            [FieldOffset(24)] // TODO
             [JsonProperty(Order = 3)]
             public WHEA_XPF_CACHE_CHECK CacheCheck;
 
-            [FieldOffset(24)]
+            [FieldOffset(24)] // TODO
             [JsonProperty(Order = 4)]
             public WHEA_XPF_TLB_CHECK TlbCheck;
 
-            [FieldOffset(24)]
+            [FieldOffset(24)] // TODO
             [JsonProperty(Order = 5)]
             public WHEA_XPF_BUS_CHECK BusCheck;
 
-            [FieldOffset(24)]
+            [FieldOffset(24)] // TODO
             [JsonProperty(Order = 6)]
             public WHEA_XPF_MS_CHECK MsCheck;
 
@@ -2676,6 +3204,50 @@ namespace DecodeWheaRecord {
             [FieldOffset(32)]
             [JsonProperty(Order = 10)]
             public ulong InstructionPointer;
+
+            private bool ShouldSerializeCheckInfo() {
+                return (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.CheckInfo) == WHEA_XPF_PROCINFO_VALIDBITS.CheckInfo;
+            }
+
+            [UsedImplicitly]
+            public bool ShouldSerializeBusCheck() {
+                return ShouldSerializeCheckInfo() && CheckInfoId == WHEA_BUSCHECK_GUID;
+            }
+
+            [UsedImplicitly]
+            public bool ShouldSerializeCacheCheck() {
+                return ShouldSerializeCheckInfo() && CheckInfoId == WHEA_CACHECHECK_GUID;
+            }
+
+            [UsedImplicitly]
+            public bool ShouldSerializeInstructionPointer() {
+                return (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.InstructionPointer) == WHEA_XPF_PROCINFO_VALIDBITS.InstructionPointer;
+            }
+
+            [UsedImplicitly]
+            public bool ShouldSerializeMsCheck() {
+                return ShouldSerializeCheckInfo() && CheckInfoId == WHEA_MSCHECK_GUID;
+            }
+
+            [UsedImplicitly]
+            public bool ShouldSerializeRequesterId() {
+                return (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.RequesterId) == WHEA_XPF_PROCINFO_VALIDBITS.RequesterId;
+            }
+
+            [UsedImplicitly]
+            public bool ShouldSerializeResponderId() {
+                return (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.ResponderId) == WHEA_XPF_PROCINFO_VALIDBITS.ResponderId;
+            }
+
+            [UsedImplicitly]
+            public bool ShouldSerializeTargetId() {
+                return (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.TargetId) == WHEA_XPF_PROCINFO_VALIDBITS.TargetId;
+            }
+
+            [UsedImplicitly]
+            public bool ShouldSerializeTlbCheck() {
+                return ShouldSerializeCheckInfo() && CheckInfoId == WHEA_TLBCHECK_GUID;
+            }
         }
 
         // TODO
@@ -4721,9 +5293,10 @@ namespace DecodeWheaRecord {
                 if (_Type == WHEA_NOTIFICATION_TYPE.Cmci
                     || _Type == WHEA_NOTIFICATION_TYPE.Mce
                     || _Type == WHEA_NOTIFICATION_TYPE.GpioSignal
-                    || _Type == WHEA_NOTIFICATION_TYPE.Sdei)
+                    || _Type == WHEA_NOTIFICATION_TYPE.Sdei) {
                     Console.Error.WriteLine(
                         $"[{nameof(WHEA_NOTIFICATION_DESCRIPTOR)}] Type \"{Type}\" is not explicitly mapped to a structure; defaulting to Interrupt.");
+                }
             }
         }
 

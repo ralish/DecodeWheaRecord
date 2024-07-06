@@ -85,54 +85,59 @@ namespace DecodeWheaRecord {
                     WheaRecord section = null;
 
                     switch (sectionDsc.SectionTypeGuid) {
-                        case var sectionGuid when sectionGuid == new Guid("85183a8b-9c41-429c-939c-5c3c087ca280"):
+                        case var sectionGuid when sectionGuid == ARM_PROCESSOR_ERROR_SECTION_GUID:
+                            section = MarshalWheaRecord(typeof(WHEA_ARM_PROCESSOR_ERROR_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
+                            break;
+                        case var sectionGuid when sectionGuid == FIRMWARE_ERROR_RECORD_REFERENCE_GUID:
+                            var fwErrRecType = GetFirmwareErrorRecordType(sectionDsc);
+                            section = MarshalWheaRecord(fwErrRecType, ref _recordBytes, ref _recordOffset, out bytesMarshalled);
+                            break;
+
+                        case var sectionGuid when sectionGuid == MU_TELEMETRY_SECTION_GUID:
                             section = MarshalWheaRecord(typeof(MU_TELEMETRY_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
                             break;
-                        case var sectionGuid when sectionGuid == new Guid("e19e3d16-bc11-11e4-9caa-c2051d5d46b0"):
-                            // TODO: WHEA_ARM_PROCESSOR_ERROR_SECTION
-                            break;
-                        case var sectionGuid when sectionGuid == new Guid("e71254e9-c1b9-4940-ab76-909703a4320f"):
+                        case var sectionGuid when sectionGuid == WHEA_ERROR_PACKET_SECTION_GUID:
                             var errPktType = GetErrorPacketVersion(sectionDsc);
                             section = MarshalWheaRecord(errPktType, ref _recordBytes, ref _recordOffset, out bytesMarshalled);
                             break;
-                        case var sectionGuid when sectionGuid == new Guid("c34832a1-02c3-4c52-a9f1-9f1d5d7723fc"):
+                        case var sectionGuid when sectionGuid == RECOVERY_INFO_SECTION_GUID:
                             section = MarshalWheaRecord(typeof(WHEA_ERROR_RECOVERY_INFO_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
                             break;
-                        case var sectionGuid when sectionGuid == new Guid("81212a96-09ed-4996-9471-8d729c8e69ed"):
-                            section = MarshalWheaRecord(typeof(WHEA_FIRMWARE_ERROR_RECORD_REFERENCE), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
+                        case var sectionGuid when sectionGuid == MEMORY_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID:
+                            section = MarshalWheaRecord(typeof(WHEA_MEMORY_CORRECTABLE_ERROR_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
                             break;
-                        case var sectionGuid when sectionGuid == new Guid("0e36c93e-ca15-4a83-ba8a-cbe80f7f0017"):
-                            // TODO: WHEA_MEMORY_CORRECTABLE_ERROR_SECTION
-                            break;
-                        case var sectionGuid when sectionGuid == new Guid("a5bc1114-6f64-4ede-b863-3e83ed7c83b1"):
+                        case var sectionGuid when sectionGuid == MEMORY_ERROR_SECTION_GUID:
                             section = MarshalWheaRecord(typeof(WHEA_MEMORY_ERROR_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
                             break;
-                        case var sectionGuid when sectionGuid == new Guid("1c15b445-9b06-4667-ac25-33c056b88803"):
-                            // TODO: WHEA_MSR_DUMP_SECTION
+                        case var sectionGuid when sectionGuid == IPMI_MSR_DUMP_SECTION_GUID:
+                            section = MarshalWheaRecord(typeof(WHEA_MSR_DUMP_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
                             break;
-                        case var sectionGuid when sectionGuid == new Guid("e71254e7-c1b9-4940-ab76-909703a4320f"):
+                        case var sectionGuid when sectionGuid == NMI_SECTION_GUID:
                             section = MarshalWheaRecord(typeof(WHEA_NMI_ERROR_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
                             break;
-                        case var sectionGuid when sectionGuid == new Guid("e96eca99-53e2-4f52-9be7-d2dbe9508ed0"):
-                            // TODO: WHEA_PCIE_CORRECTABLE_ERROR_SECTION
+                        case var sectionGuid when sectionGuid == PCIE_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID:
+                            section = MarshalWheaRecord(typeof(WHEA_PCIE_CORRECTABLE_ERROR_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
                             break;
-                        case var sectionGuid when sectionGuid == new Guid("d995e954-bbc1-430f-ad91-b44dcb3c6f35"):
+                        case var sectionGuid when sectionGuid == PCIEXPRESS_ERROR_SECTION_GUID:
                             section = MarshalWheaRecord(typeof(WHEA_PCIEXPRESS_ERROR_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
                             break;
-                        case var sectionGuid when sectionGuid == new Guid("c5753963-3b84-4095-bf78-eddad3f9c9dd"):
+                        case var sectionGuid when sectionGuid == PCIXBUS_ERROR_SECTION_GUID:
                             section = MarshalWheaRecord(typeof(WHEA_PCIXBUS_ERROR_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
                             break;
-                        case var sectionGuid when sectionGuid == new Guid("eb5e4685-ca66-4769-b6a2-26068b001326"):
-                            // TODO: WHEA_PCIXDEVICE_ERROR_SECTION
+                        case var sectionGuid when sectionGuid == PCIXDEVICE_ERROR_SECTION_GUID:
+                            section = MarshalWheaRecord(typeof(WHEA_PCIXDEVICE_ERROR_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
                             break;
-                        case var sectionGuid when sectionGuid == new Guid("81687003-dbfd-4728-9ffd-f0904f97597d"):
-                            // TODO: WHEA_PMEM_ERROR_SECTION
+                        case var sectionGuid when sectionGuid == PMEM_ERROR_SECTION_GUID:
+                            section = MarshalWheaRecord(typeof(WHEA_PMEM_ERROR_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
                             break;
-                        case var sectionGuid when sectionGuid == new Guid("9876ccad-47b4-4bdb-b65e-16f193c4f3db"):
+                        case var sectionGuid when sectionGuid == PROCESSOR_GENERIC_ERROR_SECTION_GUID:
                             section = MarshalWheaRecord(typeof(WHEA_PROCESSOR_GENERIC_ERROR_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
                             break;
-                        case var sectionGuid when sectionGuid == new Guid("dc3ea0b0-a144-4797-b95b-53fa242b6e1d"):
-                            // TODO: WHEA_XPF_PROCESSOR_ERROR_SECTION
+                        case var sectionGuid when sectionGuid == XPF_PROCESSOR_ERROR_SECTION_GUID:
+                            section = MarshalWheaRecord(typeof(WHEA_XPF_PROCESSOR_ERROR_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
+                            break;
+                        case var sectionGuid when sectionGuid == XPF_MCA_SECTION_GUID:
+                            section = MarshalWheaRecord(typeof(WHEA_XPF_MCA_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
                             break;
                         default:
                             // TODO
@@ -163,6 +168,22 @@ namespace DecodeWheaRecord {
                         return typeof(WHEA_ERROR_PACKET_V1);
                     case WHEA_ERROR_PACKET_V2_SIGNATURE:
                         return typeof(WHEA_ERROR_PACKET_V2);
+                    default:
+                        return null;
+                }
+            }
+
+            private Type GetFirmwareErrorRecordType(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
+                if (sectionDsc.SectionOffset > _recordBytes.Length) {
+                    // TODO
+                }
+
+                switch ((WHEA_FIRMWARE_RECORD_TYPE)_recordBytes[sectionDsc.SectionOffset]) {
+                    case WHEA_FIRMWARE_RECORD_TYPE.IpfSal:
+                    case WHEA_FIRMWARE_RECORD_TYPE.SocFwType1:
+                        return typeof(WHEA_FIRMWARE_ERROR_RECORD_REFERENCE);
+                    case WHEA_FIRMWARE_RECORD_TYPE.SocFwType2:
+                        return typeof(WHEA_FIRMWARE_ERROR_RECORD_REFERENCE_TYPE2);
                     default:
                         return null;
                 }
