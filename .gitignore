@@ -27,3 +27,6 @@ obj/
 *.user
 .vs/
 launchSettings.json
+
+# Visual Studio Code
+c_cpp_properties.json
