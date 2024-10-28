@@ -54,10 +54,7 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 10)]
         public byte[] AerInfo;
 
-        public WHEA_PCIEXPRESS_ERROR_SECTION(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
-            DebugOutputPre(typeof(WHEA_PCIEXPRESS_ERROR_SECTION), sectionDsc);
-            var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
-
+        private void WheaPciExpressErrorSection(IntPtr sectionAddr) {
             _ValidBits = (WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(sectionAddr);
             _PortType = (WHEA_PCIEXPRESS_DEVICE_TYPE)Marshal.ReadInt32(sectionAddr, 8);
             var offset = 12;
@@ -91,6 +88,16 @@ namespace DecodeWheaRecord.Errors {
             offset += 96;
 
             _NativeSize = offset;
+        }
+
+        public WHEA_PCIEXPRESS_ERROR_SECTION(IntPtr sectionAddr) => WheaPciExpressErrorSection(sectionAddr);
+
+        public WHEA_PCIEXPRESS_ERROR_SECTION(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
+            DebugOutputPre(typeof(WHEA_PCIEXPRESS_ERROR_SECTION), sectionDsc);
+
+            var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
+            WheaPciExpressErrorSection(sectionAddr);
+
             DebugOutputPost(typeof(WHEA_PCIEXPRESS_ERROR_SECTION), sectionDsc, _NativeSize);
         }
 

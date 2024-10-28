@@ -43,10 +43,7 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 6)]
         public WHEA_PMEM_PAGE_RANGE[] PageRange;
 
-        public WHEA_PMEM_ERROR_SECTION(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
-            DebugOutputPre(typeof(WHEA_PMEM_ERROR_SECTION), sectionDsc);
-            var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
-
+        private void WheaPmemErrorSection(IntPtr sectionAddr) {
             _ValidBits = (WHEA_PMEM_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(sectionAddr);
             var offset = 8;
 
@@ -75,6 +72,16 @@ namespace DecodeWheaRecord.Errors {
             }
 
             _NativeSize = offset;
+        }
+
+        public WHEA_PMEM_ERROR_SECTION(IntPtr sectionAddr) => WheaPmemErrorSection(sectionAddr);
+
+        public WHEA_PMEM_ERROR_SECTION(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
+            DebugOutputPre(typeof(WHEA_PMEM_ERROR_SECTION), sectionDsc);
+
+            var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
+            WheaPmemErrorSection(sectionAddr);
+
             DebugOutputPost(typeof(WHEA_PMEM_ERROR_SECTION), sectionDsc, _NativeSize);
         }
 

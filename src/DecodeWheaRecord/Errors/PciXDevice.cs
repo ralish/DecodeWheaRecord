@@ -39,10 +39,7 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 6)]
         public WHEA_PCIXDEVICE_REGISTER_PAIR[] RegisterDataPairs;
 
-        public WHEA_PCIXDEVICE_ERROR_SECTION(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
-            DebugOutputPre(typeof(WHEA_PCIXDEVICE_ERROR_SECTION), sectionDsc);
-            var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
-
+        private void WheaPciXDeviceErrorSection(IntPtr sectionAddr) {
             _ValidBits = (WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(sectionAddr);
             var offset = 8;
 
@@ -88,6 +85,16 @@ the {nameof(RegisterDataPairs)} member will be skipped.";
             offset += RegisterDataPairs.Length * elementSize;
 
             _NativeSize = offset;
+        }
+
+        public WHEA_PCIXDEVICE_ERROR_SECTION(IntPtr sectionAddr) => WheaPciXDeviceErrorSection(sectionAddr);
+
+        public WHEA_PCIXDEVICE_ERROR_SECTION(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
+            DebugOutputPre(typeof(WHEA_PCIXDEVICE_ERROR_SECTION), sectionDsc);
+
+            var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
+            WheaPciXDeviceErrorSection(sectionAddr);
+
             DebugOutputPost(typeof(WHEA_PCIXDEVICE_ERROR_SECTION), sectionDsc, _NativeSize);
         }
 

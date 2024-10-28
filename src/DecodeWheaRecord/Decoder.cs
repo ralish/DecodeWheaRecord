@@ -107,8 +107,8 @@ namespace DecodeWheaRecord {
                             section = MarshalWheaRecord(typeof(MU_TELEMETRY_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
                             break;
                         case var sectionGuid when sectionGuid == WHEA_ERROR_PACKET_SECTION_GUID:
-                            var errPktType = GetErrorPacketVersion(sectionDsc);
-                            section = MarshalWheaRecord(errPktType, ref _recordBytes, ref _recordOffset, out bytesMarshalled);
+                            section = WHEA_ERROR_PACKET.CreateBySignature(recordAddr, sectionDsc);
+                            _recordOffset += (uint)section.GetNativeSize();
                             break;
                         case var sectionGuid when sectionGuid == RECOVERY_INFO_SECTION_GUID:
                             section = MarshalWheaRecord(typeof(WHEA_ERROR_RECOVERY_INFO_SECTION), ref _recordBytes, ref _recordOffset, out bytesMarshalled);
@@ -170,26 +170,6 @@ namespace DecodeWheaRecord {
                 }
 
                 return true;
-            }
-
-            private Type GetErrorPacketVersion(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
-                if (sectionDsc.SectionOffset + 4 > _recordBytes.Length) {
-                    // TODO
-                }
-
-                var errPktSigOffset = sectionDsc.SectionOffset;
-                byte[] errPktSigBytes =
-                    { _recordBytes[errPktSigOffset], _recordBytes[errPktSigOffset + 1], _recordBytes[errPktSigOffset + 2], _recordBytes[errPktSigOffset + 3] };
-                var errPktSig = Encoding.ASCII.GetString(errPktSigBytes);
-
-                switch (errPktSig) {
-                    case WHEA_ERROR_PACKET_V1_SIGNATURE:
-                        return typeof(WHEA_ERROR_PACKET_V1);
-                    case WHEA_ERROR_PACKET_V2_SIGNATURE:
-                        return typeof(WHEA_ERROR_PACKET_V2);
-                    default:
-                        return null;
-                }
             }
 
             public bool Validate() {

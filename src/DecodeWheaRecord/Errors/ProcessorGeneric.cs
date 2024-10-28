@@ -81,10 +81,7 @@ namespace DecodeWheaRecord.Errors {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong InstructionPointer;
 
-        public WHEA_PROCESSOR_GENERIC_ERROR_SECTION(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
-            DebugOutputPre(typeof(WHEA_PROCESSOR_GENERIC_ERROR_SECTION), sectionDsc);
-            var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
-
+        private void WheaProcessorGenericErrorSection(IntPtr sectionAddr) {
             _ValidBits = (WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(sectionAddr);
             _ProcessorType = (WHEA_PROCESSOR_GENERIC_TYPE)Marshal.ReadByte(sectionAddr, 8);
             _InstructionSet = (WHEA_PROCESSOR_GENERIC_ISA_TYPE)Marshal.ReadByte(sectionAddr, 9);
@@ -109,6 +106,16 @@ namespace DecodeWheaRecord.Errors {
             offset += 40;
 
             _NativeSize = offset;
+        }
+
+        public WHEA_PROCESSOR_GENERIC_ERROR_SECTION(IntPtr sectionAddr) => WheaProcessorGenericErrorSection(sectionAddr);
+
+        public WHEA_PROCESSOR_GENERIC_ERROR_SECTION(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
+            DebugOutputPre(typeof(WHEA_PROCESSOR_GENERIC_ERROR_SECTION), sectionDsc);
+
+            var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
+            WheaProcessorGenericErrorSection(sectionAddr);
+
             DebugOutputPost(typeof(WHEA_PROCESSOR_GENERIC_ERROR_SECTION), sectionDsc, _NativeSize);
         }
 
