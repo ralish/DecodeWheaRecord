@@ -136,174 +136,31 @@ namespace DecodeWheaRecord {
             { Guid.Parse("71761d37-32b2-45cd-a7d0-b0fedd93e8cf"), "Intel VT for Directed I/O specific DMAr section" },
             { Guid.Parse("036f84e1-7f37-428c-a79e-575fdfaa84ec"), "IOMMU specific DMAr section" },
 
-            /*
-             * Section type:        Standard
-             * Structure:           WHEA_ARM_PROCESSOR_ERROR_SECTION
-             * Docs:                Undocumented
-             * Support:             Done
-             */
+            // Standard sections
             { ARM_PROCESSOR_ERROR_SECTION_GUID, "ARM Processor Error" },
-
-            /*
-             * Section type:        Standard
-             * Structure:           WHEA_FIRMWARE_ERROR_RECORD_REFERENCE
-             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_firmware_error_record_reference
-             * Support:             Done
-             */
             { FIRMWARE_ERROR_RECORD_REFERENCE_GUID, "Firmware Error Record Reference" },
-
-            /*
-             * Section type:        Standard
-             * Structure:           WHEA_PROCESSOR_GENERIC_ERROR_SECTION
-             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_processor_generic_error_section
-             * Support:             Done
-             */
             { PROCESSOR_GENERIC_ERROR_SECTION_GUID, "Generic Processor Error" },
-
-            /*
-             * Section type:        Standard
-             * Structure:           WHEA_XPF_PROCESSOR_ERROR_SECTION
-             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_xpf_processor_error_section
-             * Support:             Done
-             */
             { XPF_PROCESSOR_ERROR_SECTION_GUID, "IA32/AMD64 Processor Error" },
-
-            /*
-             * Section type:        Standard
-             * Structure:           TODO
-             * Docs:                TODO
-             * Support:             TODO
-             */
             { IPF_PROCESSOR_ERROR_SECTION_GUID, "IA64 Processor Error" },
-
-            /*
-             * Section type:        Standard
-             * Structure:           WHEA_MEMORY_ERROR_SECTION
-             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_memory_error_section
-             * Support:             Done
-             */
             { MEMORY_ERROR_SECTION_GUID, "Memory Error" },
-
-            /*
-             * Section type:        Standard
-             * Structure:           WHEA_PCIXDEVICE_ERROR_SECTION
-             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_pcixdevice_error_section
-             * Support:             Done
-             */
             { PCIXDEVICE_ERROR_SECTION_GUID, "PCI Component/Device Error" },
-
-            /*
-             * Section type:        Standard
-             * Structure:           WHEA_PCIEXPRESS_ERROR_SECTION
-             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_pciexpress_error_section
-             * Support:             Done
-             */
             { PCIEXPRESS_ERROR_SECTION_GUID, "PCI Express Error" },
-
-            /*
-             * Section type:        Standard
-             * Structure:           WHEA_PCIXBUS_ERROR_SECTION
-             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_pcixbus_error_section
-             * Support:             Done
-             */
             { PCIXBUS_ERROR_SECTION_GUID, "PCI/PCI-X Bus Error" },
 
-            /*
-             * Section type:        Microsoft
-             * Structure:           WHEA_MEMORY_CORRECTABLE_ERROR_SECTION
-             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_memory_correctable_error_section
-             * Support:             Done
-             */
+            // Microsoft sections
             { MEMORY_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID, "Correctable Memory Error" },
-
-            /*
-             * Section type:        Microsoft
-             * Structure:           WHEA_PCIE_CORRECTABLE_ERROR_SECTION
-             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_pcie_correctable_error_section_header
-             *                      https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_pcie_correctable_error_devices
-             * Support:             Done
-             */
             { PCIE_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID, "Correctable PCIe Error" },
-
-            /*
-             * Section type:        Microsoft
-             * Structure:           WHEA_ERROR_RECOVERY_INFO_SECTION
-             * Docs:                Undocumented
-             * Support:             Done
-             */
             { RECOVERY_INFO_SECTION_GUID, "Error Recovery Information" },
-
-            /*
-             * Section type:        Microsoft
-             * Structure:           WHEA_ERROR_PACKET_V1 / WHEA_ERROR_PACKET_V2
-             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_error_packet_v1
-             *                      https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_error_packet_v2
-             * Support:             Partial
-             */
             { WHEA_ERROR_PACKET_SECTION_GUID, "Hardware Error Packet" },
-
-            /*
-             * Section type:        Microsoft
-             * Structure:           WHEA_XPF_MCA_SECTION
-             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_xpf_mca_section
-             * Support:             Done
-             */
             { XPF_MCA_SECTION_GUID, "IA32/AMD64 Machine Check Error" },
-
-            /*
-             * Section type:        Microsoft
-             * Structure:           WHEA_MSR_DUMP_SECTION
-             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_msr_dump_section
-             * Support:             Done
-             */
             { IPMI_MSR_DUMP_SECTION_GUID, "MSR Dump" },
-
-            /*
-             * Section type:        Microsoft
-             * Structure:           WHEA_NMI_ERROR_SECTION
-             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_nmi_error_section
-             * Support:             Done
-             */
             { NMI_SECTION_GUID, "NMI Error" },
-
-            /*
-             * Section type:        Microsoft
-             * Structure:           WHEA_PMEM_ERROR_SECTION
-             * Docs:                https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_pmem_error_section
-             * Support:             Done
-             */
             { PMEM_ERROR_SECTION_GUID, "Persistent Mememory Error" },
-
-            /*
-             * Section type:        Microsoft
-             * Structure:           MU_TELEMETRY_SECTION
-             * Docs:                Undocumented
-             * Support:             Done
-             */
             { MU_TELEMETRY_SECTION_GUID, "Project Mu Telemetry" },
 
-            /*
-             * Section type:        Microsoft
-             * Structure:           TODO
-             * Docs:                TODO
-             * Support:             TODO
-             */
+            // Microsoft sections (unknown)
             { GENERIC_SECTION_GUID, "GENERIC_SECTION_GUID" },
-
-            /*
-             * Section type:        Microsoft
-             * Structure:           TODO
-             * Docs:                TODO
-             * Support:             TODO
-             */
             { IPF_SAL_RECORD_SECTION_GUID, "IPF_SAL_RECORD_SECTION_GUID" },
-
-            /*
-             * Section type:        Microsoft
-             * Structure:           WHEA_PCI_DPC_SECTION (PCI_EXPRESS_DPC_CAPABILITY)
-             * Docs:                TODO
-             * Support:             TODO
-             */
             { WHEA_DPC_CAPABILITY_SECTION_GUID, "WHEA_DPC_CAPABILITY_SECTION_GUID" }
         };
 

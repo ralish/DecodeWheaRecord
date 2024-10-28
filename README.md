@@ -6,20 +6,23 @@ DecodeWheaRecord
 
 A work-in-progress utility to decode hex-encoded Windows Hardware Event Architecture (WHEA) records.
 
-- [Requirements](#requirements)
-- [Support status](#support-status)
-  - [WHEA events](#whea-events)
-- [Glossary](#glossary)
-  - [ACPI](#acpi)
-  - [Architectures](#architectures)
-  - [ARMv8](#armv8)
-  - [IA-64 (Itanium)](#ia-64-itanium)
-  - [Microsoft](#microsoft)
-  - [PCIe](#pcie)
-  - [Specifications](#specifications)
-  - [UEFI](#uefi)
-  - [Miscellaneous](#miscellaneous)
-- [License](#license)
+- [DecodeWheaRecord](#decodewhearecord)
+  - [Requirements](#requirements)
+  - [Support status](#support-status)
+    - [WHEA errors](#whea-errors)
+    - [WHEA events](#whea-events)
+  - [Glossary](#glossary)
+    - [ACPI](#acpi)
+    - [Architectures](#architectures)
+    - [ARMv8](#armv8)
+      - [IA-32 (x86)](#ia-32-x86)
+    - [IA-64 (Itanium)](#ia-64-itanium)
+    - [Microsoft](#microsoft)
+    - [PCIe](#pcie)
+    - [Specifications](#specifications)
+    - [UEFI](#uefi)
+    - [Miscellaneous](#miscellaneous)
+  - [License](#license)
 
 Requirements
 ------------
@@ -30,9 +33,7 @@ Requirements
 Support status
 --------------
 
-### WHEA events
-
-WHEA events are output by the `Microsoft-Windows-Kernel-WHEA` provider to the `Microsoft-Windows-Kernel-WHEA/Operational` channel. You can view these events using standard Windows tools such as the *Event Viewer* application and `Get-WinEvent` PowerShell command. The events are not parsed, with only the "*raw data*" provided in the form of a hex-encoded string. To parse an event provide the value of the `RawData` field to `DecodeWheaRecord` as the input argument. For example:
+The `Microsoft-Windows-Kernel-WHEA` provider outputs errors and events to the `Microsoft-Windows-Kernel-WHEA/Errors` and `Microsoft-Windows-Kernel-WHEA/Operational` event log channels respectively. You can view these events using standard Windows tools such as the *Event Viewer* application and `Get-WinEvent` PowerShell command. The events are not parsed, with only the "*raw data*" provided in the form of a hex-encoded string. To parse the WHEA error or event the value of the `RawData` field should be provided to `DecodeWheaRecord` as the input argument. For example:
 
 ```plain
 DecodeWheaRecord.exe 57684C6701000000200000000000000050434920180000800200000000000000
@@ -49,7 +50,33 @@ Expected size of WHEA_EVENT_LOG_ENTRY_HEADER record: 32
 }
 ```
 
-Support for the large majority of WHEA events is present, as of Windows 11 22H2 and Windows Server 2022, but few have been tested against real test data. Adding support for the minority of events which are unsupported would also benefit by having real events to test against. If you're using this utility to parse an event which doesn't have a test case, as per the table below, please consider submitting it via a [GitHub issue](https://github.com/ralish/DecodeWheaRecord/issues) to help us verify the correctness of the implementation and improve support.
+Support for the majority of errors and events is present, current as of Windows 11 22H2 and Windows Server 2022, but few have been tested against real data. Adding support for the unsupported errors and events would greatly benefit by having real data to test against. If you're using this utility to parse an event which doesn't have a test case, as per the table below, please consider submitting it via a [GitHub issue](https://github.com/ralish/DecodeWheaRecord/issues) to help us verify the correctness of the implementation and improve support.
+
+### WHEA errors
+
+| Name                            | Type      | Status          | GUID                                   | Structure name                          | Documentation |
+| ------------------------------- | --------- | --------------- | -------------------------------------- | --------------------------------------- | ------------- |
+| ARM Processor Error             | Standard  | Done            | `e19e3d16-bc11-11e4-9caa-c2051d5d46b0` | `WHEA_ARM_PROCESSOR_ERROR_SECTION`      | Undocumented  |
+| Correctable Memory Error        | Microsoft | Done            | `0e36c93e-ca15-4a83-ba8a-cbe80f7f0017` | `WHEA_MEMORY_CORRECTABLE_ERROR_SECTION` | [No](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_memory_correctable_error_section) |
+| Correctable PCIe Error          | Microsoft | Partial         | `e96eca99-53e2-4f52-9be7-d2dbe9508ed0` | `WHEA_PCIE_CORRECTABLE_ERROR_SECTION`   | Undocumented  |
+| Error Recovery Information      | Microsoft | Done            | `c34832a1-02c3-4c52-a9f1-9f1d5d7723fc` | `WHEA_ERROR_RECOVERY_INFO_SECTION`      | Undocumented  |
+| Firmware Error Record Reference | Standard  | Done            | `81212a96-09ed-4996-9471-8d729c8e69ed` | `WHEA_FIRMWARE_ERROR_RECORD_REFERENCE`  | [Yes](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_firmware_error_record_reference) |
+| Generic Processor Error         | Standard  | Partial         | `9876ccad-47b4-4bdb-b65e-16f193c4f3db` | `WHEA_PROCESSOR_GENERIC_ERROR_SECTION`  | [Yes](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_processor_generic_error_section) |
+| Hardware Error Packet (v1)      | Microsoft | Done            | `e71254e9-c1b9-4940-ab76-909703a4320f` | `WHEA_ERROR_PACKET_V1`                  | [Yes](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_error_packet_v1) |
+| Hardware Error Packet (v2)      | Microsoft | Done            | `e71254e9-c1b9-4940-ab76-909703a4320f` | `WHEA_ERROR_PACKET_V2`                  | [Partial](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_error_packet_v2) |
+| IA32/AMD64 Machine Check Error  | Microsoft | Done            | `8a1e1d01-42f9-4557-9c33-565e5cc3f7e8` | `WHEA_XPF_MCA_SECTION`                  | [No](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_xpf_mca_section) |
+| IA32/AMD64 Processor Error      | Standard  | Partial         | `dc3ea0b0-a144-4797-b95b-53fa242b6e1d` | `WHEA_XPF_PROCESSOR_ERROR_SECTION`      | [Yes](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_xpf_processor_error_section) |
+| IA64 Processor Error            | Standard  | Not implemented | `e429faf1-3cb7-11d4-bca7-0080c73c8881` |                                         | |
+| Memory Error                    | Standard  | Partial         | `a5bc1114-6f64-4ede-b863-3e83ed7c83b1` | `WHEA_MEMORY_ERROR_SECTION`             | [Yes](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_memory_error_section) |
+| MSR Dump                        | Microsoft | Done            | `1c15b445-9b06-4667-ac25-33c056b88803` | `WHEA_MSR_DUMP_SECTION`                 | [No](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_msr_dump_section) |
+| NMI Error                       | Microsoft | Done            | `e71254e7-c1b9-4940-ab76-909703a4320f` | `WHEA_NMI_ERROR_SECTION`                | [Yes](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_nmi_error_section) |
+| PCI Component/Device Error      | Standard  | Done            | `eb5e4685-ca66-4769-b6a2-26068b001326` | `WHEA_PCIXDEVICE_ERROR_SECTION`         | [Yes](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_pcixdevice_error_section) |
+| PCI Express Error               | Standard  | Partial         | `d995e954-bbc1-430f-ad91-b44dcb3c6f35` | `WHEA_PCIEXPRESS_ERROR_SECTION`         | [Yes](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_pciexpress_error_section) |
+| PCI/PCI-X Bus Error             | Standard  | Done            | `c5753963-3b84-4095-bf78-eddad3f9c9dd` | `WHEA_PCIXBUS_ERROR_SECTION`            | [Yes](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_whea_pcixbus_error_section) |
+| Persistent Mememory Error       | Microsoft | Partial         | `81687003-dbfd-4728-9ffd-f0904f97597d` | `WHEA_PMEM_ERROR_SECTION`               | [No](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-whea_pmem_error_section) |
+| Project Mu Telemetry            | Microsoft | Done            | `85183a8b-9c41-429c-939c-5c3c087ca280` | `MU_TELEMETRY_SECTION`                  | Undocumented  |
+
+### WHEA events
 
 | Entry ID     | Symbolic name                  | Structure name                                     | Test case  | Notes           |
 | ------------ | ------------------------------ | -------------------------------------------------- | ---------- | --------------- |
