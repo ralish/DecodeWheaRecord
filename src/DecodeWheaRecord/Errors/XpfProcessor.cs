@@ -1,10 +1,10 @@
 #pragma warning disable CS0649  // Field is never assigned to
 #pragma warning disable IDE0044 // Make field readonly
+#pragma warning disable IDE1006 // Naming rule violation
 
 // ReSharper disable ClassNeverInstantiated.Global
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable InconsistentNaming
-// ReSharper disable MemberCanBePrivate.Global
 
 using System;
 using System.Collections.Generic;
@@ -14,13 +14,20 @@ using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-using System.Diagnostics.CodeAnalysis;
-
-using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_XPF_PROCESSOR_ERROR_SECTION : WheaRecord {
+    /*
+     * Cannot be directly marshalled as a structure due to the usage of
+     * variable length arrays, resulting in a non-static structure size.
+     */
+    internal sealed class WHEA_XPF_PROCESSOR_ERROR_SECTION : WheaErrorRecord {
+        // Size up to and including the CpuId field
+        private const uint BaseStructSize = 64;
+
+        private uint _NativeSize;
+        public override uint GetNativeSize() => _NativeSize;
+
         /*
          * Processor check info types
          */
@@ -36,35 +43,30 @@ namespace DecodeWheaRecord.Errors {
             { WHEA_TLBCHECK_GUID, "Translation Lookaside Buffer" }
         };
 
-        private int _NativeSize;
-        internal override int GetNativeSize() => _NativeSize;
-
         /*
-         * Originally defined as a ULONGLONG bitfield except only two bits are
+         * Originally defined as a ULONGLONG bitfield, except only two bits are
          * flags with the remaining non-reserved bits composed of two 6-bit
          * integers. The actual flags are defined in a structure with the
          * original WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS name.
          */
         private ulong _RawValidBits;
 
-        [SuppressMessage("Style", "IDE1006:Naming Styles")]
         private WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS _ValidBits => (WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS)(_RawValidBits & 0x3); // Bits 0-1
 
         [JsonProperty(Order = 1)]
         public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
 
         [JsonProperty(Order = 2)]
-        public byte ProcInfoCount => (byte)(_RawValidBits >> 2 & 0x3F); // Bits 2-7
+        public byte ProcInfoCount => (byte)((_RawValidBits >> 2) & 0x3F); // Bits 2-7
 
         [JsonProperty(Order = 3)]
-        public byte ContextInfoCount => (byte)(_RawValidBits >> 8 & 0x3F); // Bits 8-13
+        public byte ContextInfoCount => (byte)((_RawValidBits >> 8) & 0x3F); // Bits 8-13
 
         [JsonProperty(Order = 4)]
         public ulong LocalAPICId;
 
-        // TODO: Output as a hex string
         [JsonProperty(Order = 5)]
-        public byte[] CpuId;
+        public byte[] CpuId; // TODO: Output as hex
 
         [JsonProperty(Order = 6)]
         public WHEA_XPF_PROCINFO[] ProcInfo;
@@ -72,8 +74,8 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 7)]
         public WHEA_XPF_CONTEXT_INFO[] ContextInfo;
 
-        public WHEA_XPF_PROCESSOR_ERROR_SECTION(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
-            DebugOutputPre(typeof(WHEA_XPF_PROCESSOR_ERROR_SECTION), sectionDsc);
+        public WHEA_XPF_PROCESSOR_ERROR_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
+            base(sectionDsc, typeof(WHEA_XPF_PROCESSOR_ERROR_SECTION), BaseStructSize, bytesRemaining) {
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
             _RawValidBits = (ulong)Marshal.ReadInt64(sectionAddr);
@@ -85,34 +87,38 @@ namespace DecodeWheaRecord.Errors {
             offset += 48;
 
             if (ProcInfoCount > 0) {
-                var elementSize = Marshal.SizeOf<WHEA_XPF_PROCINFO>();
                 ProcInfo = new WHEA_XPF_PROCINFO[ProcInfoCount];
                 for (var i = 0; i < ProcInfoCount; i++) {
-                    ProcInfo[i] = Marshal.PtrToStructure<WHEA_XPF_PROCINFO>(sectionAddr + offset + (i * elementSize));
+                    ProcInfo[i] = new WHEA_XPF_PROCINFO(recordAddr,
+                                                        sectionDsc.SectionOffset + (uint)offset,
+                                                        sectionDsc.SectionLength - (uint)offset);
+                    offset += (int)ProcInfo[i].GetNativeSize();
                 }
-
-                offset += ProcInfoCount * elementSize;
             }
 
             if (ContextInfoCount > 0) {
                 ContextInfo = new WHEA_XPF_CONTEXT_INFO[ContextInfoCount];
                 for (var i = 0; i < ContextInfoCount; i++) {
-                    ContextInfo[i] = new WHEA_XPF_CONTEXT_INFO(sectionAddr + offset);
-                    offset += ContextInfo[i].GetNativeSize();
+                    ContextInfo[i] = new WHEA_XPF_CONTEXT_INFO(recordAddr,
+                                                               sectionDsc.SectionOffset + (uint)offset,
+                                                               sectionDsc.SectionLength - (uint)offset);
+                    offset += (int)ContextInfo[i].GetNativeSize();
                 }
             }
 
-            _NativeSize = offset;
-            DebugOutputPost(typeof(WHEA_XPF_PROCESSOR_ERROR_SECTION), sectionDsc, _NativeSize);
+            _NativeSize = (uint)offset;
+            FinalizeRecord(recordAddr, _NativeSize);
         }
 
         [UsedImplicitly]
-        public bool ShouldSerializeLocalAPICId() => (_ValidBits & WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS.LocalAPICId) ==
-                                                    WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS.LocalAPICId;
+        public bool ShouldSerializeLocalAPICId() =>
+            (_ValidBits & WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS.LocalAPICId) ==
+            WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS.LocalAPICId;
 
         [UsedImplicitly]
-        public bool ShouldSerializeCpuId() => (_ValidBits & WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS.CpuId) ==
-                                              WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS.CpuId;
+        public bool ShouldSerializeCpuId() =>
+            (_ValidBits & WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS.CpuId) ==
+            WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS.CpuId;
 
         [UsedImplicitly]
         public bool ShouldSerializeProcInfo() => ProcInfo != null && ProcInfo.Length != 0;
@@ -122,59 +128,87 @@ namespace DecodeWheaRecord.Errors {
     }
 
     /*
-     * Processor error information
+     * Attempting to directly marshal as a structure results in serialization
+     * issues with Newtonsoft.Json, though I suspect the real issue is in the
+     * marshaller itself. The cause is sure to be related to the handling of
+     * the *Check fields which was originally defined as a union of structures.
      */
-    [StructLayout(LayoutKind.Explicit, Pack = 1)]
-    internal sealed class WHEA_XPF_PROCINFO {
-        [FieldOffset(0)]
+    internal sealed class WHEA_XPF_PROCINFO : WheaErrorRecord {
+        // Structure size is static
+        private const uint _StructSize = 64;
+        public override uint GetNativeSize() => _StructSize;
+
         private Guid _CheckInfoId;
 
         [JsonProperty(Order = 1)]
-        public string CheckInfoId => WHEA_XPF_PROCESSOR_ERROR_SECTION.CheckInfoTypes.TryGetValue(_CheckInfoId, out var CheckInfoTypeValue)
-            ? CheckInfoTypeValue
-            : _CheckInfoId.ToString();
+        public string CheckInfoId =>
+            WHEA_XPF_PROCESSOR_ERROR_SECTION.CheckInfoTypes.TryGetValue(_CheckInfoId, out var CheckInfoTypeValue)
+                ? CheckInfoTypeValue
+                : _CheckInfoId.ToString();
 
-        [FieldOffset(16)]
         private WHEA_XPF_PROCINFO_VALIDBITS _ValidBits;
 
         [JsonProperty(Order = 2)]
         public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
 
-        [FieldOffset(24)]
         [JsonProperty(Order = 3)]
         public WHEA_XPF_CACHE_CHECK CacheCheck;
 
-        [FieldOffset(24)]
         [JsonProperty(Order = 4)]
         public WHEA_XPF_TLB_CHECK TlbCheck;
 
-        [FieldOffset(24)]
         [JsonProperty(Order = 5)]
         public WHEA_XPF_BUS_CHECK BusCheck;
 
-        [FieldOffset(24)]
         [JsonProperty(Order = 6)]
         public WHEA_XPF_MS_CHECK MsCheck;
 
-        [FieldOffset(32)]
         [JsonProperty(Order = 7)]
         public ulong TargetId;
 
-        [FieldOffset(40)]
         [JsonProperty(Order = 8)]
         public ulong RequesterId;
 
-        [FieldOffset(48)]
         [JsonProperty(Order = 9)]
         public ulong ResponderId;
 
-        [FieldOffset(56)]
         [JsonProperty(Order = 10)]
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong InstructionPointer;
 
-        private bool ShouldSerializeCheckInfo() => (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.CheckInfo) ==
-                                                   WHEA_XPF_PROCINFO_VALIDBITS.CheckInfo;
+        public WHEA_XPF_PROCINFO(IntPtr recordAddr, uint xpfProcInfoOffset, uint bytesRemaining) :
+            base(typeof(WHEA_XPF_PROCINFO), xpfProcInfoOffset, _StructSize, bytesRemaining) {
+            var xpfProcInfoAddr = recordAddr + (int)xpfProcInfoOffset;
+
+            _CheckInfoId = Marshal.PtrToStructure<Guid>(xpfProcInfoAddr);
+            var offset = Marshal.SizeOf<Guid>();
+
+            _ValidBits = (WHEA_XPF_PROCINFO_VALIDBITS)Marshal.ReadInt64(xpfProcInfoAddr, offset);
+            offset += 8;
+
+            if (ShouldSerializeCacheCheck()) {
+                CacheCheck = Marshal.PtrToStructure<WHEA_XPF_CACHE_CHECK>(xpfProcInfoAddr + offset);
+            } else if (ShouldSerializeTlbCheck()) {
+                TlbCheck = Marshal.PtrToStructure<WHEA_XPF_TLB_CHECK>(xpfProcInfoAddr + offset);
+            } else if (ShouldSerializeBusCheck()) {
+                BusCheck = Marshal.PtrToStructure<WHEA_XPF_BUS_CHECK>(xpfProcInfoAddr + offset);
+            } else if (ShouldSerializeMsCheck()) {
+                MsCheck = Marshal.PtrToStructure<WHEA_XPF_MS_CHECK>(xpfProcInfoAddr + offset);
+            }
+
+            offset += 8; // All of the above structures are 8 bytes
+
+            TargetId = (ulong)Marshal.ReadInt64(xpfProcInfoAddr, offset);
+            RequesterId = (ulong)Marshal.ReadInt64(xpfProcInfoAddr, offset + 8);
+            ResponderId = (ulong)Marshal.ReadInt64(xpfProcInfoAddr, offset + 16);
+            InstructionPointer = (ulong)Marshal.ReadInt64(xpfProcInfoAddr, offset + 24);
+
+            FinalizeRecord(recordAddr, _StructSize);
+        }
+
+        private bool ShouldSerializeCheckInfo() =>
+            (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.CheckInfo) ==
+            WHEA_XPF_PROCINFO_VALIDBITS.CheckInfo;
 
         [UsedImplicitly]
         public bool ShouldSerializeCacheCheck() => ShouldSerializeCheckInfo() && _CheckInfoId == WHEA_XPF_PROCESSOR_ERROR_SECTION.WHEA_CACHECHECK_GUID;
@@ -189,20 +223,24 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeMsCheck() => ShouldSerializeCheckInfo() && _CheckInfoId == WHEA_XPF_PROCESSOR_ERROR_SECTION.WHEA_MSCHECK_GUID;
 
         [UsedImplicitly]
-        public bool ShouldSerializeTargetId() => (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.TargetId) ==
-                                                 WHEA_XPF_PROCINFO_VALIDBITS.TargetId;
+        public bool ShouldSerializeTargetId() =>
+            (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.TargetId) ==
+            WHEA_XPF_PROCINFO_VALIDBITS.TargetId;
 
         [UsedImplicitly]
-        public bool ShouldSerializeRequesterId() => (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.RequesterId) ==
-                                                    WHEA_XPF_PROCINFO_VALIDBITS.RequesterId;
+        public bool ShouldSerializeRequesterId() =>
+            (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.RequesterId) ==
+            WHEA_XPF_PROCINFO_VALIDBITS.RequesterId;
 
         [UsedImplicitly]
-        public bool ShouldSerializeResponderId() => (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.ResponderId) ==
-                                                    WHEA_XPF_PROCINFO_VALIDBITS.ResponderId;
+        public bool ShouldSerializeResponderId() =>
+            (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.ResponderId) ==
+            WHEA_XPF_PROCINFO_VALIDBITS.ResponderId;
 
         [UsedImplicitly]
-        public bool ShouldSerializeInstructionPointer() => (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.InstructionPointer) ==
-                                                           WHEA_XPF_PROCINFO_VALIDBITS.InstructionPointer;
+        public bool ShouldSerializeInstructionPointer() =>
+            (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.InstructionPointer) ==
+            WHEA_XPF_PROCINFO_VALIDBITS.InstructionPointer;
     }
 
     /*
@@ -213,7 +251,6 @@ namespace DecodeWheaRecord.Errors {
     internal sealed class WHEA_XPF_BUS_CHECK {
         private ulong _RawBits;
 
-        [SuppressMessage("Style", "IDE1006:Naming Styles")]
         private WHEA_XPF_BUS_CHECK_VALIDBITS _ValidBits => (WHEA_XPF_BUS_CHECK_VALIDBITS)(_RawBits & 0xFFFF); // Bits 0-15
 
         // TODO: Check the bits which map to flags
@@ -229,7 +266,6 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 4)]
         public byte Level => (byte)((_RawBits & 0x1C00000) >> 22); // Bits 22-24
 
-        [SuppressMessage("Style", "IDE1006:Naming Styles")]
         private WHEA_XPF_BUS_CHECK_FLAGS _Flags => (WHEA_XPF_BUS_CHECK_FLAGS)((_RawBits & 0xFE000000) >> 25); // Bits 25-31
 
         [JsonProperty(Order = 5)]
@@ -242,24 +278,29 @@ namespace DecodeWheaRecord.Errors {
         public string AddressSpace => Enum.GetName(typeof(WHEA_XPF_BUS_CHECK_ADDRESS), (_RawBits & 0x300000000) >> 29); // Bits 32-33
 
         [UsedImplicitly]
-        public bool ShouldSerializeTransactionType() => (_ValidBits & WHEA_XPF_BUS_CHECK_VALIDBITS.TransactionTypeValid) ==
-                                                        WHEA_XPF_BUS_CHECK_VALIDBITS.TransactionTypeValid;
+        public bool ShouldSerializeTransactionType() =>
+            (_ValidBits & WHEA_XPF_BUS_CHECK_VALIDBITS.TransactionTypeValid) ==
+            WHEA_XPF_BUS_CHECK_VALIDBITS.TransactionTypeValid;
 
         [UsedImplicitly]
-        public bool ShouldSerializeOperation() => (_ValidBits & WHEA_XPF_BUS_CHECK_VALIDBITS.OperationValid) ==
-                                                  WHEA_XPF_BUS_CHECK_VALIDBITS.OperationValid;
+        public bool ShouldSerializeOperation() =>
+            (_ValidBits & WHEA_XPF_BUS_CHECK_VALIDBITS.OperationValid) ==
+            WHEA_XPF_BUS_CHECK_VALIDBITS.OperationValid;
 
         [UsedImplicitly]
-        public bool ShouldSerializeLevel() => (_ValidBits & WHEA_XPF_BUS_CHECK_VALIDBITS.LevelValid) ==
-                                              WHEA_XPF_BUS_CHECK_VALIDBITS.LevelValid;
+        public bool ShouldSerializeLevel() =>
+            (_ValidBits & WHEA_XPF_BUS_CHECK_VALIDBITS.LevelValid) ==
+            WHEA_XPF_BUS_CHECK_VALIDBITS.LevelValid;
 
         [UsedImplicitly]
-        public bool ShouldSerializeParticipation() => (_ValidBits & WHEA_XPF_BUS_CHECK_VALIDBITS.ParticipationValid) ==
-                                                      WHEA_XPF_BUS_CHECK_VALIDBITS.ParticipationValid;
+        public bool ShouldSerializeParticipation() =>
+            (_ValidBits & WHEA_XPF_BUS_CHECK_VALIDBITS.ParticipationValid) ==
+            WHEA_XPF_BUS_CHECK_VALIDBITS.ParticipationValid;
 
         [UsedImplicitly]
-        public bool ShouldSerializeAddressSpace() => (_ValidBits & WHEA_XPF_BUS_CHECK_VALIDBITS.AddressSpaceValid) ==
-                                                     WHEA_XPF_BUS_CHECK_VALIDBITS.AddressSpaceValid;
+        public bool ShouldSerializeAddressSpace() =>
+            (_ValidBits & WHEA_XPF_BUS_CHECK_VALIDBITS.AddressSpaceValid) ==
+            WHEA_XPF_BUS_CHECK_VALIDBITS.AddressSpaceValid;
     }
 
     /*
@@ -270,7 +311,6 @@ namespace DecodeWheaRecord.Errors {
     internal sealed class WHEA_XPF_CACHE_CHECK {
         private ulong _RawBits;
 
-        [SuppressMessage("Style", "IDE1006:Naming Styles")]
         private WHEA_XPF_CACHE_CHECK_VALIDBITS _ValidBits => (WHEA_XPF_CACHE_CHECK_VALIDBITS)(_RawBits & 0xFFFF); // Bits 0-15
 
         // TODO: Check the bits which map to flags
@@ -286,23 +326,25 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 4)]
         public byte Level => (byte)((_RawBits & 0x1C00000) >> 22); // Bits 22-24
 
-        [SuppressMessage("Style", "IDE1006:Naming Styles")]
         private WHEA_XPF_CACHE_CHECK_FLAGS _Flags => (WHEA_XPF_CACHE_CHECK_FLAGS)((_RawBits & 0x3E000000) >> 25); // Bits 25-29
 
         [JsonProperty(Order = 5)]
         public string Flags => GetEnabledFlagsAsString(_Flags);
 
         [UsedImplicitly]
-        public bool ShouldSerializeTransactionType() => (_ValidBits & WHEA_XPF_CACHE_CHECK_VALIDBITS.TransactionTypeValid) ==
-                                                        WHEA_XPF_CACHE_CHECK_VALIDBITS.TransactionTypeValid;
+        public bool ShouldSerializeTransactionType() =>
+            (_ValidBits & WHEA_XPF_CACHE_CHECK_VALIDBITS.TransactionTypeValid) ==
+            WHEA_XPF_CACHE_CHECK_VALIDBITS.TransactionTypeValid;
 
         [UsedImplicitly]
-        public bool ShouldSerializeOperation() => (_ValidBits & WHEA_XPF_CACHE_CHECK_VALIDBITS.OperationValid) ==
-                                                  WHEA_XPF_CACHE_CHECK_VALIDBITS.OperationValid;
+        public bool ShouldSerializeOperation() =>
+            (_ValidBits & WHEA_XPF_CACHE_CHECK_VALIDBITS.OperationValid) ==
+            WHEA_XPF_CACHE_CHECK_VALIDBITS.OperationValid;
 
         [UsedImplicitly]
-        public bool ShouldSerializeLevel() => (_ValidBits & WHEA_XPF_CACHE_CHECK_VALIDBITS.LevelValid) ==
-                                              WHEA_XPF_CACHE_CHECK_VALIDBITS.LevelValid;
+        public bool ShouldSerializeLevel() =>
+            (_ValidBits & WHEA_XPF_CACHE_CHECK_VALIDBITS.LevelValid) ==
+            WHEA_XPF_CACHE_CHECK_VALIDBITS.LevelValid;
     }
 
     /*
@@ -313,7 +355,6 @@ namespace DecodeWheaRecord.Errors {
     internal sealed class WHEA_XPF_MS_CHECK {
         private ulong _RawBits;
 
-        [SuppressMessage("Style", "IDE1006:Naming Styles")]
         private WHEA_XPF_MS_CHECK_VALIDBITS _ValidBits => (WHEA_XPF_MS_CHECK_VALIDBITS)(_RawBits & 0xFFFF); // Bits 0-15
 
         // TODO: Check the bits which map to flags
@@ -323,15 +364,15 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 2)]
         public string ErrorType => Enum.GetName(typeof(WHEA_XPF_MS_CHECK_ERROR_TYPE), (_RawBits & 0x70000) >> 16); // Bits 16-18
 
-        [SuppressMessage("Style", "IDE1006:Naming Styles")]
         private WHEA_XPF_MS_CHECK_FLAGS _Flags => (WHEA_XPF_MS_CHECK_FLAGS)((_RawBits & 0xF80000) >> 25); // Bits 19-23
 
         [JsonProperty(Order = 3)]
         public string Flags => GetEnabledFlagsAsString(_Flags);
 
         [UsedImplicitly]
-        public bool ShouldSerializeErrorType() => (_ValidBits & WHEA_XPF_MS_CHECK_VALIDBITS.ErrorTypeValid) ==
-                                                  WHEA_XPF_MS_CHECK_VALIDBITS.ErrorTypeValid;
+        public bool ShouldSerializeErrorType() =>
+            (_ValidBits & WHEA_XPF_MS_CHECK_VALIDBITS.ErrorTypeValid) ==
+            WHEA_XPF_MS_CHECK_VALIDBITS.ErrorTypeValid;
     }
 
     /*
@@ -342,7 +383,6 @@ namespace DecodeWheaRecord.Errors {
     internal sealed class WHEA_XPF_TLB_CHECK {
         private ulong _RawBits;
 
-        [SuppressMessage("Style", "IDE1006:Naming Styles")]
         private WHEA_XPF_TLB_CHECK_VALIDBITS _ValidBits => (WHEA_XPF_TLB_CHECK_VALIDBITS)(_RawBits & 0xFFFF); // Bits 0-15
 
         // TODO: Check the bits which map to flags
@@ -358,31 +398,37 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 4)]
         public byte Level => (byte)((_RawBits & 0x1C00000) >> 22); // Bits 22-24
 
-        [SuppressMessage("Style", "IDE1006:Naming Styles")]
         private WHEA_XPF_TLB_CHECK_FLAGS _Flags => (WHEA_XPF_TLB_CHECK_FLAGS)((_RawBits & 0x3E000000) >> 25); // Bits 25-29
 
         [JsonProperty(Order = 5)]
         public string Flags => GetEnabledFlagsAsString(_Flags);
 
         [UsedImplicitly]
-        public bool ShouldSerializeTransactionType() => (_ValidBits & WHEA_XPF_TLB_CHECK_VALIDBITS.TransactionTypeValid) ==
-                                                        WHEA_XPF_TLB_CHECK_VALIDBITS.TransactionTypeValid;
+        public bool ShouldSerializeTransactionType() =>
+            (_ValidBits & WHEA_XPF_TLB_CHECK_VALIDBITS.TransactionTypeValid) ==
+            WHEA_XPF_TLB_CHECK_VALIDBITS.TransactionTypeValid;
 
         [UsedImplicitly]
-        public bool ShouldSerializeOperation() => (_ValidBits & WHEA_XPF_TLB_CHECK_VALIDBITS.OperationValid) ==
-                                                  WHEA_XPF_TLB_CHECK_VALIDBITS.OperationValid;
+        public bool ShouldSerializeOperation() =>
+            (_ValidBits & WHEA_XPF_TLB_CHECK_VALIDBITS.OperationValid) ==
+            WHEA_XPF_TLB_CHECK_VALIDBITS.OperationValid;
 
         [UsedImplicitly]
-        public bool ShouldSerializeLevel() => (_ValidBits & WHEA_XPF_TLB_CHECK_VALIDBITS.LevelValid) ==
-                                              WHEA_XPF_TLB_CHECK_VALIDBITS.LevelValid;
+        public bool ShouldSerializeLevel() =>
+            (_ValidBits & WHEA_XPF_TLB_CHECK_VALIDBITS.LevelValid) ==
+            WHEA_XPF_TLB_CHECK_VALIDBITS.LevelValid;
     }
 
     /*
-     * Processor context information
+     * Cannot be directly marshalled as a structure due to the usage of
+     * variable length arrays, resulting in a non-static structure size.
      */
-    internal sealed class WHEA_XPF_CONTEXT_INFO : WheaRecord {
-        private int _NativeSize;
-        internal override int GetNativeSize() => _NativeSize;
+    internal sealed class WHEA_XPF_CONTEXT_INFO : WheaErrorRecord {
+        // Size up to and including the MmRegisterAddress field
+        private const uint BaseStructSize = 16;
+
+        private uint _NativeSize;
+        public override uint GetNativeSize() => _NativeSize;
 
         private WHEA_XPF_CONTEXT_INFO_TYPE _RegisterContextType;
 
@@ -401,13 +447,13 @@ namespace DecodeWheaRecord.Errors {
         public ulong MmRegisterAddress;
 
         [JsonProperty(Order = 5)]
-        public byte[] RegisterDataRaw;
+        public byte[] RegisterDataRaw; // TODO: Output as hex
 
         [JsonProperty(Order = 6)]
-        public uint[] RegisterData32;
+        public uint[] RegisterData32; // TODO: Output as hex
 
         [JsonProperty(Order = 7)]
-        public ulong[] RegisterData64;
+        public ulong[] RegisterData64; // TODO: Output as hex
 
         [JsonProperty(Order = 8)]
         public WHEA_X86_REGISTER_STATE RegisterDataContext32;
@@ -415,20 +461,23 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 9)]
         public WHEA_X64_REGISTER_STATE RegisterDataContext64;
 
-        public WHEA_XPF_CONTEXT_INFO(IntPtr xpfContextInfo) {
-            _RegisterContextType = (WHEA_XPF_CONTEXT_INFO_TYPE)Marshal.ReadInt16(xpfContextInfo);
-            RegisterDataSize = (ushort)Marshal.ReadInt16(xpfContextInfo, 2);
-            MSRAddress = (uint)Marshal.ReadInt32(xpfContextInfo, 4);
-            MmRegisterAddress = (ulong)Marshal.ReadInt64(xpfContextInfo, 8);
+        public WHEA_XPF_CONTEXT_INFO(IntPtr recordAddr, uint xpfContextInfoOffset, uint bytesRemaining) :
+            base(typeof(WHEA_XPF_CONTEXT_INFO), xpfContextInfoOffset, BaseStructSize, bytesRemaining) {
+            var xpfContextInfoAddr = recordAddr + (int)xpfContextInfoOffset;
+
+            _RegisterContextType = (WHEA_XPF_CONTEXT_INFO_TYPE)Marshal.ReadInt16(xpfContextInfoAddr);
+            RegisterDataSize = (ushort)Marshal.ReadInt16(xpfContextInfoAddr, 2);
+            MSRAddress = (uint)Marshal.ReadInt32(xpfContextInfoAddr, 4);
+            MmRegisterAddress = (ulong)Marshal.ReadInt64(xpfContextInfoAddr, 8);
             var offset = 16;
 
             int numRegisters;
             switch (_RegisterContextType) {
                 case WHEA_XPF_CONTEXT_INFO_TYPE.ContextX32:
-                    RegisterDataContext32 = Marshal.PtrToStructure<WHEA_X86_REGISTER_STATE>(xpfContextInfo + offset);
+                    RegisterDataContext32 = Marshal.PtrToStructure<WHEA_X86_REGISTER_STATE>(xpfContextInfoAddr + offset);
                     break;
                 case WHEA_XPF_CONTEXT_INFO_TYPE.ContextX64:
-                    RegisterDataContext64 = Marshal.PtrToStructure<WHEA_X64_REGISTER_STATE>(xpfContextInfo + offset);
+                    RegisterDataContext64 = Marshal.PtrToStructure<WHEA_X64_REGISTER_STATE>(xpfContextInfoAddr + offset);
                     break;
                 case WHEA_XPF_CONTEXT_INFO_TYPE.DebugRegistersX32:
                     numRegisters = RegisterDataSize / sizeof(long);
@@ -436,7 +485,7 @@ namespace DecodeWheaRecord.Errors {
                     RegisterData32 = new uint[numRegisters];
 
                     // Values are 32-bit registers zero-extended to 64-bits
-                    Marshal.Copy(xpfContextInfo + offset, tmpRegisterDataDebug32, 0, numRegisters);
+                    Marshal.Copy(xpfContextInfoAddr + offset, tmpRegisterDataDebug32, 0, numRegisters);
                     for (var i = 0; i < numRegisters; i++) {
                         RegisterData32[i] = (uint)tmpRegisterDataDebug32[i];
                     }
@@ -449,7 +498,7 @@ namespace DecodeWheaRecord.Errors {
                     var tmpRegisterData64 = new long[numRegisters];
                     RegisterData64 = new ulong[numRegisters];
 
-                    Marshal.Copy(xpfContextInfo + offset, tmpRegisterData64, 0, numRegisters);
+                    Marshal.Copy(xpfContextInfoAddr + offset, tmpRegisterData64, 0, numRegisters);
                     for (var i = 0; i < numRegisters; i++) {
                         RegisterData64[i] = (ulong)tmpRegisterData64[i];
                     }
@@ -459,19 +508,22 @@ namespace DecodeWheaRecord.Errors {
                 case WHEA_XPF_CONTEXT_INFO_TYPE.UnclassifiedData:
                 default:
                     RegisterDataRaw = new byte[RegisterDataSize];
-                    Marshal.Copy(xpfContextInfo + offset, RegisterDataRaw, 0, RegisterDataSize);
+                    Marshal.Copy(xpfContextInfoAddr + offset, RegisterDataRaw, 0, RegisterDataSize);
                     break;
             }
 
             offset += RegisterDataSize;
-            // If the total structure size is not an even multiple of 16
-            // bytes it is padded with additional bytes set to zero.
-            _NativeSize = offset + (RegisterDataSize % 16);
+
+            // Structure is padded with zero bytes to a multiple of 16
+            _NativeSize = (uint)(offset + RegisterDataSize % 16);
+
+            FinalizeRecord(recordAddr, _NativeSize);
         }
 
         [UsedImplicitly]
-        public bool ShouldSerializeMSRAddress() => _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.UnclassifiedData ||
-                                                   _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.MsrRegisters;
+        public bool ShouldSerializeMSRAddress() =>
+            _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.UnclassifiedData ||
+            _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.MsrRegisters;
 
         [UsedImplicitly]
         public bool ShouldSerializeMmRegisterAddress() => _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.MmRegisters;
@@ -483,9 +535,10 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeRegisterData32() => _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.ContextX32;
 
         [UsedImplicitly]
-        public bool ShouldSerializeRegisterData64() => _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.MsrRegisters ||
-                                                       _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.DebugRegistersX64 ||
-                                                       _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.MmRegisters;
+        public bool ShouldSerializeRegisterData64() =>
+            _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.MsrRegisters ||
+            _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.DebugRegistersX64 ||
+            _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.MmRegisters;
 
         [UsedImplicitly]
         public bool ShouldSerializeRegisterDataContext32() => _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.ContextX32;
@@ -494,6 +547,7 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeRegisterDataContext64() => _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.ContextX64;
     }
 
+    // TODO: Output as hex
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_X86_REGISTER_STATE {
         public uint Eax;
@@ -523,6 +577,7 @@ namespace DecodeWheaRecord.Errors {
         public ushort Tr;
     }
 
+    // TODO: Output as hex
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_X64_REGISTER_STATE {
         public ulong Rax;
@@ -563,6 +618,7 @@ namespace DecodeWheaRecord.Errors {
     }
 
     // TODO: Original definition sets DECLSPEC_ALIGN(16)
+    // TODO: Output as hex
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA128A {
         public ulong Low;
@@ -719,9 +775,9 @@ namespace DecodeWheaRecord.Errors {
     }
 
     /*
-     * Originally defined as a ULONGLONG bitfield but out of the 14 non-
-     * reserved bits only two are flags. We define just those flags here
-     * and handle the other bits in WHEA_XPF_PROCESSOR_ERROR_SECTION.
+     * Originally defined as a ULONGLONG bitfield, but out of the 14 non-
+     * reserved bits only two are flags. Those flags are defined here and the
+     * the remaining non-reserved bits in WHEA_XPF_PROCESSOR_ERROR_SECTION.
      */
     [Flags]
     internal enum WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS : byte {

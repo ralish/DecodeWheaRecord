@@ -1,44 +1,44 @@
-// ReSharper disable FieldCanBeMadeReadOnly.Global
 // ReSharper disable InconsistentNaming
-// ReSharper disable MemberCanBePrivate.Global
 
 using System;
 using System.Runtime.InteropServices;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.NativeMethods;
-using static DecodeWheaRecord.Utilities;
-
 namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_MSR_DUMP_SECTION : WheaRecord {
-        internal override int GetNativeSize() => (int)MsrDumpLength;
+    /*
+     * Cannot be directly marshalled as a structure due to the usage of a
+     * variable length array, resulting in a non-static structure size.
+     */
+    internal sealed class WHEA_MSR_DUMP_SECTION : WheaErrorRecord {
+        // Size up to and including the MsrDumpLength field
+        private const uint BaseStructSize = 5;
+
+        public override uint GetNativeSize() => MsrDumpLength;
 
         [JsonProperty(Order = 1)]
         public byte MsrDumpBuffer;
 
-        // TODO: Description & validation
         [JsonProperty(Order = 2)]
-        public uint MsrDumpLength;
+        public uint MsrDumpLength; // TODO: Description & validation
 
         [JsonProperty(Order = 3)]
-        public byte[] MsrDumpData;
+        public byte[] MsrDumpData; // TODO: Output as hex
 
-        public WHEA_MSR_DUMP_SECTION(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
-            DebugOutputPre(typeof(WHEA_MSR_DUMP_SECTION), sectionDsc);
+        public WHEA_MSR_DUMP_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
+            base(sectionDsc, typeof(WHEA_MSR_DUMP_SECTION), BaseStructSize, bytesRemaining) {
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
             MsrDumpBuffer = Marshal.ReadByte(sectionAddr);
             MsrDumpLength = (uint)Marshal.ReadInt32(sectionAddr, 1);
-            const int offset = 5;
 
-            var msrDumpDataLen = MsrDumpLength - offset;
+            var msrDumpDataLen = MsrDumpLength - BaseStructSize;
             if (msrDumpDataLen > 0) {
                 MsrDumpData = new byte[msrDumpDataLen];
-                Marshal.Copy(sectionAddr + offset, MsrDumpData, 0, (int)msrDumpDataLen);
+                Marshal.Copy(sectionAddr + (int)BaseStructSize, MsrDumpData, 0, (int)msrDumpDataLen);
             }
 
-            DebugOutputPost(typeof(WHEA_MSR_DUMP_SECTION), sectionDsc, (int)MsrDumpLength);
+            FinalizeRecord(recordAddr, MsrDumpLength);
         }
     }
 }

@@ -8,11 +8,11 @@ using System.Runtime.InteropServices;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.NativeMethods;
-
 namespace DecodeWheaRecord.Errors {
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    internal sealed class WHEA_ERROR_RECOVERY_INFO_SECTION : WheaRecord {
+    internal sealed class WHEA_ERROR_RECOVERY_INFO_SECTION : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_ERROR_RECOVERY_INFO_SECTION>();
+
         [JsonProperty(Order = 1)]
         [MarshalAs(UnmanagedType.U1)]
         public bool RecoveryKernel;

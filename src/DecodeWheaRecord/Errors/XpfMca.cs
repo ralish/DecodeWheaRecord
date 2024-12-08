@@ -12,18 +12,26 @@ using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
 
 
 namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_XPF_MCA_SECTION : WheaRecord {
+    /*
+     * Marshalling this structure is moderately complicated, containing unions
+     * of structures and fixed-size arrays, where the structure or element type
+     * differs based on the processor microarchitecture. The marshaller has a
+     * lot of trouble directly marshalling the structure so we do it manually.
+     */
+    internal sealed class WHEA_XPF_MCA_SECTION : WheaErrorRecord {
+        // Size up to and including the GlobalCapability field
+        private const uint BaseStructSize = 272;
+
+        private uint _NativeSize;
+        public override uint GetNativeSize() => _NativeSize;
+
         internal const int WHEA_AMD_EXT_REG_NUM = 10;
         internal const int WHEA_XPF_MCA_EXBANK_COUNT = 32;
         internal const int WHEA_XPF_MCA_EXTREG_MAX_COUNT = 24;
-
-        private int _NativeSize;
-        internal override int GetNativeSize() => _NativeSize;
 
         [JsonProperty(Order = 1)]
         public uint VersionNumber;
@@ -34,7 +42,7 @@ namespace DecodeWheaRecord.Errors {
         public string CpuVendor => Enum.GetName(typeof(WHEA_CPU_VENDOR), _CpuVendor);
 
         [JsonProperty(Order = 3)]
-        public long Timestamp; // LARGE_INTEGER
+        public long Timestamp; // TODO: LARGE_INTEGER
 
         [JsonProperty(Order = 4)]
         public uint ProcessorNumber;
@@ -53,7 +61,7 @@ namespace DecodeWheaRecord.Errors {
 
         /*
          * The next three fields were originally a single field named Status
-         * with type MCI_STATUS. This type was a union of the three possible
+         * with type MCI_STATUS, consisting of a union of the three possible
          * structures subject to the CPU architecture of the system. Directly
          * defining all three structures in the parent structure helps to make
          * the serialization slightly easier to deal with.
@@ -83,7 +91,7 @@ namespace DecodeWheaRecord.Errors {
         public uint ApicId;
 
         [JsonProperty(Order = 15)]
-        public ulong[] ExtendedRegisters;
+        public ulong[] ExtendedRegisters; // TODO: Output as hex
 
         [JsonProperty(Order = 16)]
         public WHEA_AMD_EXTENDED_REGISTERS AMDExtendedRegisters;
@@ -91,8 +99,16 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 17)]
         public MCG_CAP GlobalCapability;
 
+        /*
+         * Version 3 fields
+         */
+
         [JsonProperty(Order = 18)]
         public XPF_RECOVERY_INFO RecoveryInfo;
+
+        /*
+         * Version 4 fields
+         */
 
         [JsonProperty(Order = 19)]
         public uint ExBankCount;
@@ -102,7 +118,7 @@ namespace DecodeWheaRecord.Errors {
 
         /*
          * The next three fields were originally a single field named StatusEx
-         * with type MCI_STATUS[]. This type was a union of the three possible
+         * with type MCI_STATUS[], consisting of a union of the three possible
          * structures subject to the CPU architecture of the system. Directly
          * defining all three structures in the parent structure helps to make
          * the serialization slightly easier to deal with.
@@ -118,13 +134,13 @@ namespace DecodeWheaRecord.Errors {
         public MCI_STATUS_INTEL_BITS[] StatusExIntel;
 
         [JsonProperty(Order = 24)]
-        public ulong[] AddressEx;
+        public ulong[] AddressEx; // TODO: Output as hex
 
         [JsonProperty(Order = 25)]
-        public ulong[] MiscEx;
+        public ulong[] MiscEx; // TODO: Output as hex
 
-        public WHEA_XPF_MCA_SECTION(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
-            DebugOutputPre(typeof(WHEA_XPF_MCA_SECTION), sectionDsc);
+        public WHEA_XPF_MCA_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
+            base(sectionDsc, typeof(WHEA_XPF_MCA_SECTION), BaseStructSize, bytesRemaining) {
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
             VersionNumber = (uint)Marshal.ReadInt32(sectionAddr);
@@ -199,7 +215,6 @@ namespace DecodeWheaRecord.Errors {
                 for (var i = 0; i < WHEA_XPF_MCA_EXBANK_COUNT; i++) {
                     BankNumberEx[i] = (uint)bankNumberExTmp[i];
                 }
-
                 offset += sizeof(uint) * WHEA_XPF_MCA_EXBANK_COUNT;
 
                 // AMD & Intel structures have the same size
@@ -208,21 +223,21 @@ namespace DecodeWheaRecord.Errors {
                     case WHEA_CPU_VENDOR.Amd:
                         StatusExAmd = new MCI_STATUS_AMD_BITS[WHEA_XPF_MCA_EXBANK_COUNT];
                         for (var i = 0; i < WHEA_XPF_MCA_EXBANK_COUNT; i++) {
-                            StatusExAmd[i] = Marshal.PtrToStructure<MCI_STATUS_AMD_BITS>(sectionAddr + offset + (i * elementSize));
+                            StatusExAmd[i] = Marshal.PtrToStructure<MCI_STATUS_AMD_BITS>(sectionAddr + offset + i * elementSize);
                         }
 
                         break;
                     case WHEA_CPU_VENDOR.Intel:
                         StatusExIntel = new MCI_STATUS_INTEL_BITS[WHEA_XPF_MCA_EXBANK_COUNT];
                         for (var i = 0; i < WHEA_XPF_MCA_EXBANK_COUNT; i++) {
-                            StatusExIntel[i] = Marshal.PtrToStructure<MCI_STATUS_INTEL_BITS>(sectionAddr + offset + (i * elementSize));
+                            StatusExIntel[i] = Marshal.PtrToStructure<MCI_STATUS_INTEL_BITS>(sectionAddr + offset + i * elementSize);
                         }
 
                         break;
                     case WHEA_CPU_VENDOR.Other:
                         StatusExCommon = new MCI_STATUS_BITS_COMMON[WHEA_XPF_MCA_EXBANK_COUNT];
                         for (var i = 0; i < WHEA_XPF_MCA_EXBANK_COUNT; i++) {
-                            StatusExCommon[i] = Marshal.PtrToStructure<MCI_STATUS_BITS_COMMON>(sectionAddr + offset + (i * elementSize));
+                            StatusExCommon[i] = Marshal.PtrToStructure<MCI_STATUS_BITS_COMMON>(sectionAddr + offset + i * elementSize);
                         }
 
                         break;
@@ -237,7 +252,6 @@ namespace DecodeWheaRecord.Errors {
                 for (var i = 0; i < WHEA_XPF_MCA_EXBANK_COUNT; i++) {
                     AddressEx[i] = (ulong)addressExTmp[i];
                 }
-
                 offset += sizeof(ulong) * WHEA_XPF_MCA_EXBANK_COUNT;
 
                 var miscExTmp = new long[WHEA_XPF_MCA_EXBANK_COUNT];
@@ -247,12 +261,11 @@ namespace DecodeWheaRecord.Errors {
                 for (var i = 0; i < WHEA_XPF_MCA_EXBANK_COUNT; i++) {
                     MiscEx[i] = (ulong)miscExTmp[i];
                 }
-
                 offset += sizeof(ulong) * WHEA_XPF_MCA_EXBANK_COUNT;
             }
 
-            _NativeSize = offset;
-            DebugOutputPost(typeof(WHEA_XPF_MCA_SECTION), sectionDsc, _NativeSize);
+            _NativeSize = (uint)offset;
+            FinalizeRecord(recordAddr, _NativeSize);
         }
 
         [UsedImplicitly]
@@ -349,7 +362,7 @@ namespace DecodeWheaRecord.Errors {
         public string Flags => GetEnabledFlagsAsString(_Flags);
 
         [JsonProperty(Order = 4)]
-        public ushort ImplementationSpecific1 => (ushort)((uint)_Flags >> 12 & 0xFFF);
+        public ushort ImplementationSpecific1 => (ushort)(((uint)_Flags >> 12) & 0xFFF);
 
         [JsonProperty(Order = 5)]
         public ushort ImplementationSpecific2 => (ushort)((uint)_Flags & 0x7FF);
@@ -376,10 +389,10 @@ namespace DecodeWheaRecord.Errors {
         public byte OtherInfo => (byte)((uint)_Flags & 0x1F);
 
         [JsonProperty(Order = 5)]
-        public ushort CorrectedErrorCount => (ushort)((uint)_Flags >> 5 & 0x7FFF);
+        public ushort CorrectedErrorCount => (ushort)(((uint)_Flags >> 5) & 0x7FFF);
 
         [JsonProperty(Order = 6)]
-        public byte ThresholdErrorStatus => (byte)((uint)_Flags >> 20 & 0x3);
+        public byte ThresholdErrorStatus => (byte)(((uint)_Flags >> 20) & 0x3);
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -393,12 +406,25 @@ namespace DecodeWheaRecord.Errors {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong CONFIG;
 
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong DESTAT;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong DEADDR;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong MISC1;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong MISC2;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong MISC3;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong MISC4;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong RasCap;
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = WHEA_XPF_MCA_SECTION.WHEA_XPF_MCA_EXTREG_MAX_COUNT - WHEA_XPF_MCA_SECTION.WHEA_AMD_EXT_REG_NUM)]
@@ -480,9 +506,11 @@ namespace DecodeWheaRecord.Errors {
         LocalMceValid          = 0x8
     }
 
-    // Originally defined in the MCI_STATUS_BITS_COMMON structure
+    // Originally defined in the MCI_STATUS_AMD_BITS structure
     [Flags]
-    internal enum MCI_STATUS_BITS_COMMON_FLAGS : uint {
+    internal enum MCI_STATUS_AMD_BITS_FLAGS : uint {
+        Poison           = 0x800,
+        Deferred         = 0x1000,
         ContextCorrupt   = 0x2000000,
         AddressValid     = 0x4000000,
         MiscValid        = 0x8000000,
@@ -492,11 +520,9 @@ namespace DecodeWheaRecord.Errors {
         Valid            = 0x80000000
     }
 
-    // Originally defined in the MCI_STATUS_AMD_BITS structure
+    // Originally defined in the MCI_STATUS_BITS_COMMON structure
     [Flags]
-    internal enum MCI_STATUS_AMD_BITS_FLAGS : uint {
-        Poison           = 0x800,
-        Deferred         = 0x1000,
+    internal enum MCI_STATUS_BITS_COMMON_FLAGS : uint {
         ContextCorrupt   = 0x2000000,
         AddressValid     = 0x4000000,
         MiscValid        = 0x8000000,
@@ -531,7 +557,7 @@ namespace DecodeWheaRecord.Errors {
     [Flags]
     internal enum XPF_RECOVERY_INFO_ACTION_FLAGS : uint {
         RecoveryAttempted = 0x1,
-        HvHandled         = 0x2,
+        HvHandled         = 0x2
     }
 
     // Originally defined in the XPF_RECOVERY_INFO structure

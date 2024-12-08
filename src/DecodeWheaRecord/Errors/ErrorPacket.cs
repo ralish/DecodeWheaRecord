@@ -5,6 +5,7 @@
 // ReSharper disable MemberCanBePrivate.Global
 
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -18,41 +19,44 @@ using static DecodeWheaRecord.Utilities;
 namespace DecodeWheaRecord.Errors {
     internal static class WHEA_ERROR_PACKET {
         /*
-         * Reversed from what is defined in the header as we perform validation
-         * against the member as an ASCII string instead of a ULONG.
+         * Reversed from what is defined in the header as validation of the
+         * field is done as an ASCII string instead of a ULONG integer.
          */
         internal const string WHEA_ERROR_PACKET_V1_SIGNATURE = "ErPt";
         internal const string WHEA_ERROR_PACKET_V2_SIGNATURE = "WHEA";
 
-        public static WheaRecord CreateBySignature(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
+        public static WheaErrorRecord CreateBySignature(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) {
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
             var signatureBytes = BitConverter.GetBytes((uint)Marshal.ReadInt32(sectionAddr));
             var signature = Encoding.ASCII.GetString(signatureBytes);
 
             switch (signature) {
                 case WHEA_ERROR_PACKET_V1_SIGNATURE:
-                    return new WHEA_ERROR_PACKET_V1(recordAddr, sectionDsc);
+                    return new WHEA_ERROR_PACKET_V1(sectionDsc, recordAddr, bytesRemaining);
                 case WHEA_ERROR_PACKET_V2_SIGNATURE:
-                    return new WHEA_ERROR_PACKET_V2(recordAddr, sectionDsc);
+                    return new WHEA_ERROR_PACKET_V2(sectionDsc, recordAddr, bytesRemaining);
                 default:
-                    throw new ArgumentOutOfRangeException($"[{nameof(WHEA_ERROR_PACKET)}] Unexpected signature: {signature}");
+                    throw new InvalidDataException($"Unexpected signature: {signature}");
             }
         }
     }
 
     /*
      * Windows Server 2008 & Windows Vista SP1+
+     *
+     * Cannot be directly marshalled as a structure due to the usage of a
+     * variable length array, resulting in a non-static structure size.
      */
-    internal sealed class WHEA_ERROR_PACKET_V1 : WheaRecord {
+    internal sealed class WHEA_ERROR_PACKET_V1 : WheaErrorRecord {
         /*
-         * Reversed from what is defined in the header as we perform validation
-         * against the member as an ASCII string instead of a ULONG.
+         * Size up to and including the RawDataOffset field. While the embedded
+         * ERROR_SECTION structures vary in size they are part of a union.
          */
-        internal const string WHEA_ERROR_PACKET_V1_SIGNATURE = "ErPt";
+        private const uint BaseStructSize = 280;
+
+        public override uint GetNativeSize() => Size;
 
         internal const int WHEA_ERROR_PACKET_V1_VERSION = 2; // Not a typo
-
-        internal override int GetNativeSize() => (int)Size;
 
         private uint _Signature;
 
@@ -70,18 +74,18 @@ namespace DecodeWheaRecord.Errors {
         public string Flags => GetEnabledFlagsAsString(_Flags);
 
         /*
-         * Size of the hardware error packet (this structure), including
-         * the raw data (see the RawDataLength member).
+         * Size of the hardware error packet including the raw data (the
+         * RawDataLength field).
          */
         [JsonProperty(Order = 3)]
-        public uint Size; // TODO: Validate
+        public uint Size;
 
         /*
          * Length of the raw hardware error information contained in the
-         * RawData member.
+         * RawData field.
          */
         [JsonProperty(Order = 4)]
-        public uint RawDataLength; // TODO: Validate
+        public uint RawDataLength;
 
         [JsonProperty(Order = 5)]
         public ulong Reserved1;
@@ -143,29 +147,35 @@ namespace DecodeWheaRecord.Errors {
         public string RawDataFormat => Enum.GetName(typeof(WHEA_RAW_DATA_FORMAT), _RawDataFormat);
 
         /*
-         * Offset from the beginning of the RawData data buffer where a
-         * PSHED plug-in can add supplementary platform-specific data. The
-         * amount of data that can be added is limited by the Size member.
+         * Offset from the beginning of the RawData data buffer where a PSHED
+         * plug-in can add supplementary platform-specific data. The amount of
+         * data that can be added is limited by the Size field.
          */
         [JsonProperty(Order = 22)]
-        public uint RawDataOffset; // TODO: Validate
+        public uint RawDataOffset;
 
         [JsonProperty(Order = 23)]
         public byte[] RawData;
 
-        public WHEA_ERROR_PACKET_V1(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
-            DebugOutputPre(typeof(WHEA_ERROR_PACKET_V1), sectionDsc);
+        public WHEA_ERROR_PACKET_V1(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
+            base(sectionDsc, typeof(WHEA_ERROR_PACKET_V1), BaseStructSize, bytesRemaining) {
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
             _Signature = (uint)Marshal.ReadInt32(sectionAddr);
-            if (Signature != WHEA_ERROR_PACKET_V1_SIGNATURE) {
-                var msg = $"[{nameof(WHEA_ERROR_PACKET_V1)}] Expected signature \"{WHEA_ERROR_PACKET_V1_SIGNATURE}\" but Signature member is: {Signature}";
-                ExitWithMessage(msg, 2);
+            _Flags = (WHEA_ERROR_PACKET_FLAGS)Marshal.ReadInt32(sectionAddr, 4);
+
+            Size = (uint)Marshal.ReadInt32(sectionAddr, 8);
+            if (Size != sectionDsc.SectionLength) {
+                var errMsg = $"{nameof(Size)} does not match section descriptor: {Size} != {sectionDsc.SectionLength}";
+                throw new InvalidDataException(errMsg);
             }
 
-            _Flags = (WHEA_ERROR_PACKET_FLAGS)Marshal.ReadInt32(sectionAddr, 4);
-            Size = (uint)Marshal.ReadInt32(sectionAddr, 8);
             RawDataLength = (uint)Marshal.ReadInt32(sectionAddr, 12);
+            if (BaseStructSize + RawDataLength != Size) {
+                var errMsg = $"{nameof(RawDataLength)} inconsistent with expected structure size: {BaseStructSize} + {RawDataLength} != {Size}";
+                throw new InvalidDataException(errMsg);
+            }
+
             Reserved1 = (ulong)Marshal.ReadInt64(sectionAddr, 16);
             Context = (ulong)Marshal.ReadInt64(sectionAddr, 24);
             _ErrorType = (WHEA_ERROR_TYPE)Marshal.ReadInt32(sectionAddr, 32);
@@ -176,49 +186,58 @@ namespace DecodeWheaRecord.Errors {
 
             Version = (uint)Marshal.ReadInt32(sectionAddr, 52);
             if (Version != WHEA_ERROR_PACKET_V1_VERSION) {
-                var msg = $"[{nameof(WHEA_ERROR_PACKET_V1)}] Expected version {WHEA_ERROR_PACKET_V1_VERSION} but Version member is: {Version}";
-                ExitWithMessage(msg, 2);
+                var errMsg = $"Expected {nameof(Version)} to be {WHEA_ERROR_PACKET_V1_VERSION} but found: {Version}";
+                throw new InvalidDataException(errMsg);
             }
 
             Cpu = (ulong)Marshal.ReadInt64(sectionAddr, 56);
             var offset = 64;
 
+            bytesRemaining -= (uint)offset;
             switch (_ErrorType) {
                 case WHEA_ERROR_TYPE.Processor:
-                    ProcessorError = new WHEA_PROCESSOR_GENERIC_ERROR_SECTION(sectionAddr + offset);
+                    ProcessorError = new WHEA_PROCESSOR_GENERIC_ERROR_SECTION(sectionAddr + offset, (uint)offset, bytesRemaining);
                     break;
                 case WHEA_ERROR_TYPE.Memory:
-                    MemoryError = Marshal.PtrToStructure<WHEA_MEMORY_ERROR_SECTION>(sectionAddr + offset);
+                    MemoryError = new WHEA_MEMORY_ERROR_SECTION(sectionAddr + offset, (uint)offset, bytesRemaining);
                     break;
                 case WHEA_ERROR_TYPE.NMI:
                     NmiError = Marshal.PtrToStructure<WHEA_NMI_ERROR_SECTION>(sectionAddr + offset);
                     break;
                 case WHEA_ERROR_TYPE.PCIExpress:
-                    PciExpressError = new WHEA_PCIEXPRESS_ERROR_SECTION(sectionAddr + offset);
+                    PciExpressError = new WHEA_PCIEXPRESS_ERROR_SECTION(sectionAddr + offset, (uint)offset, bytesRemaining);
                     break;
                 case WHEA_ERROR_TYPE.PCIXBus:
                     PciXBusError = Marshal.PtrToStructure<WHEA_PCIXBUS_ERROR_SECTION>(sectionAddr + offset);
                     break;
                 case WHEA_ERROR_TYPE.PCIXDevice:
-                    PciXDeviceError = new WHEA_PCIXDEVICE_ERROR_SECTION(sectionAddr + offset);
+                    PciXDeviceError = new WHEA_PCIXDEVICE_ERROR_SECTION(sectionAddr + offset, (uint)offset, bytesRemaining);
                     break;
                 case WHEA_ERROR_TYPE.Pmem:
-                    PmemError = new WHEA_PMEM_ERROR_SECTION(sectionAddr + offset);
+                    PmemError = new WHEA_PMEM_ERROR_SECTION(sectionAddr + offset, (uint)offset, bytesRemaining);
                     break;
+                default:
+                    var errMsg = $"{nameof(ErrorType)} is invalid: {ErrorType}";
+                    throw new InvalidDataException(errMsg);
             }
 
-            // Offset is always 272 (maximum size of previous structure)
+            // Maximum previous structure size is 208 bytes (offset is 272)
             offset += 208;
 
             _RawDataFormat = (WHEA_RAW_DATA_FORMAT)Marshal.ReadInt32(sectionAddr, offset);
+
             RawDataOffset = (uint)Marshal.ReadInt32(sectionAddr, offset + 4);
+            if (BaseStructSize + RawDataOffset > Size) {
+                var errMsg = $"{nameof(RawDataOffset)} is beyond the end of the {nameof(RawData)} buffer: {BaseStructSize} + {RawDataOffset} > {Size}";
+                throw new InvalidDataException(errMsg);
+            }
 
             if (RawDataLength > 0) {
                 RawData = new byte[RawDataLength];
                 Marshal.Copy(sectionAddr + (int)RawDataOffset, RawData, 0, (int)RawDataLength);
             }
 
-            DebugOutputPost(typeof(WHEA_ERROR_PACKET_V1), sectionDsc, (int)Size);
+            FinalizeRecord(recordAddr, Size);
         }
 
         [UsedImplicitly]
@@ -228,54 +247,40 @@ namespace DecodeWheaRecord.Errors {
         public static bool ShouldSerializeReserved2() => IsDebugBuild();
 
         [UsedImplicitly]
-        public bool ShouldSerializeProcessorError() {
-            return _ErrorType == WHEA_ERROR_TYPE.Processor;
-        }
+        public bool ShouldSerializeProcessorError() => _ErrorType == WHEA_ERROR_TYPE.Processor;
 
         [UsedImplicitly]
-        public bool ShouldSerializeMemoryError() {
-            return _ErrorType == WHEA_ERROR_TYPE.Memory;
-        }
+        public bool ShouldSerializeMemoryError() => _ErrorType == WHEA_ERROR_TYPE.Memory;
 
         [UsedImplicitly]
-        public bool ShouldSerializeNmiError() {
-            return _ErrorType == WHEA_ERROR_TYPE.NMI;
-        }
+        public bool ShouldSerializeNmiError() => _ErrorType == WHEA_ERROR_TYPE.NMI;
 
         [UsedImplicitly]
-        public bool ShouldSerializePciExpressError() {
-            return _ErrorType == WHEA_ERROR_TYPE.PCIExpress;
-        }
+        public bool ShouldSerializePciExpressError() => _ErrorType == WHEA_ERROR_TYPE.PCIExpress;
 
         [UsedImplicitly]
-        public bool ShouldSerializePciXBusError() {
-            return _ErrorType == WHEA_ERROR_TYPE.PCIXBus;
-        }
+        public bool ShouldSerializePciXBusError() => _ErrorType == WHEA_ERROR_TYPE.PCIXBus;
 
         [UsedImplicitly]
-        public bool ShouldSerializePciXDeviceError() {
-            return _ErrorType == WHEA_ERROR_TYPE.PCIXDevice;
-        }
+        public bool ShouldSerializePciXDeviceError() => _ErrorType == WHEA_ERROR_TYPE.PCIXDevice;
 
         [UsedImplicitly]
-        public bool ShouldSerializePmemError() {
-            return _ErrorType == WHEA_ERROR_TYPE.Pmem;
-        }
+        public bool ShouldSerializePmemError() => _ErrorType == WHEA_ERROR_TYPE.Pmem;
     }
 
     /*
-     * Windows Server 2008 R2, Windows Vista 7, and later
+     * Windows Server 2008 R2, Windows 7, and later
+     *
+     * Cannot be directly marshalled as a structure due to the usage of
+     * variable length arrays, resulting in a non-static structure size.
      */
-    internal sealed class WHEA_ERROR_PACKET_V2 : WheaRecord {
-        /*
-         * Reversed from what is defined in the header as we perform validation
-         * against the member as an ASCII string instead of a ULONG.
-         */
-        internal const string WHEA_ERROR_PACKET_V2_SIGNATURE = "WHEA";
+    internal sealed class WHEA_ERROR_PACKET_V2 : WheaErrorRecord {
+        // Size up to and including the PshedDataLength field
+        private const uint BaseStructSize = 80;
+
+        public override uint GetNativeSize() => Length;
 
         internal const int WHEA_ERROR_PACKET_V2_VERSION = 3; // Not a typo
-
-        internal override int GetNativeSize() => (int)Length;
 
         private uint _Signature;
 
@@ -290,9 +295,8 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 2)]
         public uint Version;
 
-        // TODO: Description & validation
         [JsonProperty(Order = 3)]
-        public uint Length;
+        public uint Length; // TODO: Description & validation
 
         private WHEA_ERROR_PACKET_FLAGS _Flags;
 
@@ -333,21 +337,17 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 12)]
         public uint Reserved1;
 
-        // TODO: Description & validation
         [JsonProperty(Order = 13)]
-        public uint DataOffset;
+        public uint DataOffset; // TODO: Description & validation
 
-        // TODO: Description & validation
         [JsonProperty(Order = 14)]
-        public uint DataLength;
+        public uint DataLength; // TODO: Description & validation
 
-        // TODO: Description & validation
         [JsonProperty(Order = 15)]
-        public uint PshedDataOffset;
+        public uint PshedDataOffset; // TODO: Description & validation
 
-        // TODO: Description & validation
         [JsonProperty(Order = 16)]
-        public uint PshedDataLength;
+        public uint PshedDataLength; // TODO: Description & validation
 
         [JsonProperty(Order = 17)]
         public byte[] Data;
@@ -355,20 +355,16 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 18)]
         public byte[] PshedData;
 
-        public WHEA_ERROR_PACKET_V2(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
-            DebugOutputPre(typeof(WHEA_ERROR_PACKET_V2), sectionDsc);
+        public WHEA_ERROR_PACKET_V2(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
+            base(sectionDsc, typeof(WHEA_ERROR_PACKET_V2), BaseStructSize, bytesRemaining) {
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
             _Signature = (uint)Marshal.ReadInt32(sectionAddr);
-            if (Signature != WHEA_ERROR_PACKET_V2_SIGNATURE) {
-                var msg = $"[{nameof(WHEA_ERROR_PACKET_V2)}] Expected signature \"{WHEA_ERROR_PACKET_V2_SIGNATURE}\" but Signature member is: {Signature}";
-                ExitWithMessage(msg, 2);
-            }
 
             Version = (uint)Marshal.ReadInt32(sectionAddr, 4);
             if (Version != WHEA_ERROR_PACKET_V2_VERSION) {
-                var msg = $"[{nameof(WHEA_ERROR_PACKET_V2)}] Expected version {WHEA_ERROR_PACKET_V2_VERSION} but Version member is: {Version}";
-                ExitWithMessage(msg, 2);
+                var errMsg = $"Expected {nameof(Version)} to be {WHEA_ERROR_PACKET_V2_VERSION} but found: {Version}";
+                throw new InvalidDataException(errMsg);
             }
 
             Length = (uint)Marshal.ReadInt32(sectionAddr, 8);
@@ -400,7 +396,7 @@ namespace DecodeWheaRecord.Errors {
                 Marshal.Copy(sectionAddr + (int)PshedDataOffset, PshedData, 0, (int)PshedDataLength);
             }
 
-            DebugOutputPost(typeof(WHEA_ERROR_PACKET_V2), sectionDsc, (int)Length);
+            FinalizeRecord(recordAddr, Length);
         }
 
         [UsedImplicitly]

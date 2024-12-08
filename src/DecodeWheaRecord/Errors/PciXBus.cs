@@ -16,7 +16,9 @@ using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_PCIXBUS_ERROR_SECTION : WheaRecord {
+    internal sealed class WHEA_PCIXBUS_ERROR_SECTION : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_PCIXBUS_ERROR_SECTION>();
+
         private WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS _ValidBits;
 
         [JsonProperty(Order = 1)]
@@ -37,9 +39,11 @@ namespace DecodeWheaRecord.Errors {
         public uint Reserved;
 
         [JsonProperty(Order = 6)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong BusAddress;
 
         [JsonProperty(Order = 7)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong BusData;
 
         [JsonProperty(Order = 8)]
@@ -55,43 +59,52 @@ namespace DecodeWheaRecord.Errors {
         public ulong TargetId;
 
         [UsedImplicitly]
-        public bool ShouldSerializeErrorStatus() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorStatus) ==
-                                                    WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorStatus;
+        public bool ShouldSerializeErrorStatus() =>
+            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorStatus) ==
+            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorStatus;
 
         [UsedImplicitly]
-        public bool ShouldSerializeErrorType() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorType) ==
-                                                  WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorType;
+        public bool ShouldSerializeErrorType() =>
+            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorType) ==
+            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorType;
 
         [UsedImplicitly]
-        public bool ShouldSerializeBusId() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusId) ==
-                                              WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusId;
+        public bool ShouldSerializeBusId() =>
+            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusId) ==
+            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusId;
 
         [UsedImplicitly]
         public static bool ShouldSerializeReserved() => IsDebugBuild();
 
         [UsedImplicitly]
-        public bool ShouldSerializeBusAddress() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusAddress) ==
-                                                   WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusAddress;
+        public bool ShouldSerializeBusAddress() =>
+            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusAddress) ==
+            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusAddress;
 
         [UsedImplicitly]
-        public bool ShouldSerializeBusData() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusData) ==
-                                                WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusData;
+        public bool ShouldSerializeBusData() =>
+            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusData) ==
+            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusData;
 
         [UsedImplicitly]
-        public bool ShouldSerializeBusCommand() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusCommand) ==
-                                                   WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusCommand;
+        public bool ShouldSerializeBusCommand() =>
+            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusCommand) ==
+            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusCommand;
 
         [UsedImplicitly]
-        public bool ShouldSerializeRequesterId() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.RequesterId) ==
-                                                    WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.RequesterId;
+        public bool ShouldSerializeRequesterId() =>
+            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.RequesterId) ==
+            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.RequesterId;
 
         [UsedImplicitly]
-        public bool ShouldSerializeCompleterId() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.CompleterId) ==
-                                                    WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.CompleterId;
+        public bool ShouldSerializeCompleterId() =>
+            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.CompleterId) ==
+            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.CompleterId;
 
         [UsedImplicitly]
-        public bool ShouldSerializeTargetId() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.TargetId) ==
-                                                 WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.TargetId;
+        public bool ShouldSerializeTargetId() =>
+            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.TargetId) ==
+            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.TargetId;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]

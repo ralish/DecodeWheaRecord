@@ -1,53 +1,44 @@
 using System;
-using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics;
 using System.Reflection;
 using System.Text;
 
+using DecodeWheaRecord.Errors;
+using DecodeWheaRecord.Events;
+
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.Decoder;
-using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
-
 
 // Mark assembly as not CLS compliant
 [assembly: CLSCompliant(false)]
 
-
 namespace DecodeWheaRecord {
-    public static class Program {
-        private static byte[] _recordBytes;
-
+    internal static class Program {
         internal static bool TestMode;
 
-        [SuppressMessage("Design", "CA1062:Validate arguments of public methods")]
         public static void Main(string[] args) {
-            if (args.Length == 0)
-                ExitWithMessage($"Usage: {Assembly.GetExecutingAssembly().GetName().Name} <WheaHexRecord>");
-            else if (args.Length > 1)
-                ExitWithMessage($"Expected a hex encoded WHEA record but received {args.Length} arguments.", 1);
-            else if (args[0].Length < 8)
-                ExitWithMessage("Expected at least 8 hex characters for the 4 byte WHEA record signature.", 2);
+            Debug.Assert(args != null, nameof(args) + " != null");
+            ValidateArgs(args);
 
-            _recordBytes = ConvertHexToBytes(args[0]);
-            byte[] signatureBytes = { _recordBytes[0], _recordBytes[1], _recordBytes[2], _recordBytes[3] };
+            var recordBytes = ConvertHexToBytes(args[0]);
+
+            byte[] signatureBytes = { recordBytes[0], recordBytes[1], recordBytes[2], recordBytes[3] };
             var signature = Encoding.ASCII.GetString(signatureBytes);
 
             switch (signature) {
-                case WHEA_ERROR_LOG_ENTRY_SIGNATURE:
-                    var recEvent = new WheaEventRecord(_recordBytes);
-                    recEvent.Decode();
-                    recEvent.Validate();
-                    Console.Out.WriteLine(JsonConvert.SerializeObject(recEvent, Formatting.Indented));
+                case WHEA_EVENT_LOG_ENTRY_HEADER.WHEA_ERROR_LOG_ENTRY_SIGNATURE:
+                    DebugOutput($"Found signature: {signature}", nameof(WHEA_EVENT_LOG_ENTRY));
+                    var eventLogEntry = new WHEA_EVENT_LOG_ENTRY(recordBytes);
+                    Console.Out.WriteLine(JsonConvert.SerializeObject(eventLogEntry, Formatting.Indented));
                     break;
-                case WHEA_ERROR_RECORD_SIGNATURE:
-                    var recError = new WheaErrorRecord(_recordBytes);
-                    recError.Decode();
-                    recError.Validate();
-                    Console.Out.WriteLine(JsonConvert.SerializeObject(recError, Formatting.Indented));
+                case WHEA_ERROR_RECORD_HEADER.WHEA_ERROR_RECORD_SIGNATURE:
+                    DebugOutput($"Found signature: {signature}", nameof(WHEA_ERROR_RECORD));
+                    var errorRecord = new WHEA_ERROR_RECORD(recordBytes);
+                    Console.Out.WriteLine(JsonConvert.SerializeObject(errorRecord, Formatting.Indented));
                     break;
                 default:
-                    ExitWithMessage($"Unknown WHEA record signature: {signature}", 2);
+                    ExitWithMessage($"Unknown WHEA record signature: {signature}", code: 2);
                     break;
             }
 
@@ -69,14 +60,28 @@ namespace DecodeWheaRecord {
             */
         }
 
+        /*
+         * When running tests, throw an ArgumentException instead of calling
+         * Environment.Exit() when ExitWithMessage() is called.
+         */
         public static void MainTest(string[] args) {
-            /*
-             * Throw an ArgumentException instead of calling Environment.Exit()
-             * when ExitWithMessage() is called.
-             */
             TestMode = true;
-
             Main(args);
+        }
+
+        private static void ValidateArgs(string[] args) {
+            if (args.Length == 0) {
+                ExitWithMessage($"Usage: {Assembly.GetExecutingAssembly().GetName().Name} <WheaHexRecord>");
+            }
+
+            if (args.Length > 1) {
+                ExitWithMessage($"Expected a single argument but received {args.Length}.", code: 1);
+            }
+
+            // WHEA records begin with a 4 byte signature
+            if (args[0].Length <= 8) {
+                ExitWithMessage($"Expected at least 8 hexadecimal characters but received {args[0].Length}.", code: 1);
+            }
         }
     }
 }

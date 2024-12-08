@@ -4,67 +4,106 @@
 // ReSharper disable InconsistentNaming
 
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_FIRMWARE_ERROR_RECORD_REFERENCE : WheaRecord {
-        private int _NativeSize;
-        internal override int GetNativeSize() => _NativeSize;
+    /*
+     * Cannot be directly marshalled as a structure due to the presence of an
+     * additional field, the inclusion of which depends on the Revision field.
+     */
+    internal sealed class WHEA_FIRMWARE_ERROR_RECORD_REFERENCE : WheaErrorRecord {
+        // Size up to and including the FirmwareRecordId field
+        private const uint BaseStructSize = 16;
+
+        // Size up to and including the FirmwareRecordExt field
+        private const uint StructSizeRev2 = 32;
+
+        private uint _NativeSize;
+        public override uint GetNativeSize() => _NativeSize;
 
         private WHEA_FIRMWARE_RECORD_TYPE _Type;
 
         [JsonProperty(Order = 1)]
         public string Type => Enum.GetName(typeof(WHEA_FIRMWARE_RECORD_TYPE), _Type);
 
-        // Added (subtracted from Reserved member)
+        // Added in UEFI 2.7 (not present in current headers)
         [JsonProperty(Order = 2)]
         public byte Revision;
 
         [JsonProperty(Order = 3)]
-        public byte[] Reserved;
+        public byte[] Reserved = new byte[6];
 
         [JsonProperty(Order = 4)]
         public ulong FirmwareRecordId;
 
-        // Expansion of out-of-date original structure
+        // Added in UEFI 2.7 (not present in current headers)
         [JsonProperty(Order = 5)]
         public Guid FirmwareRecordExt;
 
-        public WHEA_FIRMWARE_ERROR_RECORD_REFERENCE(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
-            DebugOutputPre(typeof(WHEA_FIRMWARE_ERROR_RECORD_REFERENCE), sectionDsc);
+        public WHEA_FIRMWARE_ERROR_RECORD_REFERENCE(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
+            base(sectionDsc, typeof(WHEA_FIRMWARE_ERROR_RECORD_REFERENCE), BaseStructSize, bytesRemaining) {
+            var logCat = SectionType.Name;
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
+            string errMsg;
+            uint expectedStructSize;
+
             _Type = (WHEA_FIRMWARE_RECORD_TYPE)Marshal.ReadByte(sectionAddr);
+
             Revision = Marshal.ReadByte(sectionAddr, 1);
-            var offset = 2;
+            switch (Revision) {
+                case 0:
+                    expectedStructSize = BaseStructSize;
+                    break;
+                case 2:
+                    expectedStructSize = StructSizeRev2;
+                    break;
+                default:
+                    errMsg = $"Unsupported {nameof(Revision)}: {Revision}";
+                    throw new InvalidDataException(errMsg);
+            }
 
-            Reserved = new byte[6];
-            Marshal.Copy(sectionAddr + offset, Reserved, 0, 6);
-            offset += 6;
+            if (expectedStructSize > sectionDsc.SectionLength) {
+                errMsg = $"Expected length is greater than in section descriptor: {expectedStructSize} > {sectionDsc.SectionLength}";
+                throw new InvalidDataException(errMsg);
+            }
 
-            FirmwareRecordId = (ulong)Marshal.ReadInt64(sectionAddr, offset);
-            offset += 8;
+            Marshal.Copy(sectionAddr + 2, Reserved, 0, 6);
+            FirmwareRecordId = (ulong)Marshal.ReadInt64(sectionAddr, 8);
+            var offset = 16;
 
-            if (_Type == WHEA_FIRMWARE_RECORD_TYPE.SocFwType2) {
+            if (Revision >= 2) {
                 FirmwareRecordExt = Marshal.PtrToStructure<Guid>(sectionAddr + offset);
                 offset += 16;
             }
 
-            // FirmwareRecordId should be NULL for Revision >= 1
             if (Revision >= 1 && FirmwareRecordId != 0) {
-                var msg = $"[{nameof(WHEA_FIRMWARE_ERROR_RECORD_REFERENCE)}] {nameof(Revision)} is >= 1 but {nameof(FirmwareRecordId)} is not NULL.";
-                Console.Error.WriteLine(msg);
+                WarnOutput($"{nameof(FirmwareRecordId)} is not NULL but {nameof(Revision)} is >= 1.", logCat);
             }
 
-            _NativeSize = offset;
-            DebugOutputPost(typeof(WHEA_FIRMWARE_ERROR_RECORD_REFERENCE), sectionDsc, _NativeSize);
+            if (Revision >= 2 && _Type != WHEA_FIRMWARE_RECORD_TYPE.SocFwType2 && FirmwareRecordExt != Guid.Empty) {
+                WarnOutput($"{nameof(FirmwareRecordExt)} is not NULL but {nameof(Type)} indicates it should be.", logCat);
+            }
+
+            _NativeSize = (uint)offset;
+            FinalizeRecord(recordAddr, _NativeSize);
+        }
+
+        [UsedImplicitly]
+        public bool ShouldSerializeRevision() {
+            /*
+             * Introduced in UEFI 2.7, prior to which the corresponding byte
+             * was part of the Reserved field. The UEFI specification states
+             * the bytes comprising the Reserved field must be set to zero.
+             */
+            return Revision != 0;
         }
 
         [UsedImplicitly]

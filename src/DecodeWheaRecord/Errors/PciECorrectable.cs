@@ -3,9 +3,9 @@
 
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable InconsistentNaming
-// ReSharper disable MemberCanBePrivate.Global
 
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 
 using JetBrains.Annotations;
@@ -16,11 +16,18 @@ using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_PCIE_CORRECTABLE_ERROR_SECTION : WheaRecord {
-        internal const ushort WHEA_PCIE_CORRECTABLE_ERROR_SECTION_COUNT_SIZE = 32;
+    /*
+     * Cannot be directly marshalled as a structure due to the usage of a
+     * variable length array, resulting in a non-static structure size.
+     */
+    internal sealed class WHEA_PCIE_CORRECTABLE_ERROR_SECTION : WheaErrorRecord {
+        // Header field must be present
+        private static uint BaseStructSize = (uint)Marshal.SizeOf<WHEA_PCIE_CORRECTABLE_ERROR_SECTION_HEADER>();
 
-        private int _NativeSize;
-        internal override int GetNativeSize() => _NativeSize;
+        private uint _NativeSize;
+        public override uint GetNativeSize() => _NativeSize;
+
+        internal const ushort WHEA_PCIE_CORRECTABLE_ERROR_SECTION_COUNT_SIZE = 32;
 
         [JsonProperty(Order = 1)]
         public WHEA_PCIE_CORRECTABLE_ERROR_SECTION_HEADER Header;
@@ -28,33 +35,41 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 2)]
         public WHEA_PCIE_CORRECTABLE_ERROR_DEVICES[] Devices;
 
-        public WHEA_PCIE_CORRECTABLE_ERROR_SECTION(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
-            DebugOutputPre(typeof(WHEA_PCIE_CORRECTABLE_ERROR_SECTION), sectionDsc);
+        public WHEA_PCIE_CORRECTABLE_ERROR_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
+            base(sectionDsc, typeof(WHEA_PCIE_CORRECTABLE_ERROR_SECTION), BaseStructSize, bytesRemaining) {
+            var logCat = SectionType.Name;
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
             Header = Marshal.PtrToStructure<WHEA_PCIE_CORRECTABLE_ERROR_SECTION_HEADER>(sectionAddr);
             var offset = Marshal.SizeOf<WHEA_PCIE_CORRECTABLE_ERROR_SECTION_HEADER>();
 
-            var elementSize = Marshal.SizeOf<WHEA_PCIE_CORRECTABLE_ERROR_DEVICES>();
-            Devices = new WHEA_PCIE_CORRECTABLE_ERROR_DEVICES[Header.Count];
-            for (var i = 0; i < Header.Count; i++) {
-                Devices[i] = Marshal.PtrToStructure<WHEA_PCIE_CORRECTABLE_ERROR_DEVICES>(sectionAddr + offset + (i * elementSize));
+            if (Header.Count != 0) {
+                var elementSize = Marshal.SizeOf<WHEA_PCIE_CORRECTABLE_ERROR_DEVICES>();
+                var arraySize = Header.Count * elementSize;
+
+                if (BaseStructSize + arraySize != sectionDsc.SectionLength) {
+                    var errMsg = $"Length does not equal expected length: {BaseStructSize} + {arraySize} != {sectionDsc.SectionLength}";
+                    throw new InvalidDataException(errMsg);
+                }
+
+                Devices = new WHEA_PCIE_CORRECTABLE_ERROR_DEVICES[Header.Count];
+                for (var i = 0; i < Header.Count; i++) {
+                    Devices[i] = Marshal.PtrToStructure<WHEA_PCIE_CORRECTABLE_ERROR_DEVICES>(sectionAddr + offset + i * elementSize);
+                }
+                offset += Header.Count * elementSize;
+            } else {
+                WarnOutput("Expected at least one structure (count in header is zero).", logCat);
             }
 
-            offset += Header.Count * elementSize;
-
-            _NativeSize = offset;
-            DebugOutputPost(typeof(WHEA_PCIE_CORRECTABLE_ERROR_SECTION), sectionDsc, _NativeSize);
+            _NativeSize = (uint)offset;
+            FinalizeRecord(recordAddr, _NativeSize);
         }
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PCIE_CORRECTABLE_ERROR_SECTION_HEADER {
-        // TODO: Description & validation
-        public ushort Version;
-
-        // TODO: Description & validation
-        public ushort Count;
+        public ushort Version; // TODO: Description & validation
+        public ushort Count;   // TODO: Description & validation
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -69,6 +84,7 @@ namespace DecodeWheaRecord.Errors {
         public WHEA_PCIE_ADDRESS Address;
 
         [JsonProperty(Order = 3)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Mask;
 
         [JsonProperty(Order = 4)]
@@ -76,12 +92,14 @@ namespace DecodeWheaRecord.Errors {
         public uint[] CorrectableErrorCount;
 
         [UsedImplicitly]
-        public bool ShouldSerializeMask() => (_ValidBits & WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS.Mask) ==
-                                             WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS.Mask;
+        public bool ShouldSerializeMask() =>
+            (_ValidBits & WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS.Mask) ==
+            WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS.Mask;
 
         [UsedImplicitly]
-        public bool ShouldSerializeCorrectableErrorCount() => (_ValidBits & WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS.CorrectableErrorCount) ==
-                                                              WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS.CorrectableErrorCount;
+        public bool ShouldSerializeCorrectableErrorCount() =>
+            (_ValidBits & WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS.CorrectableErrorCount) ==
+            WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS.CorrectableErrorCount;
     }
 
     // @formatter:int_align_fields true

@@ -8,12 +8,13 @@ using System.Runtime.InteropServices;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_NMI_ERROR_SECTION : WheaRecord {
+    internal sealed class WHEA_NMI_ERROR_SECTION : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_NMI_ERROR_SECTION>();
+
         [JsonProperty(Order = 1)]
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
         public byte[] Data;

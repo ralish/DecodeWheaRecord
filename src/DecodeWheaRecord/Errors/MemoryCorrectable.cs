@@ -1,25 +1,30 @@
 #pragma warning disable CS0649  // Field is never assigned to
 #pragma warning disable IDE0044 // Make field readonly
 
-// ReSharper disable FieldCanBeMadeReadOnly.Global
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable InconsistentNaming
-// ReSharper disable MemberCanBePrivate.Global
 
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_MEMORY_CORRECTABLE_ERROR_SECTION : WheaRecord {
-        private int _NativeSize;
-        internal override int GetNativeSize() => _NativeSize;
+    /*
+     * Cannot be directly marshalled as a structure due to the usage of a
+     * variable length array, resulting in a non-static structure size.
+     */
+    internal sealed class WHEA_MEMORY_CORRECTABLE_ERROR_SECTION : WheaErrorRecord {
+        // Header field must be present
+        private static uint BaseStructSize = (uint)Marshal.SizeOf<WHEA_MEMORY_CORRECTABLE_ERROR_HEADER>();
+
+        private uint _NativeSize;
+        public override uint GetNativeSize() => _NativeSize;
 
         [JsonProperty(Order = 1)]
         public WHEA_MEMORY_CORRECTABLE_ERROR_HEADER Header;
@@ -27,8 +32,9 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 2)]
         public WHEA_MEMORY_CORRECTABLE_ERROR_DATA[] Data;
 
-        public WHEA_MEMORY_CORRECTABLE_ERROR_SECTION(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
-            DebugOutputPre(typeof(WHEA_MEMORY_CORRECTABLE_ERROR_SECTION), sectionDsc);
+        public WHEA_MEMORY_CORRECTABLE_ERROR_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
+            base(sectionDsc, typeof(WHEA_MEMORY_CORRECTABLE_ERROR_SECTION), BaseStructSize, bytesRemaining) {
+            var logCat = SectionType.Name;
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
             Header = Marshal.PtrToStructure<WHEA_MEMORY_CORRECTABLE_ERROR_HEADER>(sectionAddr);
@@ -36,17 +42,31 @@ namespace DecodeWheaRecord.Errors {
 
             if (Header.Count != 0) {
                 var elementSize = Marshal.SizeOf<WHEA_MEMORY_CORRECTABLE_ERROR_DATA>();
-                Data = new WHEA_MEMORY_CORRECTABLE_ERROR_DATA[Header.Count];
-                for (var i = 0; i < Header.Count; i++) {
-                    Data[i] = Marshal.PtrToStructure<WHEA_MEMORY_CORRECTABLE_ERROR_DATA>(sectionAddr + offset + (i * elementSize));
+                var arraySize = Header.Count * elementSize;
+
+                if (BaseStructSize + arraySize != sectionDsc.SectionLength) {
+                    var errMsg = $"Length does not equal expected length: {BaseStructSize} + {arraySize} != {sectionDsc.SectionLength}";
+                    throw new InvalidDataException(errMsg);
                 }
 
+                Data = new WHEA_MEMORY_CORRECTABLE_ERROR_DATA[Header.Count];
+                for (var i = 0; i < Header.Count; i++) {
+                    Data[i] = Marshal.PtrToStructure<WHEA_MEMORY_CORRECTABLE_ERROR_DATA>(sectionAddr + offset + i * elementSize);
+                }
                 offset += Header.Count * elementSize;
+            } else {
+                WarnOutput("Expected at least one structure (count in header is zero).", logCat);
             }
 
-            _NativeSize = offset;
-            DebugOutputPost(typeof(WHEA_MEMORY_CORRECTABLE_ERROR_SECTION), sectionDsc, _NativeSize);
+            _NativeSize = (uint)offset;
+            FinalizeRecord(recordAddr, _NativeSize);
         }
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    internal sealed class WHEA_MEMORY_CORRECTABLE_ERROR_HEADER {
+        public ushort Version; // TODO: Description & validation
+        public ushort Count;   // TODO: Description & validation
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -69,29 +89,24 @@ namespace DecodeWheaRecord.Errors {
         public uint CorrectableErrorCount;
 
         [UsedImplicitly]
-        public bool ShouldSerializeChannelId() => (_ValidBits & WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.ChannelId) ==
-                                                  WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.ChannelId;
+        public bool ShouldSerializeSocketId() =>
+            (_ValidBits & WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.SocketId) ==
+            WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.SocketId;
 
         [UsedImplicitly]
-        public bool ShouldSerializeCorrectableErrorCount() => (_ValidBits & WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.CorrectableErrorCount) ==
-                                                              WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.CorrectableErrorCount;
+        public bool ShouldSerializeChannelId() =>
+            (_ValidBits & WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.ChannelId) ==
+            WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.ChannelId;
 
         [UsedImplicitly]
-        public bool ShouldSerializeDimmSlot() => (_ValidBits & WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.DimmSlot) ==
-                                                 WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.DimmSlot;
+        public bool ShouldSerializeDimmSlot() =>
+            (_ValidBits & WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.DimmSlot) ==
+            WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.DimmSlot;
 
         [UsedImplicitly]
-        public bool ShouldSerializeSocketId() => (_ValidBits & WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.SocketId) ==
-                                                 WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.SocketId;
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_MEMORY_CORRECTABLE_ERROR_HEADER {
-        // TODO: Description & validation
-        public ushort Version;
-
-        // TODO: Description & validation
-        public ushort Count;
+        public bool ShouldSerializeCorrectableErrorCount() =>
+            (_ValidBits & WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.CorrectableErrorCount) ==
+            WHEA_MEMORY_CORRECTABLE_ERROR_SECTION_VALIDBITS.CorrectableErrorCount;
     }
 
     // @formatter:int_align_fields true

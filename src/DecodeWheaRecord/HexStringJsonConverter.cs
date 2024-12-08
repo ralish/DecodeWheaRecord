@@ -10,7 +10,9 @@ namespace DecodeWheaRecord {
      * All credit to Dmitry Shectman
      * https://stackoverflow.com/a/43494134
      */
+#pragma warning disable CA1515
     public class HexStringJsonConverter : JsonConverter {
+#pragma warning restore CA1515
         public override bool CanConvert(Type objectType) {
             return typeof(uint) == objectType;
         }

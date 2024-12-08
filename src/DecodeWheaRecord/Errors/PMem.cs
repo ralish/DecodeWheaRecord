@@ -1,11 +1,10 @@
-#pragma warning disable CS0649  // Field is never assigned to
-#pragma warning disable IDE0044 // Make field readonly
+#pragma warning disable CS0649 // Field is never assigned to
 
-// ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable InconsistentNaming
 // ReSharper disable MemberCanBePrivate.Global
 
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 
 using JetBrains.Annotations;
@@ -16,12 +15,19 @@ using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_PMEM_ERROR_SECTION : WheaRecord {
+    /*
+     * Cannot be directly marshalled as a structure due to the usage of a
+     * variable length array, resulting in a non-static structure size.
+     */
+    internal sealed class WHEA_PMEM_ERROR_SECTION : WheaErrorRecord {
+        // Size up to and including the PageRangeCount field
+        private const uint BaseStructSize = 88;
+
+        private uint _NativeSize;
+        public override uint GetNativeSize() => _NativeSize;
+
         internal const int WHEA_PMEM_ERROR_SECTION_LOCATION_INFO_SIZE = 64;
         internal const int WHEA_PMEM_ERROR_SECTION_MAX_PAGES = 50;
-
-        private int _NativeSize;
-        internal override int GetNativeSize() => _NativeSize;
 
         private WHEA_PMEM_ERROR_SECTION_VALIDBITS _ValidBits;
 
@@ -43,7 +49,9 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 6)]
         public WHEA_PMEM_PAGE_RANGE[] PageRange;
 
-        private void WheaPmemErrorSection(IntPtr sectionAddr) {
+        private void WheaPmemErrorSection(IntPtr recordAddr, uint sectionOffset) {
+            var sectionAddr = recordAddr + (int)sectionOffset;
+
             _ValidBits = (WHEA_PMEM_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(sectionAddr);
             var offset = 8;
 
@@ -59,49 +67,57 @@ namespace DecodeWheaRecord.Errors {
             offset += 8;
 
             if (PageRangeCount > WHEA_PMEM_ERROR_SECTION_MAX_PAGES) {
-                var msg =
-                    $"[{nameof(WHEA_PMEM_ERROR_SECTION)}] {nameof(PageRangeCount)} is greater than the maximum allowed: {WHEA_PMEM_ERROR_SECTION_MAX_PAGES}";
-            } else if (PageRangeCount > 0) {
+                var msg = $"{nameof(PageRangeCount)} is greater than the maximum allowed of {WHEA_PMEM_ERROR_SECTION_MAX_PAGES}: {PageRangeCount}";
+                throw new InvalidDataException(msg);
+            }
+
+            if (PageRangeCount > 0) {
                 var elementSize = Marshal.SizeOf<WHEA_PMEM_PAGE_RANGE>();
                 PageRange = new WHEA_PMEM_PAGE_RANGE[PageRangeCount];
                 for (var i = 0; i < PageRangeCount; i++) {
-                    PageRange[i] = Marshal.PtrToStructure<WHEA_PMEM_PAGE_RANGE>(sectionAddr + offset + (i * elementSize));
+                    PageRange[i] = Marshal.PtrToStructure<WHEA_PMEM_PAGE_RANGE>(sectionAddr + offset + i * elementSize);
                 }
-
                 offset += (int)PageRangeCount * elementSize;
             }
 
-            _NativeSize = offset;
+            _NativeSize = (uint)offset;
+            FinalizeRecord(recordAddr, _NativeSize);
         }
 
-        public WHEA_PMEM_ERROR_SECTION(IntPtr sectionAddr) => WheaPmemErrorSection(sectionAddr);
+        public WHEA_PMEM_ERROR_SECTION(IntPtr recordAddr, uint sectionOffset, uint bytesRemaining) :
+            base(typeof(WHEA_PMEM_ERROR_SECTION), sectionOffset, BaseStructSize, bytesRemaining) {
+            WheaPmemErrorSection(recordAddr, sectionOffset);
+        }
 
-        public WHEA_PMEM_ERROR_SECTION(IntPtr recordAddr, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
-            DebugOutputPre(typeof(WHEA_PMEM_ERROR_SECTION), sectionDsc);
-
-            var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
-            WheaPmemErrorSection(sectionAddr);
-
-            DebugOutputPost(typeof(WHEA_PMEM_ERROR_SECTION), sectionDsc, _NativeSize);
+        public WHEA_PMEM_ERROR_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
+            base(sectionDsc, typeof(WHEA_PMEM_ERROR_SECTION), BaseStructSize, bytesRemaining) {
+            WheaPmemErrorSection(recordAddr, sectionDsc.SectionOffset);
         }
 
         [UsedImplicitly]
-        public bool ShouldSerializeLocationInfo() => (_ValidBits & WHEA_PMEM_ERROR_SECTION_VALIDBITS.LocationInfo) ==
-                                                     WHEA_PMEM_ERROR_SECTION_VALIDBITS.LocationInfo;
+        public bool ShouldSerializeLocationInfo() =>
+            (_ValidBits & WHEA_PMEM_ERROR_SECTION_VALIDBITS.LocationInfo) ==
+            WHEA_PMEM_ERROR_SECTION_VALIDBITS.LocationInfo;
 
         [UsedImplicitly]
-        public bool ShouldSerializeErrorStatus() => (_ValidBits & WHEA_PMEM_ERROR_SECTION_VALIDBITS.ErrorStatus) ==
-                                                    WHEA_PMEM_ERROR_SECTION_VALIDBITS.ErrorStatus;
+        public bool ShouldSerializeErrorStatus() =>
+            (_ValidBits & WHEA_PMEM_ERROR_SECTION_VALIDBITS.ErrorStatus) ==
+            WHEA_PMEM_ERROR_SECTION_VALIDBITS.ErrorStatus;
 
         [UsedImplicitly]
-        public bool ShouldSerializeNFITHandle() => (_ValidBits & WHEA_PMEM_ERROR_SECTION_VALIDBITS.NFITHandle) ==
-                                                   WHEA_PMEM_ERROR_SECTION_VALIDBITS.NFITHandle;
+        public bool ShouldSerializeNFITHandle() =>
+            (_ValidBits & WHEA_PMEM_ERROR_SECTION_VALIDBITS.NFITHandle) ==
+            WHEA_PMEM_ERROR_SECTION_VALIDBITS.NFITHandle;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PMEM_PAGE_RANGE {
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong StartingPfn;
+
         public ulong PageCount;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong MarkedBadBitmap;
     }
 
