@@ -6,23 +6,22 @@ DecodeWheaRecord
 
 A work-in-progress utility to decode hex-encoded Windows Hardware Event Architecture (WHEA) records.
 
-- [DecodeWheaRecord](#decodewhearecord)
-  - [Requirements](#requirements)
-  - [Support status](#support-status)
-    - [WHEA errors](#whea-errors)
-    - [WHEA events](#whea-events)
-  - [Glossary](#glossary)
-    - [ACPI](#acpi)
-    - [Architectures](#architectures)
-    - [ARMv8](#armv8)
-      - [IA-32 (x86)](#ia-32-x86)
-    - [IA-64 (Itanium)](#ia-64-itanium)
-    - [Microsoft](#microsoft)
-    - [PCIe](#pcie)
-    - [Specifications](#specifications)
-    - [UEFI](#uefi)
-    - [Miscellaneous](#miscellaneous)
-  - [License](#license)
+- [Requirements](#requirements)
+- [Support status](#support-status)
+  - [WHEA errors](#whea-errors)
+  - [WHEA events](#whea-events)
+- [Glossary](#glossary)
+  - [ACPI](#acpi)
+  - [Architectures](#architectures)
+  - [ARMv8](#armv8)
+  - [IA-32 (x86)](#ia-32-x86)
+  - [IA-64 (Itanium)](#ia-64-itanium)
+  - [Microsoft](#microsoft)
+  - [PCIe](#pcie)
+  - [Specifications](#specifications)
+  - [UEFI](#uefi)
+  - [Miscellaneous](#miscellaneous)
+- [License](#license)
 
 Requirements
 ------------
@@ -196,7 +195,7 @@ Glossary
 - **SEI**  
   SError Interrupt
 
-#### IA-32 (x86)
+### IA-32 (x86)
 
 - **CMC**  
   Corrected Machine Check

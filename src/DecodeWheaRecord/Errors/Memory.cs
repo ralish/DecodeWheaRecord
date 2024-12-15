@@ -155,7 +155,7 @@ namespace DecodeWheaRecord.Errors {
         }
 
         public WHEA_MEMORY_ERROR_SECTION(IntPtr recordAddr, uint sectionOffset, uint bytesRemaining) :
-            base(typeof(WHEA_MEMORY_ERROR_SECTION), sectionOffset, BaseStructSize, BaseStructSize, bytesRemaining) {
+            base(typeof(WHEA_MEMORY_ERROR_SECTION), sectionOffset, BaseStructSize, bytesRemaining) {
             /*
              * The only case where this error record is embedded in another
              * is the WHEA_ERROR_PACKET_V1 structure. As that structure only

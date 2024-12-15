@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 
 using DecodeWheaRecord.Errors;
@@ -14,7 +15,7 @@ using static DecodeWheaRecord.Utilities;
 [assembly: CLSCompliant(false)]
 
 namespace DecodeWheaRecord {
-    internal static class Program {
+    public static class Program {
         internal static bool TestMode;
 
         public static void Main(string[] args) {
@@ -22,6 +23,8 @@ namespace DecodeWheaRecord {
             ValidateArgs(args);
 
             var recordBytes = ConvertHexToBytes(args[0]);
+            var recordHandle = GCHandle.Alloc(recordBytes, GCHandleType.Pinned);
+            var recordAddr = recordHandle.AddrOfPinnedObject();
 
             byte[] signatureBytes = { recordBytes[0], recordBytes[1], recordBytes[2], recordBytes[3] };
             var signature = Encoding.ASCII.GetString(signatureBytes);
@@ -34,13 +37,15 @@ namespace DecodeWheaRecord {
                     break;
                 case WHEA_ERROR_RECORD_HEADER.WHEA_ERROR_RECORD_SIGNATURE:
                     DebugOutput($"Found signature: {signature}", nameof(WHEA_ERROR_RECORD));
-                    var errorRecord = new WHEA_ERROR_RECORD(recordBytes);
+                    var errorRecord = new WHEA_ERROR_RECORD(recordAddr, (uint)recordBytes.Length);
                     Console.Out.WriteLine(JsonConvert.SerializeObject(errorRecord, Formatting.Indented));
                     break;
                 default:
                     ExitWithMessage($"Unknown WHEA record signature: {signature}", code: 2);
                     break;
             }
+
+            //_recordHandle.Free();
 
             /*
             var remainingBytes = _recordBytes.Length - _recordOffset;

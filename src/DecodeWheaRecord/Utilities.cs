@@ -68,27 +68,56 @@ namespace DecodeWheaRecord {
 #endif
         }
 
-        internal static void DebugOutput(string msg) {
-            Console.Error.WriteLine(msg);
+        #region Logging helpers
+
+        private static string FormatMessage(string level, string cat, string msg, uint depth = 0) {
+            if (depth != 0 && !string.IsNullOrWhiteSpace(cat)) {
+                cat = $"{new string(' ', (int)depth * 2)}{cat}";
+            }
+
+            return string.IsNullOrWhiteSpace(cat) ? $"[{level,-5}] {msg}" : $"[{level,-5}] {cat,-50} {msg}";
         }
 
-        internal static void DebugOutput(string msg, string cat) {
-            Console.Error.WriteLine($"[{cat}] {msg}");
+        internal static string DebugMessage(string msg, string cat = null, uint depth = 0) {
+            return FormatMessage("DEBUG", cat, msg, depth);
         }
 
-        internal static void DebugOutputPre(Type structType, int startOffset) {
-            DebugOutput($"Start offset: {startOffset}", structType.Name);
+        internal static void DebugOutput(string msg, string cat = null, uint depth = 0) {
+            Console.Error.WriteLine(DebugMessage(msg, cat, depth));
         }
 
-        internal static void DebugOutputPre(Type sectionType, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
-            DebugOutput($"Start offset: {sectionDsc.SectionOffset} | Expected length: {sectionDsc.SectionLength}", sectionType.Name);
+        internal static string ErrorMessage(string msg, string cat = null, uint depth = 0) {
+            return FormatMessage("ERROR", cat, msg, depth);
         }
 
-        internal static void DebugOutputPost(Type structType, int endOffset, int structSize) {
+        internal static void ErrorOutput(string msg, string cat = null, uint depth = 0) {
+            Console.Error.WriteLine(ErrorMessage(msg, cat, depth));
+        }
+
+        internal static string InfoMessage(string msg, string cat = null, uint depth = 0) {
+            return FormatMessage("INFO", cat, msg, depth);
+        }
+
+        internal static void InfoOutput(string msg, string cat = null, uint depth = 0) {
+            Console.Error.WriteLine(InfoMessage(msg, cat, depth));
+        }
+
+        internal static string WarnMessage(string msg, string cat = null, uint depth = 0) {
+            return FormatMessage("WARN", cat, msg, depth);
+        }
+
+        internal static void WarnOutput(string msg, string cat = null, uint depth = 0) {
+            Console.Error.WriteLine(WarnMessage(msg, cat, depth));
+        }
+
+        #endregion
+
+
+        internal static void DebugAfterDecode(Type structType, int endOffset, int structSize) {
             DebugOutput($"End offset: {endOffset} | Size: {structSize}", structType.Name);
         }
 
-        internal static void DebugOutputPost(Type sectionType, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, int bytesMarshalled) {
+        internal static void DebugAfterDecode(Type sectionType, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, int bytesMarshalled) {
             var endOffset = sectionDsc.SectionOffset + bytesMarshalled;
             DebugOutput($"End offset: {endOffset} | Length: {bytesMarshalled}", sectionType.Name);
 
@@ -107,6 +136,22 @@ namespace DecodeWheaRecord {
             }
 
             DebugOutput("Section is likely to be partially and/or incorrectly decoded.", sectionType.Name);
+        }
+
+        internal static void DebugBeforeDecode(Type structType, int startOffset) {
+            DebugOutput($"Start offset: {startOffset}", structType.Name);
+        }
+
+        internal static void DebugBeforeDecode(Type sectionType, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
+            DebugOutput($"Start offset: {sectionDsc.SectionOffset} | Expected length: {sectionDsc.SectionLength}", sectionType.Name);
+        }
+
+        // TODO: Custom exception
+        internal static void ValidateSufficientRecordBytes(Type sectionType, uint requiredBytes, uint remainingBytes) {
+            if (remainingBytes < requiredBytes) {
+                var msg = $"{sectionType.Name} section is {requiredBytes} bytes but only {remainingBytes} bytes remaining in record.";
+                throw new ArgumentOutOfRangeException(msg);
+            }
         }
     }
 }
