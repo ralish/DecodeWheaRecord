@@ -10,6 +10,8 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
+using DecodeWheaRecord.Internal;
+
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;

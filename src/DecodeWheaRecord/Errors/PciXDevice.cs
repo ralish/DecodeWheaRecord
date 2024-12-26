@@ -6,11 +6,13 @@
 using System;
 using System.Runtime.InteropServices;
 
+using DecodeWheaRecord.Internal;
+using DecodeWheaRecord.Shared;
+
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
@@ -62,37 +64,49 @@ namespace DecodeWheaRecord.Errors {
             IoNumber = (uint)Marshal.ReadInt32(sectionAddr, offset + 4);
             offset += 8;
 
-            if (ShouldSerializeMemoryNumber() && ShouldSerializeIoNumber()) {
-                var msg = $@"
-The {nameof(ValidBits)} field indicates both the {nameof(MemoryNumber)} and {nameof(IoNumber)} fields contain
-valid data. This is assumed to be an invalid state as it isn't possible to
-distinguish between the two types of register address/data pairs as they share
-the same array. The record is likely malformed and deserialisation of the
-{nameof(RegisterDataPairs)} field will be skipped.";
-                ErrorOutput(msg, logCat);
-                return;
+            uint NumRegisterDataPairs = 0;
+            if (ShouldSerializeMemoryNumber()) {
+                NumRegisterDataPairs += MemoryNumber;
             }
 
-            if (ShouldSerializeMemoryNumber()) {
-                RegisterDataPairs = new WHEA_PCIXDEVICE_REGISTER_PAIR[MemoryNumber];
-            } else if (ShouldSerializeIoNumber()) {
-                RegisterDataPairs = new WHEA_PCIXDEVICE_REGISTER_PAIR[IoNumber];
-            } else {
-                var msg = $@"
+            if (ShouldSerializeIoNumber()) {
+                if (NumRegisterDataPairs != 0) {
+                    var msg = $@"
+The {nameof(ValidBits)} field indicates both the {nameof(MemoryNumber)} and {nameof(IoNumber)} fields contain
+valid data and both fields are set to a non-zero value. It's unclear if this is
+a valid state for the structure as the Memory Mapped and Programmed IO register
+address/data pair values are represented using the same structure and share the
+same array. Distinguishing between the two types of data may not be possible.";
+                    WarnOutput(msg, logCat);
+                }
+
+                NumRegisterDataPairs += MemoryNumber;
+            }
+
+            if (ShouldSerializeRegisterDataPairs()) {
+                RegisterDataPairs = new WHEA_PCIXDEVICE_REGISTER_PAIR[NumRegisterDataPairs];
+
+                if (ShouldSerializeMemoryNumber() || ShouldSerializeIoNumber()) {
+                    var elementSize = Marshal.SizeOf<WHEA_PCIXDEVICE_REGISTER_PAIR>();
+                    for (var i = 0; i < RegisterDataPairs.Length; i++) {
+                        RegisterDataPairs[i] = Marshal.PtrToStructure<WHEA_PCIXDEVICE_REGISTER_PAIR>(sectionAddr + offset + i * elementSize);
+                    }
+                    offset += RegisterDataPairs.Length * elementSize;
+                } else {
+                    var msg = $@"
 The {nameof(ValidBits)} field indicates the {nameof(RegisterDataPairs)} field contains valid data
 but neither the {nameof(MemoryNumber)} or {nameof(IoNumber)} fields are marked as valid. One of
 these fields is required to determine the size of the {nameof(RegisterDataPairs)} array.
-The record is likely malformed and deserialisation of the {nameof(RegisterDataPairs)}
-field will be skipped.";
+Deserialisation of the array will be skipped.";
+                    ErrorOutput(msg, logCat);
+                }
+            } else {
+                var msg = $@"
+The {nameof(ValidBits)} field indicates the {nameof(MemoryNumber)} and/or {nameof(IoNumber)} fields contain
+valid data but the {nameof(RegisterDataPairs)} field is not marked valid. Deserialisation
+of the array containing the register address/data pair values will be skipped.";
                 ErrorOutput(msg, logCat);
-                return;
             }
-
-            var elementSize = Marshal.SizeOf<WHEA_PCIXDEVICE_REGISTER_PAIR>();
-            for (var i = 0; i < RegisterDataPairs.Length; i++) {
-                RegisterDataPairs[i] = Marshal.PtrToStructure<WHEA_PCIXDEVICE_REGISTER_PAIR>(sectionAddr + offset + i * elementSize);
-            }
-            offset += RegisterDataPairs.Length * elementSize;
 
             _NativeSize = (uint)offset;
             FinalizeRecord(recordAddr, _NativeSize);
@@ -166,9 +180,11 @@ field will be skipped.";
         public byte SegmentNumber;
 
         [JsonProperty(Order = 8)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte Reserved1;
 
         [JsonProperty(Order = 9)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Reserved2;
 
         [UsedImplicitly]

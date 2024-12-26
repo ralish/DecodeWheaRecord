@@ -39,9 +39,11 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 6)]
         public string FailureReason => Enum.GetName(typeof(WHEA_RECOVERY_FAILURE_REASON), _FailureReason);
 
-        [JsonProperty(Order = 7)]
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 20)]
-        public string ProcessName;
+        private string _ProcessName;
+
+        [JsonProperty(Order = 7)]
+        public string ProcessName => _ProcessName.Trim('\0');
     }
 
     // @formatter:int_align_fields true
@@ -60,7 +62,7 @@ namespace DecodeWheaRecord.Errors {
         KernelMarkMemoryBadTimedOut        = 2,
         NoRecoveryContext                  = 3,
         NotContinuable                     = 4,
-        Pcc                                = 5,
+        Pcc                                = 5, // Processor Context Corrupt
         Overflow                           = 6,
         NotSupported                       = 7,
         MiscOrAddrNotValid                 = 8,

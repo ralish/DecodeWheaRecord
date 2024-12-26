@@ -3,6 +3,8 @@
 using System;
 using System.Runtime.InteropServices;
 
+using DecodeWheaRecord.Internal;
+
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;
@@ -21,15 +23,18 @@ namespace DecodeWheaRecord.Errors {
         public Guid SubComponentID;
 
         [JsonProperty(Order = 3)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Reserved;
 
         [JsonProperty(Order = 4)]
         public uint ErrorStatusValue;
 
         [JsonProperty(Order = 5)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong AdditionalInfo1;
 
         [JsonProperty(Order = 6)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong AdditionalInfo2;
 
         [UsedImplicitly]

@@ -6,14 +6,16 @@
 // ReSharper disable MemberCanBePrivate.Global
 
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
+
+using DecodeWheaRecord.Internal;
 
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
-
 
 namespace DecodeWheaRecord.Errors {
     /*
@@ -70,50 +72,50 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 8)]
         public MCI_STATUS_BITS_COMMON CommonBits;
 
-        [JsonProperty(Order = 9)]
+        [JsonProperty(Order = 8)]
         public MCI_STATUS_AMD_BITS AmdBits;
 
-        [JsonProperty(Order = 10)]
+        [JsonProperty(Order = 8)]
         public MCI_STATUS_INTEL_BITS IntelBits;
 
-        [JsonProperty(Order = 11)]
+        [JsonProperty(Order = 9)]
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Address;
 
-        [JsonProperty(Order = 12)]
+        [JsonProperty(Order = 10)]
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Misc;
 
-        [JsonProperty(Order = 13)]
+        [JsonProperty(Order = 11)]
         public uint ExtendedRegisterCount;
 
-        [JsonProperty(Order = 14)]
+        [JsonProperty(Order = 12)]
         public uint ApicId;
 
-        [JsonProperty(Order = 15)]
-        public ulong[] ExtendedRegisters; // TODO: Output as hex
+        [JsonProperty(Order = 13, ItemConverterType = typeof(HexStringJsonConverter))]
+        public ulong[] ExtendedRegisters;
 
-        [JsonProperty(Order = 16)]
+        [JsonProperty(Order = 13)]
         public WHEA_AMD_EXTENDED_REGISTERS AMDExtendedRegisters;
 
-        [JsonProperty(Order = 17)]
+        [JsonProperty(Order = 14)]
         public MCG_CAP GlobalCapability;
 
         /*
          * Version 3 fields
          */
 
-        [JsonProperty(Order = 18)]
+        [JsonProperty(Order = 15)]
         public XPF_RECOVERY_INFO RecoveryInfo;
 
         /*
          * Version 4 fields
          */
 
-        [JsonProperty(Order = 19)]
+        [JsonProperty(Order = 16)]
         public uint ExBankCount;
 
-        [JsonProperty(Order = 20)]
+        [JsonProperty(Order = 17)]
         public uint[] BankNumberEx;
 
         /*
@@ -124,27 +126,32 @@ namespace DecodeWheaRecord.Errors {
          * the serialization slightly easier to deal with.
          */
 
-        [JsonProperty(Order = 21)]
+        [JsonProperty(Order = 18)]
         public MCI_STATUS_BITS_COMMON[] StatusExCommon;
 
-        [JsonProperty(Order = 22)]
+        [JsonProperty(Order = 18)]
         public MCI_STATUS_AMD_BITS[] StatusExAmd;
 
-        [JsonProperty(Order = 23)]
+        [JsonProperty(Order = 18)]
         public MCI_STATUS_INTEL_BITS[] StatusExIntel;
 
-        [JsonProperty(Order = 24)]
-        public ulong[] AddressEx; // TODO: Output as hex
+        [JsonProperty(Order = 19, ItemConverterType = typeof(HexStringJsonConverter))]
+        public ulong[] AddressEx;
 
-        [JsonProperty(Order = 25)]
-        public ulong[] MiscEx; // TODO: Output as hex
+        [JsonProperty(Order = 20, ItemConverterType = typeof(HexStringJsonConverter))]
+        public ulong[] MiscEx;
 
         public WHEA_XPF_MCA_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
             base(sectionDsc, typeof(WHEA_XPF_MCA_SECTION), BaseStructSize, bytesRemaining) {
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
             VersionNumber = (uint)Marshal.ReadInt32(sectionAddr);
+
             _CpuVendor = (WHEA_CPU_VENDOR)Marshal.ReadInt32(sectionAddr, 4);
+            if (string.IsNullOrEmpty(CpuVendor)) {
+                throw new InvalidDataException($"{nameof(CpuVendor)} is unknown or invalid: {_CpuVendor}");
+            }
+
             Timestamp = Marshal.ReadInt64(sectionAddr, 8);
             ProcessorNumber = (uint)Marshal.ReadInt32(sectionAddr, 16);
             _GlobalStatus = (MCG_STATUS)Marshal.ReadInt64(sectionAddr, 20);
@@ -152,6 +159,7 @@ namespace DecodeWheaRecord.Errors {
             BankNumber = (uint)Marshal.ReadInt32(sectionAddr, 36);
             var offset = 40;
 
+            // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
             switch (_CpuVendor) {
                 case WHEA_CPU_VENDOR.Amd:
                     AmdBits = Marshal.PtrToStructure<MCI_STATUS_AMD_BITS>(sectionAddr + offset);
@@ -173,6 +181,7 @@ namespace DecodeWheaRecord.Errors {
             ApicId = (uint)Marshal.ReadInt32(sectionAddr, offset + 20);
             offset += 24;
 
+            // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
             switch (_CpuVendor) {
                 case WHEA_CPU_VENDOR.Amd:
                     AMDExtendedRegisters = Marshal.PtrToStructure<WHEA_AMD_EXTENDED_REGISTERS>(sectionAddr + offset);
@@ -219,6 +228,7 @@ namespace DecodeWheaRecord.Errors {
 
                 // AMD & Intel structures have the same size
                 var elementSize = Marshal.SizeOf<MCI_STATUS_BITS_COMMON>();
+                // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
                 switch (_CpuVendor) {
                     case WHEA_CPU_VENDOR.Amd:
                         StatusExAmd = new MCI_STATUS_AMD_BITS[WHEA_XPF_MCA_EXBANK_COUNT];
@@ -427,6 +437,7 @@ namespace DecodeWheaRecord.Errors {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong RasCap;
 
+        [JsonConverter(typeof(HexStringJsonConverter))]
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = WHEA_XPF_MCA_SECTION.WHEA_XPF_MCA_EXTREG_MAX_COUNT - WHEA_XPF_MCA_SECTION.WHEA_AMD_EXT_REG_NUM)]
         public ulong[] Reserved;
 
@@ -459,15 +470,19 @@ namespace DecodeWheaRecord.Errors {
         public bool RecoveryKernel;
 
         [JsonProperty(Order = 6)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte Reserved;
 
         [JsonProperty(Order = 7)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Reserved2;
 
         [JsonProperty(Order = 8)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Reserved3;
 
         [JsonProperty(Order = 9)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Reserved4;
 
         [UsedImplicitly]

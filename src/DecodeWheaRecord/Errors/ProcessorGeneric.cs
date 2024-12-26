@@ -6,6 +6,8 @@
 using System;
 using System.Runtime.InteropServices;
 
+using DecodeWheaRecord.Internal;
+
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;
@@ -58,6 +60,7 @@ namespace DecodeWheaRecord.Errors {
         public byte Level;
 
         [JsonProperty(Order = 8)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Reserved;
 
         [JsonProperty(Order = 9)]
@@ -74,9 +77,11 @@ namespace DecodeWheaRecord.Errors {
         public ulong TargetAddress;
 
         [JsonProperty(Order = 13)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong RequesterId;
 
         [JsonProperty(Order = 14)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong ResponderId;
 
         [JsonProperty(Order = 15)]
@@ -239,6 +244,7 @@ namespace DecodeWheaRecord.Errors {
         public byte ProcessorType => (byte)((_ProcInfo & 0x3000) >> 12); // Bits 12-13
 
         [JsonProperty(Order = 5)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte Reserved1 => (byte)((_ProcInfo & 0xC000) >> 14); // Bits 14-15
 
         [JsonProperty(Order = 6)]
@@ -248,6 +254,7 @@ namespace DecodeWheaRecord.Errors {
         public byte ExtendedFamily => (byte)((_ProcInfo & 0xFF00000) >> 20); // Bits 20-27
 
         [JsonProperty(Order = 8)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte Reserved2 => (byte)(_ProcInfo >> 28); // Bits 28-31
 
         [JsonProperty(Order = 9)]

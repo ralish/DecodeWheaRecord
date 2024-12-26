@@ -6,6 +6,8 @@
 using System;
 using System.Runtime.InteropServices;
 
+using DecodeWheaRecord.Internal;
+
 using Newtonsoft.Json;
 
 namespace DecodeWheaRecord.Events {

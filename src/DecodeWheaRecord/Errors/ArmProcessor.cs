@@ -4,9 +4,10 @@
 // ReSharper disable InconsistentNaming
 
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+
+using DecodeWheaRecord.Internal;
 
 using JetBrains.Annotations;
 
@@ -47,6 +48,7 @@ namespace DecodeWheaRecord.Errors {
         public byte ErrorAffinityLevel;
 
         [JsonProperty(Order = 6)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte[] Reserved = new byte[3];
 
         [JsonProperty(Order = 7)]
@@ -58,12 +60,16 @@ namespace DecodeWheaRecord.Errors {
         public ulong MIDR_EL1; // Main ID Register
 
         [JsonProperty(Order = 9)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint RunningState;
 
+        // Valid when bit 31 of RunningState is zero
         [JsonProperty(Order = 10)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint PSCIState; // Power State Coordination Interface
 
         [JsonProperty(Order = 11)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte[] Data; // TODO: Deserialize
 
         public WHEA_ARM_PROCESSOR_ERROR_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
@@ -77,8 +83,8 @@ namespace DecodeWheaRecord.Errors {
 
             SectionLength = (uint)Marshal.ReadInt32(sectionAddr, 8);
             if (SectionLength > sectionDsc.SectionLength) {
-                var errMsg = $"{nameof(SectionLength)} is greater than in section descriptor: {SectionLength} > {sectionDsc.SectionLength}";
-                throw new InvalidDataException(errMsg);
+                var msg = $"{nameof(SectionLength)} is greater than in section descriptor: {SectionLength} > {sectionDsc.SectionLength}";
+                throw new InvalidDataException(msg);
             }
 
             ErrorAffinityLevel = Marshal.ReadByte(sectionAddr, 12);
@@ -107,7 +113,6 @@ namespace DecodeWheaRecord.Errors {
                 WarnOutput($"{nameof(PSCIState)} is non-zero but {nameof(RunningState)} indicates it shouldn't be.", logCat);
             }
 
-            Debug.Assert(BaseStructSize + dataLen == SectionLength);
             FinalizeRecord(recordAddr, SectionLength);
         }
 
@@ -135,16 +140,14 @@ namespace DecodeWheaRecord.Errors {
             WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS.RunningState;
 
         [UsedImplicitly]
-        public bool ShouldSerializePSCIState() =>
-            // Valid when bit 31 of RunningState is zero
-            ShouldSerializeRunningState() && (RunningState & 0x80000000) == 0;
+        public bool ShouldSerializePSCIState() => ShouldSerializeRunningState() && (RunningState & 0x80000000) == 0;
     }
 
     // @formatter:int_align_fields true
 
     [Flags]
     internal enum WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS : uint {
-        MPIDR              = 0x1, // Multiprocessor Affinity Register
+        MPIDR              = 0x1,
         AffinityLevel      = 0x2,
         RunningState       = 0x4,
         VendorSpecificInfo = 0x8

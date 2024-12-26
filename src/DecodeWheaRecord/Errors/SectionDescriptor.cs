@@ -7,18 +7,20 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
+using DecodeWheaRecord.Internal;
+using DecodeWheaRecord.Shared;
+
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
     internal sealed class WHEA_ERROR_RECORD_SECTION_DESCRIPTOR : WheaErrorRecord {
         // Structure size is static
-        private const uint _StructSize = 72;
-        public override uint GetNativeSize() => _StructSize;
+        internal const uint DescriptorSize = 72;
+        public override uint GetNativeSize() => DescriptorSize;
 
         /*
          * The header defines the revision as a single value but the structure
@@ -52,6 +54,7 @@ namespace DecodeWheaRecord.Errors {
         public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
 
         [JsonProperty(Order = 5)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte Reserved;
 
         private WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_FLAGS _Flags;
@@ -65,7 +68,10 @@ namespace DecodeWheaRecord.Errors {
         internal Guid SectionTypeGuid => _SectionType;
 
         [JsonProperty(Order = 7)]
-        public new string SectionType => SectionTypes.TryGetValue(_SectionType, out var SectionTypeValue) ? SectionTypeValue : _SectionType.ToString();
+        public new string SectionType =>
+            WheaGuids.SectionTypes.TryGetValue(_SectionType, out var SectionTypeValue)
+                ? SectionTypeValue
+                : _SectionType.ToString();
 
         [JsonProperty(Order = 8)]
         public Guid FRUId;
@@ -79,7 +85,7 @@ namespace DecodeWheaRecord.Errors {
         public string FRUText;
 
         public WHEA_ERROR_RECORD_SECTION_DESCRIPTOR(IntPtr recordAddr, uint descriptorOffset, uint bytesRemaining) :
-            base(typeof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR), descriptorOffset, _StructSize, bytesRemaining) {
+            base(typeof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR), descriptorOffset, DescriptorSize, bytesRemaining) {
             var descriptorAddr = recordAddr + (int)descriptorOffset;
             var recordSize = descriptorOffset + bytesRemaining;
 
@@ -118,7 +124,7 @@ namespace DecodeWheaRecord.Errors {
 
             FRUText = Marshal.PtrToStringAnsi(descriptorAddr + offset, 20).Trim('\0');
 
-            FinalizeRecord(recordAddr, _StructSize);
+            FinalizeRecord(recordAddr, DescriptorSize);
         }
 
         [UsedImplicitly]

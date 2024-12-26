@@ -45,8 +45,8 @@ namespace DecodeWheaRecord.Errors {
                 var arraySize = Header.Count * elementSize;
 
                 if (BaseStructSize + arraySize != sectionDsc.SectionLength) {
-                    var errMsg = $"Length does not equal expected length: {BaseStructSize} + {arraySize} != {sectionDsc.SectionLength}";
-                    throw new InvalidDataException(errMsg);
+                    var msg = $"Length does not equal expected length: {BaseStructSize} + {arraySize} != {sectionDsc.SectionLength}";
+                    throw new InvalidDataException(msg);
                 }
 
                 Data = new WHEA_MEMORY_CORRECTABLE_ERROR_DATA[Header.Count];

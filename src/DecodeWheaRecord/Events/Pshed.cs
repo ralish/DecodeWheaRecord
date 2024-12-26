@@ -6,6 +6,7 @@
 using System;
 using System.Runtime.InteropServices;
 
+using DecodeWheaRecord.Internal;
 using DecodeWheaRecord.Shared;
 
 using Newtonsoft.Json;
@@ -119,15 +120,19 @@ namespace DecodeWheaRecord.Events {
         public uint ErrorType;
 
         [JsonProperty(Order = 2)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Parameter1;
 
         [JsonProperty(Order = 3)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Parameter2;
 
         [JsonProperty(Order = 4)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Parameter3;
 
         [JsonProperty(Order = 5)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Parameter4;
 
         private NtStatus _InjectionStatus;

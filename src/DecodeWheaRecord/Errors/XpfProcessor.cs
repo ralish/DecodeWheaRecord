@@ -8,7 +8,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
+
+using DecodeWheaRecord.Internal;
 
 using JetBrains.Annotations;
 
@@ -66,7 +69,8 @@ namespace DecodeWheaRecord.Errors {
         public ulong LocalAPICId;
 
         [JsonProperty(Order = 5)]
-        public byte[] CpuId; // TODO: Output as hex
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public byte[] CpuId; // TODO: Deserialize
 
         [JsonProperty(Order = 6)]
         public WHEA_XPF_PROCINFO[] ProcInfo;
@@ -154,25 +158,28 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 3)]
         public WHEA_XPF_CACHE_CHECK CacheCheck;
 
-        [JsonProperty(Order = 4)]
+        [JsonProperty(Order = 3)]
         public WHEA_XPF_TLB_CHECK TlbCheck;
 
-        [JsonProperty(Order = 5)]
+        [JsonProperty(Order = 3)]
         public WHEA_XPF_BUS_CHECK BusCheck;
 
-        [JsonProperty(Order = 6)]
+        [JsonProperty(Order = 3)]
         public WHEA_XPF_MS_CHECK MsCheck;
 
-        [JsonProperty(Order = 7)]
+        [JsonProperty(Order = 4)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong TargetId;
 
-        [JsonProperty(Order = 8)]
+        [JsonProperty(Order = 5)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong RequesterId;
 
-        [JsonProperty(Order = 9)]
+        [JsonProperty(Order = 6)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong ResponderId;
 
-        [JsonProperty(Order = 10)]
+        [JsonProperty(Order = 7)]
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong InstructionPointer;
 
@@ -206,21 +213,30 @@ namespace DecodeWheaRecord.Errors {
             FinalizeRecord(recordAddr, _StructSize);
         }
 
+        // To gate access to the CheckInfo fields (Cache, TLB, Bus, and MS)
         private bool ShouldSerializeCheckInfo() =>
             (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.CheckInfo) ==
             WHEA_XPF_PROCINFO_VALIDBITS.CheckInfo;
 
         [UsedImplicitly]
-        public bool ShouldSerializeCacheCheck() => ShouldSerializeCheckInfo() && _CheckInfoId == WHEA_XPF_PROCESSOR_ERROR_SECTION.WHEA_CACHECHECK_GUID;
+        public bool ShouldSerializeCacheCheck() =>
+            ShouldSerializeCheckInfo() &&
+            _CheckInfoId == WHEA_XPF_PROCESSOR_ERROR_SECTION.WHEA_CACHECHECK_GUID;
 
         [UsedImplicitly]
-        public bool ShouldSerializeTlbCheck() => ShouldSerializeCheckInfo() && _CheckInfoId == WHEA_XPF_PROCESSOR_ERROR_SECTION.WHEA_TLBCHECK_GUID;
+        public bool ShouldSerializeTlbCheck() =>
+            ShouldSerializeCheckInfo() &&
+            _CheckInfoId == WHEA_XPF_PROCESSOR_ERROR_SECTION.WHEA_TLBCHECK_GUID;
 
         [UsedImplicitly]
-        public bool ShouldSerializeBusCheck() => ShouldSerializeCheckInfo() && _CheckInfoId == WHEA_XPF_PROCESSOR_ERROR_SECTION.WHEA_BUSCHECK_GUID;
+        public bool ShouldSerializeBusCheck() =>
+            ShouldSerializeCheckInfo() &&
+            _CheckInfoId == WHEA_XPF_PROCESSOR_ERROR_SECTION.WHEA_BUSCHECK_GUID;
 
         [UsedImplicitly]
-        public bool ShouldSerializeMsCheck() => ShouldSerializeCheckInfo() && _CheckInfoId == WHEA_XPF_PROCESSOR_ERROR_SECTION.WHEA_MSCHECK_GUID;
+        public bool ShouldSerializeMsCheck() =>
+            ShouldSerializeCheckInfo() &&
+            _CheckInfoId == WHEA_XPF_PROCESSOR_ERROR_SECTION.WHEA_MSCHECK_GUID;
 
         [UsedImplicitly]
         public bool ShouldSerializeTargetId() =>
@@ -447,18 +463,19 @@ namespace DecodeWheaRecord.Errors {
         public ulong MmRegisterAddress;
 
         [JsonProperty(Order = 5)]
-        public byte[] RegisterDataRaw; // TODO: Output as hex
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public byte[] RegisterDataRaw;
 
-        [JsonProperty(Order = 6)]
-        public uint[] RegisterData32; // TODO: Output as hex
+        [JsonProperty(Order = 5, ItemConverterType = typeof(HexStringJsonConverter))]
+        public uint[] RegisterData32;
 
-        [JsonProperty(Order = 7)]
-        public ulong[] RegisterData64; // TODO: Output as hex
+        [JsonProperty(Order = 5, ItemConverterType = typeof(HexStringJsonConverter))]
+        public ulong[] RegisterData64;
 
-        [JsonProperty(Order = 8)]
+        [JsonProperty(Order = 5)]
         public WHEA_X86_REGISTER_STATE RegisterDataContext32;
 
-        [JsonProperty(Order = 9)]
+        [JsonProperty(Order = 5)]
         public WHEA_X64_REGISTER_STATE RegisterDataContext64;
 
         public WHEA_XPF_CONTEXT_INFO(IntPtr recordAddr, uint xpfContextInfoOffset, uint bytesRemaining) :
@@ -504,12 +521,13 @@ namespace DecodeWheaRecord.Errors {
                     }
 
                     break;
-                case WHEA_XPF_CONTEXT_INFO_TYPE.FxSave: // TODO: Implement this properly
+                case WHEA_XPF_CONTEXT_INFO_TYPE.FxSave: // TODO: Implement properly
                 case WHEA_XPF_CONTEXT_INFO_TYPE.UnclassifiedData:
-                default:
                     RegisterDataRaw = new byte[RegisterDataSize];
                     Marshal.Copy(xpfContextInfoAddr + offset, RegisterDataRaw, 0, RegisterDataSize);
                     break;
+                default:
+                    throw new InvalidDataException($"{nameof(RegisterContextType)} is unknown or invalid: {RegisterContextType}");
             }
 
             offset += RegisterDataSize;
@@ -532,7 +550,7 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeRegisterDataRaw() => _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.UnclassifiedData;
 
         [UsedImplicitly]
-        public bool ShouldSerializeRegisterData32() => _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.ContextX32;
+        public bool ShouldSerializeRegisterData32() => _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.DebugRegistersX32;
 
         [UsedImplicitly]
         public bool ShouldSerializeRegisterData64() =>
@@ -547,78 +565,193 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeRegisterDataContext64() => _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.ContextX64;
     }
 
-    // TODO: Output as hex
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_X86_REGISTER_STATE {
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Eax;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Ebx;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Ecx;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Edx;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Esi;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Edi;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Ebp;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Esp;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Cs;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Ds;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Ss;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Es;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Fs;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Gs;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Eflags;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Eip;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Cr0;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Cr1;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Cr2;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Cr3;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Cr4;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Gdtr;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Idtr;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Ldtr;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Tr;
     }
 
-    // TODO: Output as hex
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_X64_REGISTER_STATE {
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Rax;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Rbx;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Rcx;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Rdx;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Rsi;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Rdi;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Rbp;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Rsp;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong R8;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong R9;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong R10;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong R11;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong R12;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong R13;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong R14;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong R15;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Cs;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Ds;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Ss;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Es;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Fs;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Gs;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Reserved;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Rflags;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Eip;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Cr0;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Cr1;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Cr2;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Cr3;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Cr4;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Cr8;
+
         public WHEA128A Gdtr;
         public WHEA128A Idtr;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Ldtr;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Tr;
+
+        [UsedImplicitly]
+        public static bool ShouldSerializeReserved() => IsDebugBuild();
     }
 
-    // TODO: Original definition sets DECLSPEC_ALIGN(16)
-    // TODO: Output as hex
+    // TODO: Original definition has DECLSPEC_ALIGN(16)
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA128A {
         public ulong Low;

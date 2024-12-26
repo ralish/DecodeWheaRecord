@@ -9,11 +9,13 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
+using DecodeWheaRecord.Internal;
+using DecodeWheaRecord.Shared;
+
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
@@ -49,8 +51,8 @@ namespace DecodeWheaRecord.Errors {
      */
     internal sealed class WHEA_ERROR_PACKET_V1 : WheaErrorRecord {
         /*
-         * Size up to and including the RawDataOffset field. While the embedded
-         * ERROR_SECTION structures vary in size they are part of a union.
+         * Size up to and including the RawDataOffset field. The embedded
+         * WHEA_*_ERROR_SECTION structures vary in size but occupy a union.
          */
         private const uint BaseStructSize = 280;
 
@@ -88,9 +90,11 @@ namespace DecodeWheaRecord.Errors {
         public uint RawDataLength;
 
         [JsonProperty(Order = 5)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Reserved1;
 
         [JsonProperty(Order = 6)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Context;
 
         private WHEA_ERROR_TYPE _ErrorType;
@@ -112,38 +116,40 @@ namespace DecodeWheaRecord.Errors {
         public string ErrorSourceType => Enum.GetName(typeof(WHEA_ERROR_SOURCE_TYPE), _ErrorSourceType);
 
         [JsonProperty(Order = 11)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Reserved2;
 
         [JsonProperty(Order = 12)]
         public uint Version;
 
         [JsonProperty(Order = 13)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Cpu;
 
         [JsonProperty(Order = 14)]
         public WHEA_PROCESSOR_GENERIC_ERROR_SECTION ProcessorError;
 
-        [JsonProperty(Order = 15)]
+        [JsonProperty(Order = 14)]
         public WHEA_MEMORY_ERROR_SECTION MemoryError;
 
-        [JsonProperty(Order = 16)]
+        [JsonProperty(Order = 14)]
         public WHEA_NMI_ERROR_SECTION NmiError;
 
-        [JsonProperty(Order = 17)]
+        [JsonProperty(Order = 14)]
         public WHEA_PCIEXPRESS_ERROR_SECTION PciExpressError;
 
-        [JsonProperty(Order = 18)]
+        [JsonProperty(Order = 14)]
         public WHEA_PCIXBUS_ERROR_SECTION PciXBusError;
 
-        [JsonProperty(Order = 19)]
+        [JsonProperty(Order = 14)]
         public WHEA_PCIXDEVICE_ERROR_SECTION PciXDeviceError;
 
-        [JsonProperty(Order = 20)]
+        [JsonProperty(Order = 14)]
         public WHEA_PMEM_ERROR_SECTION PmemError;
 
         private WHEA_RAW_DATA_FORMAT _RawDataFormat;
 
-        [JsonProperty(Order = 21)]
+        [JsonProperty(Order = 15)]
         public string RawDataFormat => Enum.GetName(typeof(WHEA_RAW_DATA_FORMAT), _RawDataFormat);
 
         /*
@@ -151,11 +157,12 @@ namespace DecodeWheaRecord.Errors {
          * plug-in can add supplementary platform-specific data. The amount of
          * data that can be added is limited by the Size field.
          */
-        [JsonProperty(Order = 22)]
+        [JsonProperty(Order = 16)]
         public uint RawDataOffset;
 
-        [JsonProperty(Order = 23)]
-        public byte[] RawData;
+        [JsonProperty(Order = 17)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public byte[] RawData; // TODO: Deserialize
 
         public WHEA_ERROR_PACKET_V1(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
             base(sectionDsc, typeof(WHEA_ERROR_PACKET_V1), BaseStructSize, bytesRemaining) {
@@ -165,15 +172,16 @@ namespace DecodeWheaRecord.Errors {
             _Flags = (WHEA_ERROR_PACKET_FLAGS)Marshal.ReadInt32(sectionAddr, 4);
 
             Size = (uint)Marshal.ReadInt32(sectionAddr, 8);
-            if (Size != sectionDsc.SectionLength) {
-                var errMsg = $"{nameof(Size)} does not match section descriptor: {Size} != {sectionDsc.SectionLength}";
-                throw new InvalidDataException(errMsg);
+            if (Size > sectionDsc.SectionLength) {
+                var msg = $"{nameof(Size)} is greater than in section descriptor: {Size} > {sectionDsc.SectionLength}";
+                throw new InvalidDataException(msg);
             }
 
             RawDataLength = (uint)Marshal.ReadInt32(sectionAddr, 12);
             if (BaseStructSize + RawDataLength != Size) {
-                var errMsg = $"{nameof(RawDataLength)} inconsistent with expected structure size: {BaseStructSize} + {RawDataLength} != {Size}";
-                throw new InvalidDataException(errMsg);
+                var msg = $"Sum of base structure size and {nameof(RawDataLength)} does not result in expected size: " +
+                          $"{BaseStructSize} + {RawDataLength} != {Size}";
+                throw new InvalidDataException(msg);
             }
 
             Reserved1 = (ulong)Marshal.ReadInt64(sectionAddr, 16);
@@ -186,8 +194,8 @@ namespace DecodeWheaRecord.Errors {
 
             Version = (uint)Marshal.ReadInt32(sectionAddr, 52);
             if (Version != WHEA_ERROR_PACKET_V1_VERSION) {
-                var errMsg = $"Expected {nameof(Version)} to be {WHEA_ERROR_PACKET_V1_VERSION} but found: {Version}";
-                throw new InvalidDataException(errMsg);
+                var msg = $"Expected {nameof(Version)} to be {WHEA_ERROR_PACKET_V1_VERSION} but found: {Version}";
+                throw new InvalidDataException(msg);
             }
 
             Cpu = (ulong)Marshal.ReadInt64(sectionAddr, 56);
@@ -216,9 +224,10 @@ namespace DecodeWheaRecord.Errors {
                 case WHEA_ERROR_TYPE.Pmem:
                     PmemError = new WHEA_PMEM_ERROR_SECTION(sectionAddr + offset, (uint)offset, bytesRemaining);
                     break;
+                case WHEA_ERROR_TYPE.Generic: // No associated error section
+                    break;
                 default:
-                    var errMsg = $"{nameof(ErrorType)} is invalid: {ErrorType}";
-                    throw new InvalidDataException(errMsg);
+                    throw new InvalidDataException($"{nameof(ErrorType)} is unknown or invalid: {ErrorType}");
             }
 
             // Maximum previous structure size is 208 bytes (offset is 272)
@@ -228,8 +237,8 @@ namespace DecodeWheaRecord.Errors {
 
             RawDataOffset = (uint)Marshal.ReadInt32(sectionAddr, offset + 4);
             if (BaseStructSize + RawDataOffset > Size) {
-                var errMsg = $"{nameof(RawDataOffset)} is beyond the end of the {nameof(RawData)} buffer: {BaseStructSize} + {RawDataOffset} > {Size}";
-                throw new InvalidDataException(errMsg);
+                var msg = $"{nameof(RawDataOffset)} is beyond the end of the {nameof(RawData)} buffer: {BaseStructSize} + {RawDataOffset} > {Size}";
+                throw new InvalidDataException(msg);
             }
 
             if (RawDataLength > 0) {
@@ -295,8 +304,12 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 2)]
         public uint Version;
 
+        /*
+         * Size of the hardware error packet including the data (the DataLength
+         * field) and the PSHED data (the PshedDataLength field).
+         */
         [JsonProperty(Order = 3)]
-        public uint Length; // TODO: Description & validation
+        public uint Length;
 
         private WHEA_ERROR_PACKET_FLAGS _Flags;
 
@@ -324,9 +337,13 @@ namespace DecodeWheaRecord.Errors {
         private Guid _NotifyType;
 
         [JsonProperty(Order = 9)]
-        public string NotifyType => SectionTypes.TryGetValue(_NotifyType, out var NotifyTypeValue) ? NotifyTypeValue : _NotifyType.ToString();
+        public string NotifyType =>
+            WheaGuids.NotifyTypes.TryGetValue(_NotifyType, out var NotifyTypeValue)
+                ? NotifyTypeValue
+                : _NotifyType.ToString();
 
         [JsonProperty(Order = 10)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Context;
 
         private WHEA_ERROR_PACKET_DATA_FORMAT _DataFormat;
@@ -335,25 +352,32 @@ namespace DecodeWheaRecord.Errors {
         public string DataFormat => Enum.GetName(typeof(WHEA_ERROR_PACKET_DATA_FORMAT), _DataFormat);
 
         [JsonProperty(Order = 12)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Reserved1;
 
+        // Offset of the Data buffer from the beginning of the structure
         [JsonProperty(Order = 13)]
-        public uint DataOffset; // TODO: Description & validation
+        public uint DataOffset;
 
+        // Length of the Data buffer
         [JsonProperty(Order = 14)]
-        public uint DataLength; // TODO: Description & validation
+        public uint DataLength;
 
+        // Offset of the PshedData buffer from the beginning of the structure
         [JsonProperty(Order = 15)]
-        public uint PshedDataOffset; // TODO: Description & validation
+        public uint PshedDataOffset;
 
+        // Length of the PshedData buffer
         [JsonProperty(Order = 16)]
-        public uint PshedDataLength; // TODO: Description & validation
+        public uint PshedDataLength;
 
         [JsonProperty(Order = 17)]
-        public byte[] Data;
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public byte[] Data; // TODO: Deserialize
 
         [JsonProperty(Order = 18)]
-        public byte[] PshedData;
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public byte[] PshedData; // TODO: Deserialize
 
         public WHEA_ERROR_PACKET_V2(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
             base(sectionDsc, typeof(WHEA_ERROR_PACKET_V2), BaseStructSize, bytesRemaining) {
@@ -363,11 +387,16 @@ namespace DecodeWheaRecord.Errors {
 
             Version = (uint)Marshal.ReadInt32(sectionAddr, 4);
             if (Version != WHEA_ERROR_PACKET_V2_VERSION) {
-                var errMsg = $"Expected {nameof(Version)} to be {WHEA_ERROR_PACKET_V2_VERSION} but found: {Version}";
-                throw new InvalidDataException(errMsg);
+                var msg = $"Expected {nameof(Version)} to be {WHEA_ERROR_PACKET_V2_VERSION} but found: {Version}";
+                throw new InvalidDataException(msg);
             }
 
             Length = (uint)Marshal.ReadInt32(sectionAddr, 8);
+            if (Length > sectionDsc.SectionLength) {
+                var msg = $"{nameof(Length)} is greater than in section descriptor: {Length} > {sectionDsc.SectionLength}";
+                throw new InvalidDataException(msg);
+            }
+
             _Flags = (WHEA_ERROR_PACKET_FLAGS)Marshal.ReadInt32(sectionAddr, 12);
             _ErrorType = (WHEA_ERROR_TYPE)Marshal.ReadInt32(sectionAddr, 16);
             _ErrorSeverity = (WHEA_ERROR_SEVERITY)Marshal.ReadInt32(sectionAddr, 20);
@@ -385,6 +414,22 @@ namespace DecodeWheaRecord.Errors {
             DataLength = (uint)Marshal.ReadInt32(sectionAddr, offset + 20);
             PshedDataOffset = (uint)Marshal.ReadInt32(sectionAddr, offset + 24);
             PshedDataLength = (uint)Marshal.ReadInt32(sectionAddr, offset + 28);
+
+            if (BaseStructSize + DataLength + PshedDataLength != Length) {
+                var msg = $"Sum of base structure size, {nameof(DataLength)}, and {nameof(PshedDataLength)} does not result in expected size: " +
+                          $"{BaseStructSize} + {DataLength} + {PshedDataLength} != {Length}";
+                throw new InvalidDataException(msg);
+            }
+
+            if (DataOffset != BaseStructSize) {
+                var msg = $"{nameof(DataOffset)} does not equal the expected offset: {DataOffset} != {BaseStructSize}";
+                throw new InvalidDataException(msg);
+            }
+
+            if (PshedDataOffset != BaseStructSize + DataLength) {
+                var msg = $"{nameof(PshedDataOffset)} does not equal the expected offset: {PshedDataOffset} != {BaseStructSize + DataLength}";
+                throw new InvalidDataException(msg);
+            }
 
             if (DataLength > 0) {
                 Data = new byte[DataLength];

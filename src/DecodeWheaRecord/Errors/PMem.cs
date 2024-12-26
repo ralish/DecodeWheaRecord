@@ -7,11 +7,13 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
+using DecodeWheaRecord.Internal;
+using DecodeWheaRecord.Shared;
+
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
@@ -35,13 +37,14 @@ namespace DecodeWheaRecord.Errors {
         public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
 
         [JsonProperty(Order = 2)]
-        public byte[] LocationInfo; // TODO
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public byte[] LocationInfo; // TODO: Deserialize
 
         [JsonProperty(Order = 3)]
         public WHEA_ERROR_STATUS ErrorStatus;
 
         [JsonProperty(Order = 4)]
-        public uint NFITHandle;
+        public uint NFITHandle; // NVDIMM Firmware Interface Table
 
         [JsonProperty(Order = 5)]
         public uint PageRangeCount;
@@ -115,6 +118,7 @@ namespace DecodeWheaRecord.Errors {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong StartingPfn;
 
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong PageCount;
 
         [JsonConverter(typeof(HexStringJsonConverter))]

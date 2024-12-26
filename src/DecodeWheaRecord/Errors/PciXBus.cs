@@ -7,11 +7,13 @@
 using System;
 using System.Runtime.InteropServices;
 
+using DecodeWheaRecord.Internal;
+using DecodeWheaRecord.Shared;
+
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
@@ -36,6 +38,7 @@ namespace DecodeWheaRecord.Errors {
         public WHEA_PCIXBUS_ID BusId;
 
         [JsonProperty(Order = 5)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Reserved;
 
         [JsonProperty(Order = 6)]
@@ -50,12 +53,15 @@ namespace DecodeWheaRecord.Errors {
         public WHEA_PCIXBUS_COMMAND BusCommand;
 
         [JsonProperty(Order = 9)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong RequesterId;
 
         [JsonProperty(Order = 10)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong CompleterId;
 
         [JsonProperty(Order = 11)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong TargetId;
 
         [UsedImplicitly]

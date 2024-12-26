@@ -9,6 +9,7 @@ using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 
 using DecodeWheaRecord.Errors;
+using DecodeWheaRecord.Internal;
 using DecodeWheaRecord.Shared;
 
 using JetBrains.Annotations;

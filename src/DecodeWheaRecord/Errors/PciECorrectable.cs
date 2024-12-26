@@ -8,11 +8,13 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
+using DecodeWheaRecord.Internal;
+using DecodeWheaRecord.Shared;
+
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
@@ -48,8 +50,8 @@ namespace DecodeWheaRecord.Errors {
                 var arraySize = Header.Count * elementSize;
 
                 if (BaseStructSize + arraySize != sectionDsc.SectionLength) {
-                    var errMsg = $"Length does not equal expected length: {BaseStructSize} + {arraySize} != {sectionDsc.SectionLength}";
-                    throw new InvalidDataException(errMsg);
+                    var msg = $"Length does not equal expected length: {BaseStructSize} + {arraySize} != {sectionDsc.SectionLength}";
+                    throw new InvalidDataException(msg);
                 }
 
                 Devices = new WHEA_PCIE_CORRECTABLE_ERROR_DEVICES[Header.Count];

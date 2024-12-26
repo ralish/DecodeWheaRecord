@@ -6,11 +6,13 @@
 using System;
 using System.Runtime.InteropServices;
 
+using DecodeWheaRecord.Internal;
+using DecodeWheaRecord.Shared;
+
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
@@ -42,6 +44,7 @@ namespace DecodeWheaRecord.Errors {
         public WHEA_PCIEXPRESS_COMMAND_STATUS CommandStatus;
 
         [JsonProperty(Order = 5)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Reserved;
 
         [JsonProperty(Order = 6)]
@@ -54,9 +57,11 @@ namespace DecodeWheaRecord.Errors {
         public WHEA_PCIEXPRESS_BRIDGE_CONTROL_STATUS BridgeControlStatus;
 
         [JsonProperty(Order = 9)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte[] ExpressCapability; // TODO: PCI_EXPRESS_CAPABILITY
 
         [JsonProperty(Order = 10)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte[] AerInfo; // TODO: PCI_EXPRESS_AER_CAPABILITY
 
         private void WheaPciExpressErrorSection(IntPtr recordAddr, uint sectionOffset) {
@@ -197,12 +202,14 @@ namespace DecodeWheaRecord.Errors {
         private ushort _SlotNumber;
 
         [JsonProperty(Order = 9)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte Reserved1 => (byte)(_SlotNumber & 0xFFF8); // Bits 0-2
 
         [JsonProperty(Order = 10)]
         public ushort SlotNumber => (ushort)(_SlotNumber >> 3); // Bits 3-15
 
         [JsonProperty(Order = 11)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte Reserved2;
 
         [UsedImplicitly]
@@ -216,6 +223,8 @@ namespace DecodeWheaRecord.Errors {
     internal sealed class WHEA_PCIEXPRESS_VERSION {
         public byte MinorVersion;
         public byte MajorVersion;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Reserved;
 
         [UsedImplicitly]

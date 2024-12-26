@@ -7,6 +7,8 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
+using DecodeWheaRecord.Internal;
+
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;
@@ -33,31 +35,35 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 1)]
         public string Type => Enum.GetName(typeof(WHEA_FIRMWARE_RECORD_TYPE), _Type);
 
-        // Added in UEFI 2.7 (not present in current headers)
+        /*
+         * Introduced in UEFI 2.7, prior to which the corresponding byte
+         * was part of the Reserved field. The UEFI specification states
+         * the bytes comprising the Reserved field must be set to zero.
+         */
         [JsonProperty(Order = 2)]
-        public byte Revision;
+        public byte Revision; // Not in current headers
 
         [JsonProperty(Order = 3)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte[] Reserved = new byte[6];
 
         [JsonProperty(Order = 4)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong FirmwareRecordId;
 
-        // Added in UEFI 2.7 (not present in current headers)
+        // Added in UEFI 2.7
         [JsonProperty(Order = 5)]
-        public Guid FirmwareRecordExt;
+        public Guid FirmwareRecordExt; // Not in current headers
 
         public WHEA_FIRMWARE_ERROR_RECORD_REFERENCE(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
             base(sectionDsc, typeof(WHEA_FIRMWARE_ERROR_RECORD_REFERENCE), BaseStructSize, bytesRemaining) {
             var logCat = SectionType.Name;
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
-            string errMsg;
-            uint expectedStructSize;
-
             _Type = (WHEA_FIRMWARE_RECORD_TYPE)Marshal.ReadByte(sectionAddr);
 
             Revision = Marshal.ReadByte(sectionAddr, 1);
+            uint expectedStructSize;
             switch (Revision) {
                 case 0:
                     expectedStructSize = BaseStructSize;
@@ -66,13 +72,12 @@ namespace DecodeWheaRecord.Errors {
                     expectedStructSize = StructSizeRev2;
                     break;
                 default:
-                    errMsg = $"Unsupported {nameof(Revision)}: {Revision}";
-                    throw new InvalidDataException(errMsg);
+                    throw new InvalidDataException($"Unsupported {nameof(Revision)}: {Revision}");
             }
 
             if (expectedStructSize > sectionDsc.SectionLength) {
-                errMsg = $"Expected length is greater than in section descriptor: {expectedStructSize} > {sectionDsc.SectionLength}";
-                throw new InvalidDataException(errMsg);
+                var msg = $"Expected length is greater than in section descriptor: {expectedStructSize} > {sectionDsc.SectionLength}";
+                throw new InvalidDataException(msg);
             }
 
             Marshal.Copy(sectionAddr + 2, Reserved, 0, 6);
@@ -97,14 +102,7 @@ namespace DecodeWheaRecord.Errors {
         }
 
         [UsedImplicitly]
-        public bool ShouldSerializeRevision() {
-            /*
-             * Introduced in UEFI 2.7, prior to which the corresponding byte
-             * was part of the Reserved field. The UEFI specification states
-             * the bytes comprising the Reserved field must be set to zero.
-             */
-            return Revision != 0;
-        }
+        public bool ShouldSerializeRevision() => Revision != 0;
 
         [UsedImplicitly]
         public static bool ShouldSerializeReserved() => IsDebugBuild();

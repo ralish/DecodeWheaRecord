@@ -31,12 +31,12 @@ namespace DecodeWheaRecord {
 
             switch (signature) {
                 case WHEA_EVENT_LOG_ENTRY_HEADER.WHEA_ERROR_LOG_ENTRY_SIGNATURE:
-                    DebugOutput($"Found signature: {signature}", nameof(WHEA_EVENT_LOG_ENTRY));
+                    DebugOutput($"Found signature: {signature}");
                     var eventLogEntry = new WHEA_EVENT_LOG_ENTRY(recordBytes);
                     Console.Out.WriteLine(JsonConvert.SerializeObject(eventLogEntry, Formatting.Indented));
                     break;
                 case WHEA_ERROR_RECORD_HEADER.WHEA_ERROR_RECORD_SIGNATURE:
-                    DebugOutput($"Found signature: {signature}", nameof(WHEA_ERROR_RECORD));
+                    DebugOutput($"Found signature: {signature}");
                     var errorRecord = new WHEA_ERROR_RECORD(recordAddr, (uint)recordBytes.Length);
                     Console.Out.WriteLine(JsonConvert.SerializeObject(errorRecord, Formatting.Indented));
                     break;

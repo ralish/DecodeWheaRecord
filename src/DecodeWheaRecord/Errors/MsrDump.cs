@@ -3,6 +3,8 @@
 using System;
 using System.Runtime.InteropServices;
 
+using DecodeWheaRecord.Internal;
+
 using Newtonsoft.Json;
 
 namespace DecodeWheaRecord.Errors {
@@ -23,7 +25,8 @@ namespace DecodeWheaRecord.Errors {
         public uint MsrDumpLength; // TODO: Description & validation
 
         [JsonProperty(Order = 3)]
-        public byte[] MsrDumpData; // TODO: Output as hex
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public byte[] MsrDumpData; // TODO: Deserialize
 
         public WHEA_MSR_DUMP_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
             base(sectionDsc, typeof(WHEA_MSR_DUMP_SECTION), BaseStructSize, bytesRemaining) {

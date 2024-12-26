@@ -5,21 +5,24 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+
+using DecodeWheaRecord.Internal;
+using DecodeWheaRecord.Shared;
 
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
     internal sealed class WHEA_ERROR_RECORD : WheaErrorRecord {
         // At least one descriptor must be present
-        private const uint BaseStructSize = 72; // TODO
+        private const uint BaseStructSize = WHEA_ERROR_RECORD_SECTION_DESCRIPTOR.DescriptorSize;
 
         private uint _NativeSize;
         public override uint GetNativeSize() => _NativeSize;
@@ -58,6 +61,7 @@ namespace DecodeWheaRecord.Errors {
                 Section.Add(section);
             }
 
+            _NativeSize = bytesProcessed;
             FinalizeRecord(recordAddr, bytesProcessed);
         }
 
@@ -67,60 +71,61 @@ namespace DecodeWheaRecord.Errors {
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
             var bytesRemaining = recordSize - sectionDsc.SectionOffset; // TODO: Naive, handle adjacent sections
 
+            // TODO: Pre/post debug output for directly marshalled structures
             switch (sectionDsc.SectionTypeGuid) {
-                case var sectionGuid when sectionGuid == ARM_PROCESSOR_ERROR_SECTION_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.ARM_PROCESSOR_ERROR_SECTION_GUID:
                     section = new WHEA_ARM_PROCESSOR_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
                     break;
-                case var sectionGuid when sectionGuid == FIRMWARE_ERROR_RECORD_REFERENCE_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.FIRMWARE_ERROR_RECORD_REFERENCE_GUID:
                     section = new WHEA_FIRMWARE_ERROR_RECORD_REFERENCE(sectionDsc, recordAddr, bytesRemaining);
                     break;
-                case var sectionGuid when sectionGuid == MU_TELEMETRY_SECTION_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.MU_TELEMETRY_SECTION_GUID:
                     section = Marshal.PtrToStructure<MU_TELEMETRY_SECTION>(sectionAddr);
                     break;
-                case var sectionGuid when sectionGuid == WHEA_ERROR_PACKET_SECTION_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.WHEA_ERROR_PACKET_SECTION_GUID:
                     section = WHEA_ERROR_PACKET.CreateBySignature(sectionDsc, recordAddr, bytesRemaining);
                     break;
-                case var sectionGuid when sectionGuid == RECOVERY_INFO_SECTION_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.RECOVERY_INFO_SECTION_GUID:
                     section = Marshal.PtrToStructure<WHEA_ERROR_RECOVERY_INFO_SECTION>(sectionAddr);
                     break;
-                case var sectionGuid when sectionGuid == MEMORY_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.MEMORY_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID:
                     section = new WHEA_MEMORY_CORRECTABLE_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
                     break;
-                case var sectionGuid when sectionGuid == MEMORY_ERROR_SECTION_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.MEMORY_ERROR_SECTION_GUID:
                     section = new WHEA_MEMORY_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
                     break;
-                case var sectionGuid when sectionGuid == IPMI_MSR_DUMP_SECTION_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.IPMI_MSR_DUMP_SECTION_GUID:
                     section = new WHEA_MSR_DUMP_SECTION(sectionDsc, recordAddr, bytesRemaining);
                     break;
-                case var sectionGuid when sectionGuid == NMI_SECTION_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.NMI_SECTION_GUID:
                     section = Marshal.PtrToStructure<WHEA_NMI_ERROR_SECTION>(sectionAddr);
                     break;
-                case var sectionGuid when sectionGuid == PCIE_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.PCIE_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID:
                     section = new WHEA_PCIE_CORRECTABLE_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
                     break;
-                case var sectionGuid when sectionGuid == PCIEXPRESS_ERROR_SECTION_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.PCIEXPRESS_ERROR_SECTION_GUID:
                     section = new WHEA_PCIEXPRESS_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
                     break;
-                case var sectionGuid when sectionGuid == PCIXBUS_ERROR_SECTION_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.PCIXBUS_ERROR_SECTION_GUID:
                     section = Marshal.PtrToStructure<WHEA_PCIXBUS_ERROR_SECTION>(sectionAddr);
                     break;
-                case var sectionGuid when sectionGuid == PCIXDEVICE_ERROR_SECTION_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.PCIXDEVICE_ERROR_SECTION_GUID:
                     section = new WHEA_PCIXDEVICE_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
                     break;
-                case var sectionGuid when sectionGuid == PMEM_ERROR_SECTION_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.PMEM_ERROR_SECTION_GUID:
                     section = new WHEA_PMEM_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
                     break;
-                case var sectionGuid when sectionGuid == PROCESSOR_GENERIC_ERROR_SECTION_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.PROCESSOR_GENERIC_ERROR_SECTION_GUID:
                     section = new WHEA_PROCESSOR_GENERIC_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
                     break;
-                case var sectionGuid when sectionGuid == XPF_PROCESSOR_ERROR_SECTION_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.XPF_PROCESSOR_ERROR_SECTION_GUID:
                     section = new WHEA_XPF_PROCESSOR_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
                     break;
-                case var sectionGuid when sectionGuid == XPF_MCA_SECTION_GUID:
+                case var sectionGuid when sectionGuid == WheaGuids.XPF_MCA_SECTION_GUID:
                     section = new WHEA_XPF_MCA_SECTION(sectionDsc, recordAddr, bytesRemaining);
                     break;
                 default:
-                    var msg = $"Skipping decoding of unknown section GUID: {sectionDsc.SectionTypeGuid}";
+                    var msg = $"Skipping unknown section GUID: {sectionDsc.SectionTypeGuid}";
                     WarnOutput(msg, nameof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR));
                     break;
             }
@@ -203,14 +208,21 @@ namespace DecodeWheaRecord.Errors {
         private Guid _CreatorId;
 
         [JsonProperty(Order = 11)]
-        public string CreatorId => CreatorIds.TryGetValue(_CreatorId, out var CreatorIdValue) ? CreatorIdValue : _CreatorId.ToString();
+        public string CreatorId =>
+            WheaGuids.CreatorIds.TryGetValue(_CreatorId, out var CreatorIdValue)
+                ? CreatorIdValue
+                : _CreatorId.ToString();
 
         private Guid _NotifyType;
 
         [JsonProperty(Order = 12)]
-        public string NotifyType => NotifyTypes.TryGetValue(_NotifyType, out var NotifyTypeValue) ? NotifyTypeValue : _NotifyType.ToString();
+        public string NotifyType =>
+            WheaGuids.NotifyTypes.TryGetValue(_NotifyType, out var NotifyTypeValue)
+                ? NotifyTypeValue
+                : _NotifyType.ToString();
 
         [JsonProperty(Order = 13)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong RecordId;
 
         private WHEA_ERROR_RECORD_HEADER_FLAGS _Flags;
@@ -221,10 +233,12 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 15)]
         public WHEA_PERSISTENCE_INFO PersistenceInfo;
 
+        // Only populated in Azure by a PSHED plugin (AzPshedPi)
         [JsonProperty(Order = 16)]
         public uint OsBuildNumber;
 
         [JsonProperty(Order = 17)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte[] Reserved;
 
         public WHEA_ERROR_RECORD_HEADER(IntPtr recordAddr, uint recordSize) :
@@ -321,7 +335,6 @@ namespace DecodeWheaRecord.Errors {
         [UsedImplicitly]
         public bool ShouldSerializePersistenceInfo() => !string.IsNullOrEmpty(PersistenceInfo.Signature);
 
-        // Only populated in Azure by a PSHED plugin (AzPshedPi)
         [UsedImplicitly]
         public bool ShouldSerializeOsBuildNumber() => OsBuildNumber != 0;
 
@@ -399,6 +412,45 @@ namespace DecodeWheaRecord.Errors {
         }
     }
 
+    /*
+     * Originally defined as a ULONGLONG bitfield. This structure has the same
+     * in memory format but is simpler to interact with.
+     */
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    internal sealed class WHEA_TIMESTAMP {
+        [JsonProperty(Order = 1)]
+        public byte Seconds;
+
+        [JsonProperty(Order = 2)]
+        public byte Minutes;
+
+        [JsonProperty(Order = 3)]
+        public byte Hours;
+
+        private WHEA_TIMESTAMP_FLAGS _Flags;
+
+        [JsonProperty(Order = 4)]
+        public string Flags => GetEnabledFlagsAsString(_Flags);
+
+        [JsonProperty(Order = 5)]
+        public byte Day;
+
+        [JsonProperty(Order = 6)]
+        public byte Month;
+
+        [JsonProperty(Order = 7)]
+        public byte Year;
+
+        [JsonProperty(Order = 8)]
+        public byte Century;
+
+        // TODO: Surface flags
+        public override string ToString() {
+            var dt = new DateTime(Century * 100 + Year, Month, Day, Hours, Minutes, Seconds);
+            return dt.ToString(CultureInfo.CurrentCulture);
+        }
+    }
+
     // @formatter:int_align_fields true
 
     [Flags]
@@ -428,6 +480,12 @@ namespace DecodeWheaRecord.Errors {
         Attribute1 = 0x1, // Originally a 2-bit field with Attribute2
         Attribute2 = 0x2, // Originally a 2-bit field with Attribute1
         DoNotLog   = 0x4
+    }
+
+    // Originally defined directly in the WHEA_TIMESTAMP structure
+    [Flags]
+    internal enum WHEA_TIMESTAMP_FLAGS : byte {
+        Precise = 0x1
     }
 
     // @formatter:int_align_fields false
