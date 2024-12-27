@@ -4,7 +4,6 @@
 
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable InconsistentNaming
-// ReSharper disable PrivateFieldCanBeConvertedToLocalVariable
 
 using System;
 using System.IO;
@@ -23,22 +22,22 @@ using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
     internal sealed class WHEA_ARM_PROCESSOR_ERROR_SECTION : WheaErrorRecord {
+        public override uint GetNativeSize() => SectionLength;
+
         // Size up to and including the PSCIState field
         private const uint MinStructSize = 40;
 
         /*
-         * Per UEFI Specification R2.11
+         * Per UEFI Specification 2.11
          *
-         * This might be a documentation error as the backing field is 16-bits
-         * wide. The ContextInformationStructures field is the same width and
-         * is not limited to the maximum value of an unsigned byte.
+         * This might be a documentation error as the backing field is 16-bits.
+         * The ContextInformationStructures field is the same width and is not
+         * limited to the maximum value of an unsigned byte.
          */
         private const byte MaxErrorInformationStructures = 255;
 
-        // Per UEFI Specification R2.11
+        // Per UEFI Specification 2.11
         private const byte MaxErrorAffinityLevel = 3;
-
-        public override uint GetNativeSize() => SectionLength;
 
         private WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS _ValidBits;
 
@@ -126,7 +125,7 @@ namespace DecodeWheaRecord.Errors {
 
             Marshal.Copy(sectionAddr + 13, Reserved, 0, 3);
             if (Reserved.Any(element => element != 0)) {
-                WarnOutput($"{nameof(Reserved)} has non-zero bytes.", logCat);
+                WarnOutput($"{nameof(Reserved)} field has non-zero bytes.", logCat);
             }
 
             MPIDR_EL1 = (ulong)Marshal.ReadInt64(sectionAddr, 16);
@@ -158,14 +157,14 @@ namespace DecodeWheaRecord.Errors {
                                                                                                     sectionDsc.SectionOffset + (uint)offset,
                                                                                                     SectionLength - (uint)offset);
 
-                    // Padding for when the size is not a multiple of 16 bytes
+                    // Pad when the size is not a multiple of 16 bytes
                     var ctxInfoStructSize = ContextInformation[i].GetNativeSize();
                     var ctxInfoStructPad = ctxInfoStructSize % 16;
                     offset += (int)(ctxInfoStructSize + ctxInfoStructPad);
                 }
             }
 
-            // Any remaining data is vendor specific information
+            // Any remaining data is vendor-specific information
             if (offset < SectionLength) {
                 if (ShouldSerializeVendorInformation()) {
                     VendorInformation = new byte[SectionLength - offset];
@@ -182,7 +181,7 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeErrorAffinityLevel() => (_ValidBits & WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS.AffinityLevel) != 0;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public bool ShouldSerializeReserved() => Reserved.Any(element => element != 0);
 
         [UsedImplicitly]
         public bool ShouldSerializeMPIDR_EL1() => (_ValidBits & WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS.MPIDR) != 0;
@@ -199,13 +198,13 @@ namespace DecodeWheaRecord.Errors {
     }
 
     internal sealed class WHEA_ARM_PROCESSOR_ERROR_INFORMATION : WheaErrorRecord {
-        // Per UEFI Specification R2.11
+        public override uint GetNativeSize() => Length;
+
+        // Per UEFI Specification 2.11
         private const byte ExpectedVersion = 0;
 
         // Structure size is static
         private const byte ExpectedLength = 32;
-
-        public override uint GetNativeSize() => Length;
 
         [JsonProperty(Order = 1)]
         public byte Version;
@@ -228,7 +227,7 @@ namespace DecodeWheaRecord.Errors {
         private ushort _MultipleError;
 
         [JsonProperty(Order = 5)]
-        public string MultipleError;
+        public string MultipleError => _MultipleError == 0 ? "Single error" : _MultipleError == 1 ? "Multiple errors" : $"{_MultipleError} errors";
 
         // Switched to an enumeration
         private WHEA_ARM_PROCESSOR_ERROR_INFORMATION_FLAGS _Flags;
@@ -254,7 +253,7 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 7)]
         public WHEA_ARM_BUS_ERROR BusError;
 
-        // Micro-architecture error structures are vendor specific
+        // Micro-architecture error structures are vendor-specific
         [JsonProperty(Order = 7)]
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong MaeError;
@@ -283,22 +282,7 @@ namespace DecodeWheaRecord.Errors {
 
             _ValidationBit = (WHEA_ARM_PROCESSOR_ERROR_INFORMATION_VALID_BITS)Marshal.ReadInt16(structAddr, 2);
             _Type = (WHEA_ARM_PROCESSOR_ERROR_INFORMATION_TYPE)Marshal.ReadByte(structAddr, 4);
-
             _MultipleError = (ushort)Marshal.ReadInt16(structAddr, 5);
-            if (ShouldSerializeMultipleError()) {
-                switch (_MultipleError) {
-                    case 0:
-                        MultipleError = "Single error";
-                        break;
-                    case 1:
-                        MultipleError = "Multiple errors";
-                        break;
-                    default:
-                        MultipleError = $"{_MultipleError} errors";
-                        break;
-                }
-            }
-
             _Flags = (WHEA_ARM_PROCESSOR_ERROR_INFORMATION_FLAGS)Marshal.ReadByte(structAddr, 7);
 
             if (ShouldSerializeErrorInformation()) {
@@ -343,7 +327,6 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializePhysicalFaultAddress() => (_ValidationBit & WHEA_ARM_PROCESSOR_ERROR_INFORMATION_VALID_BITS.PhysicalFaultAddress) != 0;
     }
 
-    // Originally a 64-bits wide bitfield
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARM_CACHE_ERROR {
         private ulong _RawBits;
@@ -398,7 +381,6 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeRestartablePC() => (_ValidationBit & WHEA_ARM_CACHE_ERROR_VALID_BITS.RestartablePC) != 0;
     }
 
-    // Originally a 64-bits wide bitfield
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARM_TLB_ERROR {
         private ulong _RawBits;
@@ -453,7 +435,6 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeRestartablePC() => (_ValidationBit & WHEA_ARM_TLB_ERROR_VALID_BITS.RestartablePC) != 0;
     }
 
-    // Originally a 64-bits wide bitfield
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARM_BUS_ERROR {
         private ulong _RawBits;
@@ -545,24 +526,23 @@ namespace DecodeWheaRecord.Errors {
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER : WheaErrorRecord {
+        private uint _StructSize;
+        public override uint GetNativeSize() => _StructSize;
+
         // Size up to and including the RegisterArraySize field
         private const uint MinStructSize = 8;
 
-        // Per UEFI Specification R2.11
+        // Per UEFI Specification 2.11
         private const ushort ExpectedVersion = 0;
-
-        private uint _StructSize;
-        public override uint GetNativeSize() => _StructSize;
 
         [JsonProperty(Order = 1)]
         public ushort Version;
 
         // Switched to an enumeration
-        private WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE _RegisterContextType;
+        private WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE _RegisterContextType;
 
         [JsonProperty(Order = 2)]
-        public string RegisterContextType =>
-            Enum.GetName(typeof(WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE), _RegisterContextType);
+        public string RegisterContextType => Enum.GetName(typeof(WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE), _RegisterContextType);
 
         [JsonProperty(Order = 3)]
         public uint RegisterArraySize;
@@ -612,50 +592,50 @@ namespace DecodeWheaRecord.Errors {
                 throw new InvalidDataException($"Expected {nameof(Version)} to be {ExpectedVersion} but found: {Version}");
             }
 
-            _RegisterContextType = (WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE)Marshal.ReadInt16(structAddr, 2);
+            _RegisterContextType = (WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE)Marshal.ReadInt16(structAddr, 2);
             RegisterArraySize = (uint)Marshal.ReadInt32(structAddr, 4);
 
             var ctxInfoStructAddr = structAddr + (int)MinStructSize;
             int ctxInfoStructSize;
 
             switch (_RegisterContextType) {
-                case WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch32GPR:
+                case WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch32GPR:
                     AArch32GPR = Marshal.PtrToStructure<WHEA_ARMV8_AARCH32_GPRS>(ctxInfoStructAddr);
                     ctxInfoStructSize = Marshal.SizeOf<WHEA_ARMV8_AARCH32_GPRS>();
                     break;
-                case WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch32EL1:
+                case WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch32EL1:
                     AArch32EL1 = Marshal.PtrToStructure<WHEA_ARMV8_AARCH32_EL1_CSR>(ctxInfoStructAddr);
                     ctxInfoStructSize = Marshal.SizeOf<WHEA_ARMV8_AARCH32_EL1_CSR>();
                     break;
-                case WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch32EL2:
+                case WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch32EL2:
                     AArch32EL2 = Marshal.PtrToStructure<WHEA_ARMV8_AARCH32_EL2_CSR>(ctxInfoStructAddr);
                     ctxInfoStructSize = Marshal.SizeOf<WHEA_ARMV8_AARCH32_EL2_CSR>();
                     break;
-                case WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch32Secure:
+                case WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch32Secure:
                     AArch32Secure = Marshal.PtrToStructure<WHEA_ARMV8_AARCH32_SECURE_CSR>(ctxInfoStructAddr);
                     ctxInfoStructSize = Marshal.SizeOf<WHEA_ARMV8_AARCH32_SECURE_CSR>();
                     break;
-                case WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch64GPR:
+                case WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch64GPR:
                     AArch64GPR = Marshal.PtrToStructure<WHEA_ARMV8_AARCH64_GPRS>(ctxInfoStructAddr);
                     ctxInfoStructSize = Marshal.SizeOf<WHEA_ARMV8_AARCH64_GPRS>();
                     break;
-                case WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch64EL1:
+                case WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch64EL1:
                     AArch64EL1 = Marshal.PtrToStructure<WHEA_ARMV8_AARCH64_EL1_CSR>(ctxInfoStructAddr);
                     ctxInfoStructSize = Marshal.SizeOf<WHEA_ARMV8_AARCH64_EL1_CSR>();
                     break;
-                case WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch64EL2:
+                case WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch64EL2:
                     AArch64EL2 = Marshal.PtrToStructure<WHEA_ARMV8_AARCH64_EL2_CSR>(ctxInfoStructAddr);
                     ctxInfoStructSize = Marshal.SizeOf<WHEA_ARMV8_AARCH64_EL2_CSR>();
                     break;
-                case WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch64EL3:
+                case WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch64EL3:
                     AArch64EL3 = Marshal.PtrToStructure<WHEA_ARMV8_AARCH64_EL3_CSR>(ctxInfoStructAddr);
                     ctxInfoStructSize = Marshal.SizeOf<WHEA_ARMV8_AARCH64_EL3_CSR>();
                     break;
-                case WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArchMisc:
+                case WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArchMisc:
                     AArchMisc = Marshal.PtrToStructure<WHEA_ARM_MISR_CSR>(ctxInfoStructAddr);
                     ctxInfoStructSize = Marshal.SizeOf<WHEA_ARM_MISR_CSR>();
                     break;
-                case WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch64TT128:
+                case WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch64TT128:
                     AArch64TT128 = new WHEA_ARMV8_AARCH64_TT128(recordAddr, structOffset + MinStructSize, bytesRemaining - MinStructSize);
                     ctxInfoStructSize = (int)AArch64TT128.GetNativeSize();
                     break;
@@ -672,36 +652,34 @@ namespace DecodeWheaRecord.Errors {
         }
 
         [UsedImplicitly]
-        public bool ShouldSerializeAArch32GPR => _RegisterContextType == WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch32GPR;
+        public bool ShouldSerializeAArch32GPR => _RegisterContextType == WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch32GPR;
 
         [UsedImplicitly]
-        public bool ShouldSerializeAArch32EL1 => _RegisterContextType == WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch32EL1;
+        public bool ShouldSerializeAArch32EL1 => _RegisterContextType == WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch32EL1;
 
         [UsedImplicitly]
-        public bool ShouldSerializeAArch32EL2 => _RegisterContextType == WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch32EL2;
+        public bool ShouldSerializeAArch32EL2 => _RegisterContextType == WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch32EL2;
 
         [UsedImplicitly]
-        public bool ShouldSerializeAArch32Secure =>
-            _RegisterContextType == WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch32Secure;
+        public bool ShouldSerializeAArch32Secure => _RegisterContextType == WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch32Secure;
 
         [UsedImplicitly]
-        public bool ShouldSerializeAArch64GPR => _RegisterContextType == WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch64GPR;
+        public bool ShouldSerializeAArch64GPR => _RegisterContextType == WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch64GPR;
 
         [UsedImplicitly]
-        public bool ShouldSerializeAArch64EL1 => _RegisterContextType == WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch64EL1;
+        public bool ShouldSerializeAArch64EL1 => _RegisterContextType == WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch64EL1;
 
         [UsedImplicitly]
-        public bool ShouldSerializeAArch64EL2 => _RegisterContextType == WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch64EL2;
+        public bool ShouldSerializeAArch64EL2 => _RegisterContextType == WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch64EL2;
 
         [UsedImplicitly]
-        public bool ShouldSerializeAArch64EL3 => _RegisterContextType == WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch64EL3;
+        public bool ShouldSerializeAArch64EL3 => _RegisterContextType == WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch64EL3;
 
         [UsedImplicitly]
-        public bool ShouldSerializeAArchMisc => _RegisterContextType == WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArchMisc;
+        public bool ShouldSerializeAArchMisc => _RegisterContextType == WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArchMisc;
 
         [UsedImplicitly]
-        public bool ShouldSerializeAArch64TT128 =>
-            _RegisterContextType == WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE.AArch64TT128;
+        public bool ShouldSerializeAArch64TT128 => _RegisterContextType == WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch64TT128;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -1126,14 +1104,14 @@ namespace DecodeWheaRecord.Errors {
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARM_MISR_CSR {
-        // Switched to a 16-bits wide bitfield
+        // Switched to a 16-bit bitfield
         public WHEA_ARM_MISR_CSR_MRS_ENCODING MRSEncoding;
 
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Value;
     }
 
-    // Not in the Windows headers and derived from UEFI Specification R2.11
+    // Not in the Windows headers and derived from UEFI Specification 2.11
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARM_MISR_CSR_MRS_ENCODING {
         public ushort _RawBits;
@@ -1155,16 +1133,14 @@ namespace DecodeWheaRecord.Errors {
     }
 
     /*
-     * Not in the Windows headers and derived from UEFI Specification R2.11
+     * Not in the Windows headers and derived from UEFI Specification 2.11
      *
      * This implementation assumes the processor is running in little-endian
      * mode. While ARMv8 can run in big-endian mode, Windows on ARM64 always
      * runs in little-endian mode so this feels like a safe assumption.
      */
     internal sealed class WHEA_ARMV8_AARCH64_TT128 : WheaErrorRecord {
-        // Structure size is static
         private const uint StructSize = 96;
-
         public override uint GetNativeSize() => StructSize;
 
         private ulong _TTBR0_EL1_Low;
@@ -1172,42 +1148,42 @@ namespace DecodeWheaRecord.Errors {
 
         [JsonProperty(Order = 1)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public BigInteger _TTBR0_EL1;
+        public BigInteger _TTBR0_EL1 => (new BigInteger(_TTBR0_EL1_High) << 64) + _TTBR0_EL1_Low;
 
         private ulong _TTBR0_EL2_Low;
         private ulong _TTBR0_EL2_High;
 
         [JsonProperty(Order = 1)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public BigInteger _TTBR0_EL2;
+        public BigInteger _TTBR0_EL2 => (new BigInteger(_TTBR0_EL2_High) << 64) + _TTBR0_EL2_Low;
 
         private ulong _TTBR0_EL3_Low;
         private ulong _TTBR0_EL3_High;
 
         [JsonProperty(Order = 1)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public BigInteger _TTBR0_EL3;
+        public BigInteger _TTBR0_EL3 => (new BigInteger(_TTBR0_EL3_High) << 64) + _TTBR0_EL3_Low;
 
         private ulong _TTBR1_EL1_Low;
         private ulong _TTBR1_EL1_High;
 
         [JsonProperty(Order = 1)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public BigInteger _TTBR1_EL1;
+        public BigInteger _TTBR1_EL1 => (new BigInteger(_TTBR1_EL1_High) << 64) + _TTBR1_EL1_Low;
 
         private ulong _TTBR1_EL2_Low;
         private ulong _TTBR1_EL2_High;
 
         [JsonProperty(Order = 1)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public BigInteger _TTBR1_EL2;
+        public BigInteger _TTBR1_EL2 => (new BigInteger(_TTBR1_EL2_High) << 64) + _TTBR1_EL2_Low;
 
         private ulong _VTTBR_EL2_Low;
         private ulong _VTTBR_EL2_High;
 
         [JsonProperty(Order = 1)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public BigInteger _VTTBR_EL2;
+        public BigInteger _VTTBR_EL2 => (new BigInteger(_VTTBR_EL2_High) << 64) + _VTTBR_EL2_Low;
 
         public WHEA_ARMV8_AARCH64_TT128(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
             base(typeof(WHEA_ARMV8_AARCH64_TT128), structOffset, StructSize, bytesRemaining) {
@@ -1215,27 +1191,21 @@ namespace DecodeWheaRecord.Errors {
 
             _TTBR0_EL1_Low = (ulong)Marshal.ReadInt64(structAddr);
             _TTBR0_EL1_High = (ulong)Marshal.ReadInt64(structAddr, 8);
-            _TTBR0_EL1 = (new BigInteger(_TTBR0_EL1_High) << 64) + _TTBR0_EL1_Low;
 
             _TTBR0_EL2_Low = (ulong)Marshal.ReadInt64(structAddr, 16);
             _TTBR0_EL2_High = (ulong)Marshal.ReadInt64(structAddr, 24);
-            _TTBR0_EL2 = (new BigInteger(_TTBR0_EL2_High) << 64) + _TTBR0_EL2_Low;
 
             _TTBR0_EL3_Low = (ulong)Marshal.ReadInt64(structAddr, 32);
             _TTBR0_EL3_High = (ulong)Marshal.ReadInt64(structAddr, 40);
-            _TTBR0_EL3 = (new BigInteger(_TTBR0_EL3_High) << 64) + _TTBR0_EL3_Low;
 
             _TTBR1_EL1_Low = (ulong)Marshal.ReadInt64(structAddr, 48);
             _TTBR1_EL1_High = (ulong)Marshal.ReadInt64(structAddr, 56);
-            _TTBR1_EL1 = (new BigInteger(_TTBR1_EL1_High) << 64) + _TTBR1_EL1_Low;
 
             _TTBR1_EL2_Low = (ulong)Marshal.ReadInt64(structAddr, 64);
             _TTBR1_EL2_High = (ulong)Marshal.ReadInt64(structAddr, 72);
-            _TTBR1_EL2 = (new BigInteger(_TTBR1_EL2_High) << 64) + _TTBR1_EL2_Low;
 
             _VTTBR_EL2_Low = (ulong)Marshal.ReadInt64(structAddr, 80);
             _VTTBR_EL2_High = (ulong)Marshal.ReadInt64(structAddr, 88);
-            _VTTBR_EL2 = (new BigInteger(_VTTBR_EL2_High) << 64) + _VTTBR_EL2_Low;
 
             FinalizeRecord(recordAddr, StructSize);
         }
@@ -1260,7 +1230,7 @@ namespace DecodeWheaRecord.Errors {
         PhysicalFaultAddress = 0x10
     }
 
-    // Not in the Windows headers and derived from UEFI Specification R2.11
+    // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_PROCESSOR_ERROR_INFORMATION_TYPE : byte {
         Cache = 0,
         TLB   = 1,
@@ -1268,7 +1238,7 @@ namespace DecodeWheaRecord.Errors {
         MAE   = 3
     }
 
-    // Not in the Windows headers and derived from UEFI Specification R2.11
+    // Not in the Windows headers and derived from UEFI Specification 2.11
     [Flags]
     internal enum WHEA_ARM_PROCESSOR_ERROR_INFORMATION_FLAGS : byte {
         FirstErrorCaptured = 0x1,
@@ -1288,14 +1258,14 @@ namespace DecodeWheaRecord.Errors {
         RestartablePC           = 0x40
     }
 
-    // Not in the Windows headers and derived from UEFI Specification R2.11
+    // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_CACHE_ERROR_TRANSACTION_TYPE : byte {
         Instruction = 0,
         DataAccess  = 1,
         Generic     = 2
     }
 
-    // Not in the Windows headers and derived from UEFI Specification R2.11
+    // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_CACHE_ERROR_OPERATION : byte {
         Generic          = 0,
         GenericRead      = 1,
@@ -1321,14 +1291,14 @@ namespace DecodeWheaRecord.Errors {
         RestartablePC           = 0x40
     }
 
-    // Not in the Windows headers and derived from UEFI Specification R2.11
+    // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_TLB_ERROR_TRANSACTION_TYPE : byte {
         Instruction = 0,
         DataAccess  = 1,
         Generic     = 2
     }
 
-    // Not in the Windows headers and derived from UEFI Specification R2.11
+    // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_TLB_ERROR_OPERATION : byte {
         Generic              = 0,
         GenericRead          = 1,
@@ -1357,14 +1327,14 @@ namespace DecodeWheaRecord.Errors {
         AccessMode              = 0x800
     }
 
-    // Not in the Windows headers and derived from UEFI Specification R2.11
+    // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_BUS_ERROR_TRANSACTION_TYPE : byte {
         Instruction = 0,
         DataAccess  = 1,
         Generic     = 2
     }
 
-    // Not in the Windows headers and derived from UEFI Specification R2.11
+    // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_BUS_ERROR_OPERATION : byte {
         Generic          = 0,
         GenericRead      = 1,
@@ -1375,7 +1345,7 @@ namespace DecodeWheaRecord.Errors {
         Prefetch         = 6
     }
 
-    // Not in the Windows headers and derived from UEFI Specification R2.11
+    // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_BUS_ERROR_PARTICIPATION_TYPE : byte {
         ProcessorOriginated = 0,
         ProcessorResponded  = 1,
@@ -1383,21 +1353,21 @@ namespace DecodeWheaRecord.Errors {
         Generic             = 3
     }
 
-    // Not in the Windows headers and derived from UEFI Specification R2.11
+    // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_BUS_ERROR_ADDRESS_SPACE : byte {
         External = 0,
         Internal = 1,
         Device   = 2
     }
 
-    // Not in the Windows headers and derived from UEFI Specification R2.11
+    // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_BUS_ERROR_ACCESS_MODE : byte {
         Secure = 0,
         Normal = 1
     }
 
-    // Not in the Windows headers and derived from UEFI Specification R2.11
-    internal enum WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_REGISTER_CONTEXT_TYPE : ushort {
+    // Not in the Windows headers and derived from UEFI Specification 2.11
+    internal enum WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE : ushort {
         AArch32GPR    = 0,
         AArch32EL1    = 1,
         AArch32EL2    = 2,

@@ -4,6 +4,8 @@
 // ReSharper disable InconsistentNaming
 
 using System;
+using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 using DecodeWheaRecord.Internal;
@@ -15,42 +17,42 @@ using Newtonsoft.Json;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
-    /*
-     * Attempting to directly marshal as a structure results in serialization
-     * issues with Newtonsoft.Json, though I suspect the real issue is in the
-     * marshaller itself. The cause is sure to be related to the handling of
-     * the CPUVersion field, which has a different layout subject to the CPU.
-     */
     internal sealed class WHEA_PROCESSOR_GENERIC_ERROR_SECTION : WheaErrorRecord {
-        // Structure size is static
-        private const uint _StructSize = 192;
-        public override uint GetNativeSize() => _StructSize;
+        private const uint StructSize = 192;
+        public override uint GetNativeSize() => StructSize;
+
+        private const uint CPUBrandStringSize = 128;
 
         private WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS _ValidBits;
 
         [JsonProperty(Order = 1)]
         public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
 
-        private WHEA_PROCESSOR_GENERIC_TYPE _ProcessorType;
+        // Switched to an enumeration
+        private WHEA_PROCESSOR_GENERIC_PROC_TYPE _ProcessorType;
 
         [JsonProperty(Order = 2)]
-        public string ProcessorType => Enum.GetName(typeof(WHEA_PROCESSOR_GENERIC_TYPE), _ProcessorType);
+        public string ProcessorType => Enum.GetName(typeof(WHEA_PROCESSOR_GENERIC_PROC_TYPE), _ProcessorType);
 
+        // Switched to an enumeration
         private WHEA_PROCESSOR_GENERIC_ISA_TYPE _InstructionSet;
 
         [JsonProperty(Order = 3)]
         public string InstructionSet => Enum.GetName(typeof(WHEA_PROCESSOR_GENERIC_ISA_TYPE), _InstructionSet);
 
+        // Switched to an enumeration
         private WHEA_PROCESSOR_GENERIC_ERROR_TYPE _ErrorType;
 
         [JsonProperty(Order = 4)]
         public string ErrorType => Enum.GetName(typeof(WHEA_PROCESSOR_GENERIC_ERROR_TYPE), _ErrorType);
 
+        // Switched to an enumeration
         private WHEA_PROCESSOR_GENERIC_OP_TYPE _Operation;
 
         [JsonProperty(Order = 5)]
         public string Operation => Enum.GetName(typeof(WHEA_PROCESSOR_GENERIC_OP_TYPE), _Operation);
 
+        // Switched to an enumeration
         private WHEA_PROCESSOR_GENERIC_ERROR_SECTION_FLAGS _Flags;
 
         [JsonProperty(Order = 6)]
@@ -63,14 +65,68 @@ namespace DecodeWheaRecord.Errors {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Reserved;
 
+        // For when the processor type can't be determined (possible?)
         [JsonProperty(Order = 9)]
-        public WHEA_PROCESSOR_FAMILY_INFO CPUVersion; // TODO: ARM & Itanium
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong CPUVersion;
+
+        [JsonProperty(Order = 9)]
+        public WHEA_PROCESSOR_FAMILY_INFO CPUVersionXPF;
+
+        // Future: Decode the returned CPUID data
+        [JsonProperty(Order = 9)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong CPUVersionIPF;
+
+        // Future: Decode the returned MIDR_EL1 data
+        [JsonProperty(Order = 9)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong CPUVersionARM;
+
+        // For when the processor type can't be determined (possible?)
+        [JsonProperty(Order = 10)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public byte[] CPUBrandString;
+
+        private string _CPUBrandStringXPF;
 
         [JsonProperty(Order = 10)]
-        public string CPUBrandString; // TODO: ARM & Itanium
+        public string CPUBrandStringXPF => _CPUBrandStringXPF.TrimEnd('\0');
 
+        // Future: Decode the returned PAL_BRAND_INFO data
+        [JsonProperty(Order = 10)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public byte[] CPUBrandStringIPF;
+
+        // Optional for ARM processors
+        private byte[] _CPUBrandStringARM;
+
+        [JsonProperty(Order = 10)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public byte[] CPUBrandStringARM => _CPUBrandStringARM.Any(element => element != 0) ? _CPUBrandStringARM : new byte[] { 0 };
+
+        // For when the processor type can't be determined (possible?)
         [JsonProperty(Order = 11)]
-        public ulong ProcessorId; // TODO: ARM & Itanium
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong ProcessorId;
+
+        // Local APIC ID register
+        private ulong _ProcessorIdXPF;
+
+        // Although the field is 64-bits the Local APIC ID is 32-bits
+        [JsonProperty(Order = 11)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public uint ProcessorIdXPF => (uint)_ProcessorIdXPF;
+
+        // Future: Decode the returned LID register
+        [JsonProperty(Order = 11)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong ProcessorIdIPF;
+
+        // Future: Decode the returned MPIDR_EL1 register
+        [JsonProperty(Order = 11)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong ProcessorIdARM;
 
         [JsonProperty(Order = 12)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -88,144 +144,177 @@ namespace DecodeWheaRecord.Errors {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong InstructionPointer;
 
-        private void WheaProcessorGenericErrorSection(IntPtr recordAddr, uint sectionOffset, uint bytesRemaining) {
-            var sectionAddr = recordAddr + (int)sectionOffset;
+        public WHEA_PROCESSOR_GENERIC_ERROR_SECTION(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEA_PROCESSOR_GENERIC_ERROR_SECTION), structOffset, StructSize, bytesRemaining) {
+            WheaProcessorGenericErrorSection(recordAddr, structOffset, bytesRemaining);
+        }
+
+        public WHEA_PROCESSOR_GENERIC_ERROR_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
+            base(sectionDsc, typeof(WHEA_PROCESSOR_GENERIC_ERROR_SECTION), StructSize, bytesRemaining) {
+            WheaProcessorGenericErrorSection(recordAddr, sectionDsc.SectionOffset, bytesRemaining);
+        }
+
+        private void WheaProcessorGenericErrorSection(IntPtr recordAddr, uint structOffset, uint bytesRemaining) {
+            var logCat = SectionType.Name;
+            var sectionAddr = recordAddr + (int)structOffset;
 
             _ValidBits = (WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(sectionAddr);
-            _ProcessorType = (WHEA_PROCESSOR_GENERIC_TYPE)Marshal.ReadByte(sectionAddr, 8);
+            _ProcessorType = (WHEA_PROCESSOR_GENERIC_PROC_TYPE)Marshal.ReadByte(sectionAddr, 8);
             _InstructionSet = (WHEA_PROCESSOR_GENERIC_ISA_TYPE)Marshal.ReadByte(sectionAddr, 9);
             _ErrorType = (WHEA_PROCESSOR_GENERIC_ERROR_TYPE)Marshal.ReadByte(sectionAddr, 10);
             _Operation = (WHEA_PROCESSOR_GENERIC_OP_TYPE)Marshal.ReadByte(sectionAddr, 11);
             _Flags = (WHEA_PROCESSOR_GENERIC_ERROR_SECTION_FLAGS)Marshal.ReadByte(sectionAddr, 12);
             Level = Marshal.ReadByte(sectionAddr, 13);
+
             Reserved = (ushort)Marshal.ReadInt16(sectionAddr, 14);
-            var offset = 16;
-
-            CPUVersion = new WHEA_PROCESSOR_FAMILY_INFO(recordAddr,
-                                                        SectionDsc.SectionOffset + (uint)offset,
-                                                        bytesRemaining - (uint)offset,
-                                                        ShouldSerializeNativeModelId());
-            offset += (int)CPUVersion.GetNativeSize();
-
-            CPUBrandString = Marshal.PtrToStringAnsi(sectionAddr + offset, 128);
-            offset += 128;
-
-            ProcessorId = (ulong)Marshal.ReadInt64(sectionAddr, offset);
-            TargetAddress = (ulong)Marshal.ReadInt64(sectionAddr, offset + 8);
-            RequesterId = (ulong)Marshal.ReadInt64(sectionAddr, offset + 16);
-            ResponderId = (ulong)Marshal.ReadInt64(sectionAddr, offset + 24);
-            InstructionPointer = (ulong)Marshal.ReadInt64(sectionAddr, offset + 32);
-
-            FinalizeRecord(recordAddr, _StructSize);
-        }
-
-        public WHEA_PROCESSOR_GENERIC_ERROR_SECTION(IntPtr recordAddr, uint sectionOffset, uint bytesRemaining) :
-            base(typeof(WHEA_PROCESSOR_GENERIC_ERROR_SECTION), sectionOffset, _StructSize, bytesRemaining) {
-            WheaProcessorGenericErrorSection(recordAddr, sectionOffset, bytesRemaining);
-        }
-
-        public WHEA_PROCESSOR_GENERIC_ERROR_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
-            base(sectionDsc, typeof(WHEA_PROCESSOR_GENERIC_ERROR_SECTION), _StructSize, bytesRemaining) {
-            WheaProcessorGenericErrorSection(recordAddr, sectionDsc.SectionOffset, bytesRemaining);
-        }
-
-        [UsedImplicitly]
-        public bool ShouldSerializeProcessorType() =>
-            (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ProcessorType) ==
-            WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ProcessorType;
-
-        [UsedImplicitly]
-        public bool ShouldSerializeInstructionSet() =>
-            (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.InstructionSet) ==
-            WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.InstructionSet;
-
-        [UsedImplicitly]
-        public bool ShouldSerializeErrorType() =>
-            (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ErrorType) ==
-            WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ErrorType;
-
-        [UsedImplicitly]
-        public bool ShouldSerializeOperation() =>
-            (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.Operation) ==
-            WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.Operation;
-
-        [UsedImplicitly]
-        public bool ShouldSerializeFlags() =>
-            (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.Flags) ==
-            WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.Flags;
-
-        [UsedImplicitly]
-        public bool ShouldSerializeLevel() =>
-            (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.Level) ==
-            WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.Level;
-
-        [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
-
-        [UsedImplicitly]
-        public bool ShouldSerializeCPUVersion() {
-            if ((_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUVersion) !=
-                WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUVersion) {
-                return false;
+            if (Reserved != 0) {
+                WarnOutput($"{nameof(Reserved)} field is non-zero.", logCat);
             }
 
-            return ShouldSerializeProcessorType() && _ProcessorType == WHEA_PROCESSOR_GENERIC_TYPE.XPF;
+            if (ShouldSerializeProcessorType()) {
+                switch (_ProcessorType) {
+                    case WHEA_PROCESSOR_GENERIC_PROC_TYPE.XPF:
+                        CPUVersionXPF = new WHEA_PROCESSOR_FAMILY_INFO(recordAddr,
+                                                                       structOffset + 16,
+                                                                       bytesRemaining - 16,
+                                                                       ShouldSerializeNativeModelId());
+
+                        _CPUBrandStringXPF = Marshal.PtrToStringAnsi(sectionAddr + 24, (int)CPUBrandStringSize);
+                        _ProcessorIdXPF = (ulong)Marshal.ReadInt64(sectionAddr, 24 + (int)CPUBrandStringSize);
+                        break;
+                    case WHEA_PROCESSOR_GENERIC_PROC_TYPE.IPF:
+                        CPUVersionIPF = (ulong)Marshal.ReadInt64(sectionAddr, 16);
+
+                        CPUBrandStringIPF = new byte[CPUBrandStringSize];
+                        Marshal.Copy(sectionAddr + 24, CPUBrandStringIPF, 0, CPUBrandStringIPF.Length);
+
+                        ProcessorIdIPF = (ulong)Marshal.ReadInt64(sectionAddr, 24 + (int)CPUBrandStringSize);
+                        break;
+                    case WHEA_PROCESSOR_GENERIC_PROC_TYPE.ARM:
+                        CPUVersionARM = (ulong)Marshal.ReadInt64(sectionAddr, 16);
+
+                        _CPUBrandStringARM = new byte[CPUBrandStringSize];
+                        Marshal.Copy(sectionAddr + 24, _CPUBrandStringARM, 0, _CPUBrandStringARM.Length);
+
+                        ProcessorIdARM = (ulong)Marshal.ReadInt64(sectionAddr, 24 + (int)CPUBrandStringSize);
+                        break;
+                    default:
+                        throw new InvalidDataException($"{nameof(ProcessorType)} is unknown or invalid: {_ProcessorType}");
+                }
+            } else {
+                CPUVersion = (ulong)Marshal.ReadInt64(sectionAddr, 16);
+                if (ShouldSerializeCPUVersion()) {
+                    WarnOutput($"{nameof(CPUVersion)} will be output raw as {nameof(ProcessorType)} is not marked valid.", logCat);
+                }
+
+                CPUBrandString = new byte[CPUBrandStringSize];
+                Marshal.Copy(sectionAddr + 24, CPUBrandString, 0, CPUBrandString.Length);
+                if (ShouldSerializeCPUBrandString()) {
+                    WarnOutput($"{nameof(CPUBrandString)} will be output raw as {nameof(ProcessorType)} is not marked valid.", logCat);
+                }
+
+                ProcessorId = (ulong)Marshal.ReadInt64(sectionAddr, 24 + (int)CPUBrandStringSize);
+                if (ShouldSerializeProcessorId()) {
+                    WarnOutput($"{nameof(ProcessorId)} will be output raw as {nameof(ProcessorType)} is not marked valid.", logCat);
+                }
+            }
+
+            TargetAddress = (ulong)Marshal.ReadInt64(sectionAddr, 160);
+            RequesterId = (ulong)Marshal.ReadInt64(sectionAddr, 168);
+            ResponderId = (ulong)Marshal.ReadInt64(sectionAddr, 176);
+            InstructionPointer = (ulong)Marshal.ReadInt64(sectionAddr, 184);
+
+            FinalizeRecord(recordAddr, StructSize);
         }
 
         [UsedImplicitly]
-        public bool ShouldSerializeCPUBrandString() =>
-            (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUBrandString) ==
-            WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUBrandString;
+        public bool ShouldSerializeProcessorType() => (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ProcessorType) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeProcessorId() =>
-            (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ProcessorId) ==
-            WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ProcessorId;
+        public bool ShouldSerializeInstructionSet() => (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.InstructionSet) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeTargetAddress() =>
-            (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.TargetAddress) ==
-            WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.TargetAddress;
+        public bool ShouldSerializeErrorType() => (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ErrorType) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeRequesterId() =>
-            (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.RequesterId) ==
-            WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.RequesterId;
+        public bool ShouldSerializeOperation() => (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.Operation) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeResponderId() =>
-            (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ResponderId) ==
-            WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ResponderId;
+        public bool ShouldSerializeFlags() => (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.Flags) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeInstructionPointer() =>
-            (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.InstructionPointer) ==
-            WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.InstructionPointer;
+        public bool ShouldSerializeLevel() => (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.Level) != 0;
 
-        /*
-         * Only used internally to support marshalling of the
-         * WHEA_PROCESSOR_FAMILY_INFO structure.
-         */
-        private bool ShouldSerializeNativeModelId() {
-            return (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.NativeModelId) ==
-                   WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.NativeModelId;
-        }
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
+
+        private bool IsCPUVersionValid() => (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUVersion) != 0;
+
+        private bool SerializeCPUVersionByType() => IsCPUVersionValid() && ShouldSerializeProcessorType();
+
+        [UsedImplicitly]
+        public bool ShouldSerializeCPUVersion() => IsCPUVersionValid() && !ShouldSerializeProcessorType();
+
+        [UsedImplicitly]
+        public bool ShouldSerializeCPUVersionXPF() => SerializeCPUVersionByType() && _ProcessorType == WHEA_PROCESSOR_GENERIC_PROC_TYPE.XPF;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeCPUVersionIPF() => SerializeCPUVersionByType() && _ProcessorType == WHEA_PROCESSOR_GENERIC_PROC_TYPE.IPF;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeCPUVersionARM() => SerializeCPUVersionByType() && _ProcessorType == WHEA_PROCESSOR_GENERIC_PROC_TYPE.ARM;
+
+        private bool IsCPUBrandStringValid() => (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.CPUBrandString) != 0;
+
+        private bool SerializeCPUBrandStringByType() => IsCPUBrandStringValid() && ShouldSerializeProcessorType();
+
+        [UsedImplicitly]
+        public bool ShouldSerializeCPUBrandString() => IsCPUBrandStringValid() && !ShouldSerializeProcessorType();
+
+        [UsedImplicitly]
+        public bool ShouldSerializeCPUBrandStringXPF() => SerializeCPUBrandStringByType() && _ProcessorType == WHEA_PROCESSOR_GENERIC_PROC_TYPE.XPF;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeCPUBrandStringIPF() => SerializeCPUBrandStringByType() && _ProcessorType == WHEA_PROCESSOR_GENERIC_PROC_TYPE.IPF;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeCPUBrandStringARM() => SerializeCPUBrandStringByType() && _ProcessorType == WHEA_PROCESSOR_GENERIC_PROC_TYPE.ARM;
+
+        private bool IsProcessorIdValid() => (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ProcessorId) != 0;
+
+        private bool SerializeProcessorIdByType() => IsProcessorIdValid() && ShouldSerializeProcessorType();
+
+        [UsedImplicitly]
+        public bool ShouldSerializeProcessorId() => IsProcessorIdValid() && !ShouldSerializeProcessorType();
+
+        [UsedImplicitly]
+        public bool ShouldSerializeProcessorIdXPF() => SerializeProcessorIdByType() && _ProcessorType == WHEA_PROCESSOR_GENERIC_PROC_TYPE.XPF;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeProcessorIdIPF() => SerializeProcessorIdByType() && _ProcessorType == WHEA_PROCESSOR_GENERIC_PROC_TYPE.IPF;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeProcessorIdARM() => SerializeProcessorIdByType() && _ProcessorType == WHEA_PROCESSOR_GENERIC_PROC_TYPE.ARM;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeTargetAddress() => (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.TargetAddress) != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeRequesterId() => (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.RequesterId) != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeResponderId() => (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.ResponderId) != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeInstructionPointer() => (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.InstructionPointer) != 0;
+
+        // Supports marshalling of the WHEA_PROCESSOR_FAMILY_INFO structure
+        private bool ShouldSerializeNativeModelId() => (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.NativeModelId) != 0;
     }
 
-    /*
-     * Originally defined as a structure with the first ULONG field being a
-     * bitfield. This structure has the same in memory format but is simpler
-     * to interact with.
-     *
-     * Cannot be directly marshalled as a structure as the validity of the
-     * NativeModelId field is determined by the ValidBits field of the parent
-     * encapsulating structure. When marshalling this structure the validity
-     * information is stored which changes the memory layout.
-     */
     internal sealed class WHEA_PROCESSOR_FAMILY_INFO : WheaErrorRecord {
-        // Structure size is static
-        private const uint _StructSize = 8;
-        public override uint GetNativeSize() => _StructSize;
+        private const uint StructSize = 8;
+        public override uint GetNativeSize() => StructSize;
 
         private bool _serializeNativeModelId;
 
@@ -235,23 +324,23 @@ namespace DecodeWheaRecord.Errors {
         public byte Stepping => (byte)(_ProcInfo & 0xF); // Bits 0-3
 
         [JsonProperty(Order = 2)]
-        public byte Model => (byte)((_ProcInfo & 0xF0) >> 4); // Bits 4-7
+        public byte Model => (byte)((_ProcInfo >> 4) & 0xF); // Bits 4-7
 
         [JsonProperty(Order = 3)]
-        public byte Family => (byte)((_ProcInfo & 0xF00) >> 8); // Bits 8-11
+        public byte Family => (byte)((_ProcInfo >> 8) & 0xF); // Bits 8-11
 
         [JsonProperty(Order = 4)]
-        public byte ProcessorType => (byte)((_ProcInfo & 0x3000) >> 12); // Bits 12-13
+        public byte ProcessorType => (byte)((_ProcInfo >> 12) & 0x3); // Bits 12-13
 
         [JsonProperty(Order = 5)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public byte Reserved1 => (byte)((_ProcInfo & 0xC000) >> 14); // Bits 14-15
+        public byte Reserved1 => (byte)((_ProcInfo >> 14) & 0x3); // Bits 14-15
 
         [JsonProperty(Order = 6)]
-        public byte ExtendedModel => (byte)((_ProcInfo & 0xF0000) >> 16); // Bits 16-19
+        public byte ExtendedModel => (byte)((_ProcInfo >> 16) & 0xF); // Bits 16-19
 
         [JsonProperty(Order = 7)]
-        public byte ExtendedFamily => (byte)((_ProcInfo & 0xFF00000) >> 20); // Bits 20-27
+        public byte ExtendedFamily => (byte)(_ProcInfo >> 20); // Bits 20-27
 
         [JsonProperty(Order = 8)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -260,38 +349,39 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 9)]
         public uint NativeModelId;
 
-        public WHEA_PROCESSOR_FAMILY_INFO(IntPtr recordAddr, uint procFamilyInfoOffset, uint bytesRemaining, bool serializeNativeModelId) :
-            base(typeof(WHEA_PROCESSOR_FAMILY_INFO), procFamilyInfoOffset, _StructSize, bytesRemaining) {
-            var procFamilyInfoAddr = recordAddr + (int)procFamilyInfoOffset;
+        public WHEA_PROCESSOR_FAMILY_INFO(IntPtr recordAddr, uint structOffset, uint bytesRemaining, bool serializeNativeModelId) :
+            base(typeof(WHEA_PROCESSOR_FAMILY_INFO), structOffset, StructSize, bytesRemaining) {
+            var logCat = SectionType.Name;
+            var structAddr = recordAddr + (int)structOffset;
 
-            _ProcInfo = (uint)Marshal.ReadInt32(procFamilyInfoAddr);
-            NativeModelId = (uint)Marshal.ReadInt32(procFamilyInfoAddr, 4);
+            _ProcInfo = (uint)Marshal.ReadInt32(structAddr);
+
+            if (Reserved1 != 0) {
+                WarnOutput($"{nameof(Reserved1)} field is non-zero.", logCat);
+            }
+
+            if (Reserved2 != 0) {
+                WarnOutput($"{nameof(Reserved2)} field is non-zero.", logCat);
+            }
+
+            NativeModelId = (uint)Marshal.ReadInt32(structAddr, 4);
 
             _serializeNativeModelId = serializeNativeModelId;
 
-            FinalizeRecord(recordAddr, _StructSize);
+            FinalizeRecord(recordAddr, StructSize);
         }
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved1() => IsDebugBuild();
+        public bool ShouldSerializeReserved1() => Reserved1 != 0;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved2() => IsDebugBuild();
+        public bool ShouldSerializeReserved2() => Reserved2 != 0;
 
         [UsedImplicitly]
         public bool ShouldSerializeNativeModelId() => _serializeNativeModelId;
     }
 
     // @formatter:int_align_fields true
-
-    // From preprocessor definitions (GENPROC_FLAGS_*)
-    [Flags]
-    internal enum WHEA_PROCESSOR_GENERIC_ERROR_SECTION_FLAGS : byte {
-        Restartable = 0x1,
-        PreciseIP   = 0x2,
-        Overflow    = 0x4,
-        Corrected   = 0x8
-    }
 
     [Flags]
     internal enum WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS : ulong {
@@ -308,10 +398,26 @@ namespace DecodeWheaRecord.Errors {
         RequesterId        = 0x400,
         ResponderId        = 0x800,
         InstructionPointer = 0x1000,
-        NativeModelId      = 0x2000
+        NativeModelId      = 0x2000 // Not in UEFI specification
     }
 
-    // From preprocessor definitions (GENPROC_PROCERRTYPE_*)
+    // From GENPROC_PROCTYPE preprocessor definitions
+    internal enum WHEA_PROCESSOR_GENERIC_PROC_TYPE : byte {
+        XPF = 0,
+        IPF = 1,
+        ARM = 2
+    }
+
+    // From GENPROC_PROCISA preprocessor definitions
+    internal enum WHEA_PROCESSOR_GENERIC_ISA_TYPE : byte {
+        X86   = 0,
+        IPF   = 1,
+        X64   = 2,
+        ARM32 = 3, // Windows headers incorrectly set to 4
+        ARM64 = 4  // Windows headers incorrectly set to 8
+    }
+
+    // From GENPROC_PROCERRTYPE preprocessor definitions
     internal enum WHEA_PROCESSOR_GENERIC_ERROR_TYPE : byte {
         Unknown = 0,
         Cache   = 1,
@@ -320,16 +426,7 @@ namespace DecodeWheaRecord.Errors {
         MAE     = 8
     }
 
-    // From preprocessor definitions (GENPROC_PROCISA_*)
-    internal enum WHEA_PROCESSOR_GENERIC_ISA_TYPE : byte {
-        X86   = 0,
-        IPF   = 1,
-        X64   = 2,
-        ARM32 = 4,
-        ARM64 = 8
-    }
-
-    // From preprocessor definitions (GENPROC_OP_*)
+    // From GENPROC_OP preprocessor definitions
     internal enum WHEA_PROCESSOR_GENERIC_OP_TYPE : byte {
         Generic        = 0,
         DataRead       = 1,
@@ -337,11 +434,13 @@ namespace DecodeWheaRecord.Errors {
         InstructionExe = 3
     }
 
-    // From preprocessor definitions (GENPROC_PROCTYPE_*)
-    internal enum WHEA_PROCESSOR_GENERIC_TYPE : byte {
-        XPF = 0,
-        IPF = 1,
-        ARM = 2
+    // From GENPROC_FLAGS preprocessor definitions
+    [Flags]
+    internal enum WHEA_PROCESSOR_GENERIC_ERROR_SECTION_FLAGS : byte {
+        Restartable = 0x1,
+        PreciseIP   = 0x2,
+        Overflow    = 0x4,
+        Corrected   = 0x8
     }
 
     // @formatter:int_align_fields false

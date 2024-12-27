@@ -21,11 +21,11 @@ using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
     internal sealed class WHEA_XPF_PROCESSOR_ERROR_SECTION : WheaErrorRecord {
-        // Size up to and including the CpuId field
-        private const uint MinStructSize = 64;
-
         private uint _StructSize;
         public override uint GetNativeSize() => _StructSize;
+
+        // Size up to and including the CpuId field
+        private const uint MinStructSize = 64;
 
         // See WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS structure comment
         private ulong _RawValidBits;
@@ -46,7 +46,7 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 4)]
         public ulong LocalAPICId;
 
-        // Future: Consider parsing and deserializing
+        // Future: Decode the returned CPUID data
         [JsonProperty(Order = 5)]
         [JsonConverter(typeof(HexStringJsonConverter))]
         public byte[] CpuId = new byte[48];
@@ -84,7 +84,7 @@ namespace DecodeWheaRecord.Errors {
                                                                sectionDsc.SectionOffset + (uint)offset,
                                                                sectionDsc.SectionLength - (uint)offset);
 
-                    // Padding for when the size is not a multiple of 16 bytes
+                    // Pad when the size is not a multiple of 16 bytes
                     var ctxInfoStructSize = ContextInfo[i].GetNativeSize();
                     var ctxInfoStructPad = ctxInfoStructSize % 16;
                     offset += (int)(ctxInfoStructSize + ctxInfoStructPad);
@@ -103,6 +103,9 @@ namespace DecodeWheaRecord.Errors {
     }
 
     internal sealed class WHEA_XPF_PROCINFO : WheaErrorRecord {
+        private const uint StructSize = 64;
+        public override uint GetNativeSize() => StructSize;
+
         /*
          * Processor check info types
          */
@@ -117,11 +120,6 @@ namespace DecodeWheaRecord.Errors {
             { WHEA_MSCHECK_GUID, "Microarchitecture-specific" },
             { WHEA_TLBCHECK_GUID, "Translation Lookaside Buffer" }
         };
-
-        // Structure size is static
-        private const uint _StructSize = 64;
-
-        public override uint GetNativeSize() => _StructSize;
 
         private Guid _CheckInfoId;
 
@@ -169,13 +167,13 @@ namespace DecodeWheaRecord.Errors {
         public ulong InstructionPointer;
 
         public WHEA_XPF_PROCINFO(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
-            base(typeof(WHEA_XPF_PROCINFO), structOffset, _StructSize, bytesRemaining) {
+            base(typeof(WHEA_XPF_PROCINFO), structOffset, StructSize, bytesRemaining) {
             var structAddr = recordAddr + (int)structOffset;
 
             _CheckInfoId = Marshal.PtrToStructure<Guid>(structAddr);
             _ValidBits = (WHEA_XPF_PROCINFO_VALIDBITS)Marshal.ReadInt64(structAddr, 16);
 
-            if (ShouldSerializeCheckInfo()) {
+            if (IsCheckInfoValid()) {
                 if (_CheckInfoId == WHEA_CACHECHECK_GUID) {
                     CacheCheck = Marshal.PtrToStructure<WHEA_XPF_CACHE_CHECK>(structAddr + 24);
                 } else if (_CheckInfoId == WHEA_TLBCHECK_GUID) {
@@ -194,23 +192,22 @@ namespace DecodeWheaRecord.Errors {
             ResponderId = (ulong)Marshal.ReadInt64(structAddr, 48);
             InstructionPointer = (ulong)Marshal.ReadInt64(structAddr, 56);
 
-            FinalizeRecord(recordAddr, _StructSize);
+            FinalizeRecord(recordAddr, StructSize);
         }
 
-        // Gate access to the CheckInfo fields (Cache, TLB, Bus, and MS)
-        private bool ShouldSerializeCheckInfo() => (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.CheckInfo) != 0;
+        private bool IsCheckInfoValid() => (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.CheckInfo) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeCacheCheck() => ShouldSerializeCheckInfo() && _CheckInfoId == WHEA_CACHECHECK_GUID;
+        public bool ShouldSerializeCacheCheck() => IsCheckInfoValid() && _CheckInfoId == WHEA_CACHECHECK_GUID;
 
         [UsedImplicitly]
-        public bool ShouldSerializeTlbCheck() => ShouldSerializeCheckInfo() && _CheckInfoId == WHEA_TLBCHECK_GUID;
+        public bool ShouldSerializeTlbCheck() => IsCheckInfoValid() && _CheckInfoId == WHEA_TLBCHECK_GUID;
 
         [UsedImplicitly]
-        public bool ShouldSerializeBusCheck() => ShouldSerializeCheckInfo() && _CheckInfoId == WHEA_BUSCHECK_GUID;
+        public bool ShouldSerializeBusCheck() => IsCheckInfoValid() && _CheckInfoId == WHEA_BUSCHECK_GUID;
 
         [UsedImplicitly]
-        public bool ShouldSerializeMsCheck() => ShouldSerializeCheckInfo() && _CheckInfoId == WHEA_MSCHECK_GUID;
+        public bool ShouldSerializeMsCheck() => IsCheckInfoValid() && _CheckInfoId == WHEA_MSCHECK_GUID;
 
         [UsedImplicitly]
         public bool ShouldSerializeTargetId() => (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.TargetId) != 0;
@@ -225,7 +222,6 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeInstructionPointer() => (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.InstructionPointer) != 0;
     }
 
-    // Originally a 64-bits wide bitfield
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_XPF_CACHE_CHECK {
         private ulong _RawBits;
@@ -237,7 +233,7 @@ namespace DecodeWheaRecord.Errors {
 
         // Switched to an enumeration
         [JsonProperty(Order = 2)]
-        public string TransactionType => Enum.GetName(typeof(WHEA_XPF_CACHE_CHECK_TRANSACTIONTYPE), (byte)((_RawBits >> 16) & 0x3)); // Bits 16-17
+        public string TransactionType => Enum.GetName(typeof(WHEA_XPF_CACHE_CHECK_TRANSACTION_TYPE), (byte)((_RawBits >> 16) & 0x3)); // Bits 16-17
 
         // Switched to an enumeration
         [JsonProperty(Order = 3)]
@@ -286,7 +282,6 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeOverflow() => (_ValidBits & WHEA_XPF_CACHE_CHECK_VALIDBITS.OverflowValid) != 0;
     }
 
-    // Originally a 64-bits wide bitfield
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_XPF_TLB_CHECK {
         private ulong _RawBits;
@@ -298,7 +293,7 @@ namespace DecodeWheaRecord.Errors {
 
         // Switched to an enumeration
         [JsonProperty(Order = 2)]
-        public string TransactionType => Enum.GetName(typeof(WHEA_XPF_TLB_CHECK_TRANSACTIONTYPE), (byte)((_RawBits >> 16) & 0x3)); // Bits 16-17
+        public string TransactionType => Enum.GetName(typeof(WHEA_XPF_TLB_CHECK_TRANSACTION_TYPE), (byte)((_RawBits >> 16) & 0x3)); // Bits 16-17
 
         // Switched to an enumeration
         [JsonProperty(Order = 3)]
@@ -347,7 +342,6 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeOverflow() => (_ValidBits & WHEA_XPF_TLB_CHECK_VALIDBITS.OverflowValid) != 0;
     }
 
-    // Originally a 64-bits wide bitfield
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_XPF_BUS_CHECK {
         private ulong _RawBits;
@@ -359,7 +353,7 @@ namespace DecodeWheaRecord.Errors {
 
         // Switched to an enumeration
         [JsonProperty(Order = 2)]
-        public string TransactionType => Enum.GetName(typeof(WHEA_XPF_BUS_CHECK_TRANSACTIONTYPE), (byte)((_RawBits >> 16) & 0x3)); // Bits 16-17
+        public string TransactionType => Enum.GetName(typeof(WHEA_XPF_BUS_CHECK_TRANSACTION_TYPE), (byte)((_RawBits >> 16) & 0x3)); // Bits 16-17
 
         // Switched to an enumeration
         [JsonProperty(Order = 3)]
@@ -428,7 +422,6 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeAddressSpace() => (_ValidBits & WHEA_XPF_BUS_CHECK_VALIDBITS.AddressSpaceValid) != 0;
     }
 
-    // Originally a 64-bits wide bitfield
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_XPF_MS_CHECK {
         private ulong _RawBits;
@@ -440,7 +433,7 @@ namespace DecodeWheaRecord.Errors {
 
         // Switched to an enumeration
         [JsonProperty(Order = 2)]
-        public string ErrorType => Enum.GetName(typeof(WHEA_XPF_MS_CHECK_ERRORTYPE), (byte)((_RawBits >> 16) & 0x7)); // Bits 16-18
+        public string ErrorType => Enum.GetName(typeof(WHEA_XPF_MS_CHECK_ERROR_TYPE), (byte)((_RawBits >> 16) & 0x7)); // Bits 16-18
 
         [JsonProperty(Order = 3)]
         public bool ProcessorContextCorrupt => ((_RawBits >> 25) & 0x1) == 1; // Bit 19
@@ -477,11 +470,11 @@ namespace DecodeWheaRecord.Errors {
     }
 
     internal sealed class WHEA_XPF_CONTEXT_INFO : WheaErrorRecord {
-        // Size up to and including the MmRegisterAddress field
-        private const uint MinStructSize = 16;
-
         private uint _StructSize;
         public override uint GetNativeSize() => _StructSize;
+
+        // Size up to and including the MmRegisterAddress field
+        private const uint MinStructSize = 16;
 
         // Switched to an enumeration
         private WHEA_XPF_CONTEXT_INFO_TYPE _RegisterContextType;
@@ -568,12 +561,7 @@ namespace DecodeWheaRecord.Errors {
 
                     break;
 
-                /*
-                 * Future: Consider parsing and deserializing
-                 *
-                 * This appears to be non-trivial so for now we treat it the
-                 * same as unclassified data (just a raw and opaque buffer).
-                 */
+                // Future: Decode registers returned by FXSAVE instruction
                 case WHEA_XPF_CONTEXT_INFO_TYPE.FxSave:
                 case WHEA_XPF_CONTEXT_INFO_TYPE.UnclassifiedData:
                     RegisterDataRaw = new byte[RegisterDataSize];
@@ -797,25 +785,29 @@ namespace DecodeWheaRecord.Errors {
         public ushort Tr;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA128A {
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Low;
-        public long High;
+
+        // Originally a signed 64-bit integer (LONG)
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong High;
     }
 
     // @formatter:int_align_fields true
 
     /*
-     * Despite being a 64-bits wide bitfield only the first two bits are flags.
-     * The next 12 bits consist of two 6-bit integers while the remaining bits
-     * are all reserved. Reading of the two 6-bit integers is handled in the
-     * parent structure, which means you'll want to do a bitwise AND between
-     * the ulong variable storing these bits and the value 0x3 before passing
-     * the variable to GetEnabledFlagsAsString() or any other method that will
-     * check for non-zero bits that don't exist in the enumeration.
+     * Despite being a 64-bit bitfield only the first two bits are flags. The
+     * next 12 bits consist of two 6-bit integers, while the remaining bits are
+     * all reserved. The two 6-bit integers are handled in the parent structure
+     * which means a bitwise AND between the ulong variable storing these bits
+     * and an appropriate mask must be performed before passing the variable to
+     * GetEnabledFlagsAsString() or any other method that will check for bits
+     * which are set but don't exist in the enumeration.
      */
     [Flags]
     internal enum WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS : ulong {
@@ -846,7 +838,7 @@ namespace DecodeWheaRecord.Errors {
     }
 
     // From XPF_CACHE_CHECK_TRANSACTIONTYPE preprocessor definitions
-    internal enum WHEA_XPF_CACHE_CHECK_TRANSACTIONTYPE : byte {
+    internal enum WHEA_XPF_CACHE_CHECK_TRANSACTION_TYPE : byte {
         Instruction = 0,
         DataAccess  = 1,
         Generic     = 2
@@ -879,7 +871,7 @@ namespace DecodeWheaRecord.Errors {
     }
 
     // From XPF_TLB_CHECK_TRANSACTIONTYPE preprocessor definitions
-    internal enum WHEA_XPF_TLB_CHECK_TRANSACTIONTYPE : byte {
+    internal enum WHEA_XPF_TLB_CHECK_TRANSACTION_TYPE : byte {
         Instruction = 0,
         DataAccess  = 1,
         Generic     = 2
@@ -913,7 +905,7 @@ namespace DecodeWheaRecord.Errors {
     }
 
     // From XPF_BUS_CHECK_TRANSACTIONTYPE preprocessor definitions
-    internal enum WHEA_XPF_BUS_CHECK_TRANSACTIONTYPE : byte {
+    internal enum WHEA_XPF_BUS_CHECK_TRANSACTION_TYPE : byte {
         Instruction = 0,
         DataAccess  = 1,
         Generic     = 2
@@ -958,7 +950,7 @@ namespace DecodeWheaRecord.Errors {
     }
 
     // From XPF_MS_CHECK_ERRORTYPE preprocessor definitions
-    internal enum WHEA_XPF_MS_CHECK_ERRORTYPE : byte {
+    internal enum WHEA_XPF_MS_CHECK_ERROR_TYPE : byte {
         NoError              = 0,
         Unclassified         = 1,
         McRomParity          = 2,
