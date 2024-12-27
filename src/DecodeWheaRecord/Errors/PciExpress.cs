@@ -156,18 +156,21 @@ namespace DecodeWheaRecord.Errors {
             ShouldSerializeAerInfo() && AerInfoUnusedBytes != null && AerInfoUnusedBytes.Any(element => element != 0);
     }
 
+    // Structure size: 4 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PCIEXPRESS_BRIDGE_CONTROL_STATUS {
         public ushort BridgeSecondaryStatus;
         public ushort BridgeControl;
     }
 
+    // Structure size: 4 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PCIEXPRESS_COMMAND_STATUS {
         public ushort Command;
         public ushort Status;
     }
 
+    // Structure size: 24 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PCIEXPRESS_DEVICE_ID {
         [JsonProperty(Order = 1)]
@@ -208,7 +211,7 @@ namespace DecodeWheaRecord.Errors {
 
         [JsonProperty(Order = 11)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public byte Reserved2;
+        public ulong Reserved2;
 
         [UsedImplicitly]
         public bool ShouldSerializeReserved1() => Reserved1 != 0;
@@ -217,6 +220,7 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeReserved2() => Reserved2 != 0;
     }
 
+    // Structure size: 4 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PCIEXPRESS_VERSION {
         public byte MinorVersion;

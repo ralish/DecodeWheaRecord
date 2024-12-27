@@ -64,7 +64,6 @@ namespace DecodeWheaRecord.Errors {
             _RawValidBits = (ulong)Marshal.ReadInt64(sectionAddr);
             LocalAPICId = (ulong)Marshal.ReadInt64(sectionAddr, 8);
             Marshal.Copy(sectionAddr + 16, CpuId, 0, CpuId.Length);
-
             var offset = 64;
 
             ProcInfo = new WHEA_XPF_PROCINFO[ProcInfoCount];
@@ -630,6 +629,7 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeRegisterDataContext64() => _RegisterContextType == WHEA_XPF_CONTEXT_INFO_TYPE.ContextX64;
     }
 
+    // Structure size: 92 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_X86_REGISTER_STATE {
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -708,6 +708,7 @@ namespace DecodeWheaRecord.Errors {
         public ushort Tr;
     }
 
+    // Structure size: 244 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_X64_REGISTER_STATE {
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -816,6 +817,7 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
+    // Structure size: 16 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA128A {
         [JsonConverter(typeof(HexStringJsonConverter))]

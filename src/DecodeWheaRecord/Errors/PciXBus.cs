@@ -17,6 +17,7 @@ using Newtonsoft.Json;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
+    // Structure size: 72 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PCIXBUS_ERROR_SECTION : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_PCIXBUS_ERROR_SECTION>();
@@ -29,6 +30,7 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 2)]
         public WHEA_ERROR_STATUS ErrorStatus;
 
+        // Switched to an enumeration
         private WHEA_PCIXBUS_ERROR_TYPE _ErrorType;
 
         [JsonProperty(Order = 3)]
@@ -65,65 +67,55 @@ namespace DecodeWheaRecord.Errors {
         public ulong TargetId;
 
         [UsedImplicitly]
-        public bool ShouldSerializeErrorStatus() =>
-            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorStatus) ==
-            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorStatus;
+        public bool ShouldSerializeErrorStatus() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorStatus) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeErrorType() =>
-            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorType) ==
-            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorType;
+        public bool ShouldSerializeErrorType() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.ErrorType) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeBusId() =>
-            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusId) ==
-            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusId;
+        public bool ShouldSerializeBusId() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusId) != 0;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public bool ShouldSerializeReserved() => Reserved != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeBusAddress() =>
-            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusAddress) ==
-            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusAddress;
+        public bool ShouldSerializeBusAddress() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusAddress) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeBusData() =>
-            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusData) ==
-            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusData;
+        public bool ShouldSerializeBusData() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusData) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeBusCommand() =>
-            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusCommand) ==
-            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusCommand;
+        public bool ShouldSerializeBusCommand() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.BusCommand) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeRequesterId() =>
-            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.RequesterId) ==
-            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.RequesterId;
+        public bool ShouldSerializeRequesterId() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.RequesterId) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeCompleterId() =>
-            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.CompleterId) ==
-            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.CompleterId;
+        public bool ShouldSerializeCompleterId() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.CompleterId) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeTargetId() =>
-            (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.TargetId) ==
-            WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.TargetId;
+        public bool ShouldSerializeTargetId() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.TargetId) != 0;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PCIXBUS_COMMAND {
-        private ulong _Command;
+        private ulong _RawBits;
 
         [JsonProperty(Order = 1)]
-        public ulong Command => _Command & 0xFF00000000000000; // Bits 0 - 55
+        public ulong Command => _RawBits & 0xFFFFFFFFFFFFFF; // Bits 0 - 55
 
         [JsonProperty(Order = 2)]
-        public string Flags => GetEnabledFlagsAsString((WHEA_PCIXBUS_COMMAND_FLAGS)(_Command >> 56)); // Bits 56-63
+        public bool PCIXCommand => ((_RawBits >> 56) & 0x1) == 1; // Bit 56
+
+        [JsonProperty(Order = 3)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public byte Reserved => (byte)(_RawBits >> 57); // Bits 57-63
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
+    // Structure size: 2 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PCIXBUS_ID {
         public byte BusNumber;
@@ -131,12 +123,6 @@ namespace DecodeWheaRecord.Errors {
     }
 
     // @formatter:int_align_fields true
-
-    // Originally defined in the WHEA_PCIXBUS_COMMAND structure
-    [Flags]
-    internal enum WHEA_PCIXBUS_COMMAND_FLAGS : byte {
-        PCIXCommand = 0x1
-    }
 
     [Flags]
     internal enum WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS : ulong {
@@ -151,7 +137,7 @@ namespace DecodeWheaRecord.Errors {
         TargetId    = 0x100
     }
 
-    // From preprocessor definitions (PCIXBUS_ERRTYPE_*)
+    // From PCIXBUS_ERRTYPE preprocessor definitions
     internal enum WHEA_PCIXBUS_ERROR_TYPE : ushort {
         Unknown          = 0,
         DataParity       = 1,

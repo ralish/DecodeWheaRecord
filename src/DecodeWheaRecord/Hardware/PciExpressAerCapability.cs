@@ -140,6 +140,7 @@ namespace DecodeWheaRecord.Hardware {
         public PCI_EXPRESS_ERROR_SOURCE_ID ErrorSourceId;
     }
 
+    // Structure size: 6 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class PCI_EXPRESS_ENHANCED_CAPABILITY_HEADER {
         // Switched to an enumeration

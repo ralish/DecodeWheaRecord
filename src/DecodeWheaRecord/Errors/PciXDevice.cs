@@ -16,16 +16,12 @@ using Newtonsoft.Json;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
-    /*
-     * Cannot be directly marshalled as a structure due to the usage of a
-     * variable length array, resulting in a non-static structure size.
-     */
     internal sealed class WHEA_PCIXDEVICE_ERROR_SECTION : WheaErrorRecord {
-        // Size up to and including the IoNumber field
-        private const uint BaseStructSize = 40;
-
         private uint _NativeSize;
         public override uint GetNativeSize() => _NativeSize;
+
+        // Size up to and including the IoNumber field
+        private const uint MinStructSize = 40;
 
         private WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS _ValidBits;
 
@@ -47,22 +43,26 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 6)]
         public WHEA_PCIXDEVICE_REGISTER_PAIR[] RegisterDataPairs;
 
+        public WHEA_PCIXDEVICE_ERROR_SECTION(IntPtr recordAddr, uint sectionOffset, uint bytesRemaining) :
+            base(typeof(WHEA_PCIXDEVICE_ERROR_SECTION), sectionOffset, MinStructSize, bytesRemaining) {
+            WheaPciXDeviceErrorSection(recordAddr, sectionOffset);
+        }
+
+        public WHEA_PCIXDEVICE_ERROR_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
+            base(sectionDsc, typeof(WHEA_PCIXDEVICE_ERROR_SECTION), MinStructSize, bytesRemaining) {
+            WheaPciXDeviceErrorSection(recordAddr, sectionDsc.SectionOffset);
+        }
+
         private void WheaPciXDeviceErrorSection(IntPtr recordAddr, uint sectionOffset) {
             var logCat = SectionType.Name;
             var sectionAddr = recordAddr + (int)sectionOffset;
 
             _ValidBits = (WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(sectionAddr);
-            var offset = 8;
-
-            ErrorStatus = Marshal.PtrToStructure<WHEA_ERROR_STATUS>(sectionAddr + offset);
-            offset += Marshal.SizeOf<WHEA_ERROR_STATUS>();
-
-            IdInfo = Marshal.PtrToStructure<WHEA_PCIXDEVICE_ID>(sectionAddr + offset);
-            offset += Marshal.SizeOf<WHEA_PCIXDEVICE_ID>();
-
-            MemoryNumber = (uint)Marshal.ReadInt32(sectionAddr, offset);
-            IoNumber = (uint)Marshal.ReadInt32(sectionAddr, offset + 4);
-            offset += 8;
+            ErrorStatus = Marshal.PtrToStructure<WHEA_ERROR_STATUS>(sectionAddr + 8);
+            IdInfo = Marshal.PtrToStructure<WHEA_PCIXDEVICE_ID>(sectionAddr + 16);
+            MemoryNumber = (uint)Marshal.ReadInt32(sectionAddr, 32);
+            IoNumber = (uint)Marshal.ReadInt32(sectionAddr, 36);
+            var offset = 40;
 
             uint NumRegisterDataPairs = 0;
             if (ShouldSerializeMemoryNumber()) {
@@ -112,47 +112,23 @@ of the array containing the register address/data pair values will be skipped.";
             FinalizeRecord(recordAddr, _NativeSize);
         }
 
-        public WHEA_PCIXDEVICE_ERROR_SECTION(IntPtr recordAddr, uint sectionOffset, uint bytesRemaining) :
-            base(typeof(WHEA_PCIXDEVICE_ERROR_SECTION), sectionOffset, BaseStructSize, bytesRemaining) {
-            WheaPciXDeviceErrorSection(recordAddr, sectionOffset);
-        }
-
-        public WHEA_PCIXDEVICE_ERROR_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
-            base(sectionDsc, typeof(WHEA_PCIXDEVICE_ERROR_SECTION), BaseStructSize, bytesRemaining) {
-            WheaPciXDeviceErrorSection(recordAddr, sectionDsc.SectionOffset);
-        }
+        [UsedImplicitly]
+        public bool ShouldSerializeErrorStatus() => (_ValidBits & WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.ErrorStatus) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeErrorStatus() =>
-            (_ValidBits & WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.ErrorStatus) ==
-            WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.ErrorStatus;
+        public bool ShouldSerializeIdInfo() => (_ValidBits & WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.IdInfo) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeIdInfo() =>
-            (_ValidBits & WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.IdInfo) ==
-            WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.IdInfo;
+        public bool ShouldSerializeMemoryNumber() => (_ValidBits & WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.MemoryNumber) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeMemoryNumber() =>
-            (_ValidBits & WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.MemoryNumber) ==
-            WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.MemoryNumber;
+        public bool ShouldSerializeIoNumber() => (_ValidBits & WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.IoNumber) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeIoNumber() =>
-            (_ValidBits & WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.IoNumber) ==
-            WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.IoNumber;
-
-        [UsedImplicitly]
-        public bool ShouldSerializeRegisterDataPairs() =>
-            (_ValidBits & WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.RegisterDataPairs) ==
-            WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.RegisterDataPairs;
+        public bool ShouldSerializeRegisterDataPairs() => (_ValidBits & WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS.RegisterDataPairs) != 0;
     }
 
-    /*
-     * Originally defined as a structure of which two fields are ULONGs as
-     * bitfields. This structure has the same in memory format but is simpler
-     * to interact with.
-     */
+    // Structure size: 16 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PCIXDEVICE_ID {
         [JsonProperty(Order = 1)]
@@ -188,12 +164,13 @@ of the array containing the register address/data pair values will be skipped.";
         public uint Reserved2;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved1() => IsDebugBuild();
+        public bool ShouldSerializeReserved1() => Reserved1 != 0;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved2() => IsDebugBuild();
+        public bool ShouldSerializeReserved2() => Reserved2 != 0;
     }
 
+    // Structure size: 16 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PCIXDEVICE_REGISTER_PAIR {
         [JsonConverter(typeof(HexStringJsonConverter))]

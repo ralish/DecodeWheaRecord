@@ -703,6 +703,7 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeAArch64TT128 => _RegisterContextType == WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch64TT128;
     }
 
+    // Structure size: 64 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARMV8_AARCH32_GPRS {
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -754,6 +755,7 @@ namespace DecodeWheaRecord.Errors {
         public uint R15; // PC
     }
 
+    // Structure size: 96 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARMV8_AARCH32_EL1_CSR {
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -829,6 +831,7 @@ namespace DecodeWheaRecord.Errors {
         public uint DACR;
     }
 
+    // Structure size: 64 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARMV8_AARCH32_EL2_CSR {
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -880,6 +883,7 @@ namespace DecodeWheaRecord.Errors {
         public uint DACR32_EL2;
     }
 
+    // Structure size: 8 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARMV8_AARCH32_SECURE_CSR {
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -889,6 +893,7 @@ namespace DecodeWheaRecord.Errors {
         public uint SPSR_mon;
     }
 
+    // Structure size: 256 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARMV8_AARCH64_GPRS {
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -988,6 +993,7 @@ namespace DecodeWheaRecord.Errors {
         public ulong SP;
     }
 
+    // Structure size: 136 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARMV8_AARCH64_EL1_CSR {
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -1042,6 +1048,7 @@ namespace DecodeWheaRecord.Errors {
         public ulong TTBR1_EL1;
     }
 
+    // Structure size: 120 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARMV8_AARCH64_EL2_CSR {
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -1090,6 +1097,7 @@ namespace DecodeWheaRecord.Errors {
         public ulong VTTBR_EL2;
     }
 
+    // Structure size: 80 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARMV8_AARCH64_EL3_CSR {
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -1123,6 +1131,7 @@ namespace DecodeWheaRecord.Errors {
         public ulong TTBR0_EL3;
     }
 
+    // Structure size: 10 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARM_MISR_CSR {
         // Switched to a 16-bit bitfield

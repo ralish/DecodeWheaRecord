@@ -44,6 +44,7 @@ namespace DecodeWheaRecord.Hardware {
         public PCI_EXPRESS_LINK_STATUS_2_REGISTER LinkStatus2;
     }
 
+    // Structure size: 2 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class PCI_CAPABILITIES_HEADER {
         // Switched to an enumeration

@@ -163,8 +163,7 @@ namespace DecodeWheaRecord.Errors {
             _ValidBits = (WHEA_MEMORY_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(sectionAddr);
             if (HasWin1803Fields()) {
                 if (ShouldSerializeRow() && ShouldSerializeExtendedRow()) {
-                    var msg = $"The {nameof(Row)} and {nameof(ExtendedRow)} flags in {nameof(ValidBits)} cannot both be set.";
-                    throw new InvalidDataException(msg);
+                    throw new InvalidDataException($"The {nameof(Row)} and {nameof(ExtendedRow)} flags in {nameof(ValidBits)} cannot both be set.");
                 }
 
                 if (ShouldSerializeBank()) {
@@ -174,8 +173,7 @@ namespace DecodeWheaRecord.Errors {
                     }
                 } else {
                     if (ShouldSerializeBankAddress() != ShouldSerializeBankGroup()) {
-                        var msg = $"Only one of the {nameof(BankGroup)} and {nameof(BankAddress)} flags in {nameof(ValidBits)} is set.";
-                        WarnOutput(msg, SectionType.Name);
+                        WarnOutput($"Only one of the {nameof(BankGroup)} and {nameof(BankAddress)} flags in {nameof(ValidBits)} is set.", SectionType.Name);
                     }
                 }
             }
