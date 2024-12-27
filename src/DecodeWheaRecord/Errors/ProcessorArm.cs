@@ -125,7 +125,7 @@ namespace DecodeWheaRecord.Errors {
 
             Marshal.Copy(sectionAddr + 13, Reserved, 0, 3);
             if (Reserved.Any(element => element != 0)) {
-                WarnOutput($"{nameof(Reserved)} field has non-zero bytes.", logCat);
+                WarnOutput($"{nameof(Reserved)} has non-zero bytes.", logCat);
             }
 
             MPIDR_EL1 = (ulong)Marshal.ReadInt64(sectionAddr, 16);
@@ -359,6 +359,10 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 8)]
         public bool RestartablePC => ((_RawBits >> 28) & 0x1) == 1; // Bit 28
 
+        [JsonProperty(Order = 9)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong Reserved => _RawBits >> 29; // Bits 29-63
+
         [UsedImplicitly]
         public bool ShouldSerializeTransactionType() => (_ValidationBit & WHEA_ARM_CACHE_ERROR_VALID_BITS.TransactionType) != 0;
 
@@ -379,6 +383,9 @@ namespace DecodeWheaRecord.Errors {
 
         [UsedImplicitly]
         public bool ShouldSerializeRestartablePC() => (_ValidationBit & WHEA_ARM_CACHE_ERROR_VALID_BITS.RestartablePC) != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -413,6 +420,10 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 8)]
         public bool RestartablePC => ((_RawBits >> 28) & 0x1) == 1; // Bit 28
 
+        [JsonProperty(Order = 9)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong Reserved => _RawBits >> 29; // Bits 29-63
+
         [UsedImplicitly]
         public bool ShouldSerializeTransactionType() => (_ValidationBit & WHEA_ARM_TLB_ERROR_VALID_BITS.TransactionType) != 0;
 
@@ -433,6 +444,9 @@ namespace DecodeWheaRecord.Errors {
 
         [UsedImplicitly]
         public bool ShouldSerializeRestartablePC() => (_ValidationBit & WHEA_ARM_TLB_ERROR_VALID_BITS.RestartablePC) != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -483,9 +497,13 @@ namespace DecodeWheaRecord.Errors {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort MemoryAccessAttributes => (ushort)((_RawBits >> 34) & 0x1FF); // Bits 34-42
 
-        // Switched to an enumeration
+        // Interpret the bit as a boolean is ambiguous with the field name
         [JsonProperty(Order = 13)]
-        public string AccessMode => Enum.GetName(typeof(WHEA_ARM_BUS_ERROR_ACCESS_MODE), (byte)((_RawBits >> 42) & 0x1)); // Bit 43
+        public string AccessMode => ((_RawBits >> 43) & 0x1) == 1 ? "Normal" : "Secure"; // Bit 43
+
+        [JsonProperty(Order = 14)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong Reserved => _RawBits >> 44; // Bits 44-63
 
         [UsedImplicitly]
         public bool ShouldSerializeTransactionType() => (_ValidationBit & WHEA_ARM_BUS_ERROR_VALID_BITS.TransactionType) != 0;
@@ -522,6 +540,9 @@ namespace DecodeWheaRecord.Errors {
 
         [UsedImplicitly]
         public bool ShouldSerializeAccessMode() => (_ValidationBit & WHEA_ARM_BUS_ERROR_VALID_BITS.AccessMode) != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -1130,6 +1151,12 @@ namespace DecodeWheaRecord.Errors {
 
         [JsonProperty(Order = 5)]
         public bool O0 => ((_RawBits >> 14) & 0x1) != 0; // Bit 14
+
+        [JsonProperty(Order = 6)]
+        public byte Reserved => (byte)(_RawBits >> 15); // Bit 15
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
     /*
@@ -1358,12 +1385,6 @@ namespace DecodeWheaRecord.Errors {
         External = 0,
         Internal = 1,
         Device   = 2
-    }
-
-    // Not in the Windows headers and derived from UEFI Specification 2.11
-    internal enum WHEA_ARM_BUS_ERROR_ACCESS_MODE : byte {
-        Secure = 0,
-        Normal = 1
     }
 
     // Not in the Windows headers and derived from UEFI Specification 2.11

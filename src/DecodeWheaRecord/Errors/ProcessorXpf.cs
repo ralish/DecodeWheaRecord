@@ -257,6 +257,10 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 9)]
         public bool Overflow => ((_RawBits >> 29) & 0x1) == 1; // Bit 29
 
+        [JsonProperty(Order = 10)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong Reserved => _RawBits >> 30; // Bits 30-63
+
         [UsedImplicitly]
         public bool ShouldSerializeTransactionType() => (_ValidBits & WHEA_XPF_CACHE_CHECK_VALIDBITS.TransactionTypeValid) != 0;
 
@@ -280,6 +284,9 @@ namespace DecodeWheaRecord.Errors {
 
         [UsedImplicitly]
         public bool ShouldSerializeOverflow() => (_ValidBits & WHEA_XPF_CACHE_CHECK_VALIDBITS.OverflowValid) != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -317,6 +324,10 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 9)]
         public bool Overflow => ((_RawBits >> 29) & 0x1) == 1; // Bit 29
 
+        [JsonProperty(Order = 10)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong Reserved => _RawBits >> 30; // Bits 30-63
+
         [UsedImplicitly]
         public bool ShouldSerializeTransactionType() => (_ValidBits & WHEA_XPF_TLB_CHECK_VALIDBITS.TransactionTypeValid) != 0;
 
@@ -340,6 +351,9 @@ namespace DecodeWheaRecord.Errors {
 
         [UsedImplicitly]
         public bool ShouldSerializeOverflow() => (_ValidBits & WHEA_XPF_TLB_CHECK_VALIDBITS.OverflowValid) != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -379,14 +393,18 @@ namespace DecodeWheaRecord.Errors {
 
         // Switched to an enumeration
         [JsonProperty(Order = 10)]
-        public string Participation => Enum.GetName(typeof(WHEA_XPF_BUS_CHECK_PARTICIPATION), (byte)((_RawBits >> 29) & 0x3)); // Bits 30-31
+        public string Participation => Enum.GetName(typeof(WHEA_XPF_BUS_CHECK_PARTICIPATION), (byte)((_RawBits >> 30) & 0x3)); // Bits 30-31
 
         [JsonProperty(Order = 11)]
-        public bool Timeout => ((_RawBits >> 31) & 0x1) == 1; // Bit 32
+        public bool Timeout => ((_RawBits >> 32) & 0x1) == 1; // Bit 32
 
         // Switched to an enumeration
         [JsonProperty(Order = 12)]
-        public string AddressSpace => Enum.GetName(typeof(WHEA_XPF_BUS_CHECK_ADDRESS), (byte)((_RawBits >> 32) & 0x3)); // Bits 33-34
+        public string AddressSpace => Enum.GetName(typeof(WHEA_XPF_BUS_CHECK_ADDRESS), (byte)((_RawBits >> 33) & 0x3)); // Bits 33-34
+
+        [JsonProperty(Order = 13)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong Reserved => _RawBits >> 35; // Bits 35-63
 
         [UsedImplicitly]
         public bool ShouldSerializeTransactionType() => (_ValidBits & WHEA_XPF_BUS_CHECK_VALIDBITS.TransactionTypeValid) != 0;
@@ -420,6 +438,9 @@ namespace DecodeWheaRecord.Errors {
 
         [UsedImplicitly]
         public bool ShouldSerializeAddressSpace() => (_ValidBits & WHEA_XPF_BUS_CHECK_VALIDBITS.AddressSpaceValid) != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -436,19 +457,23 @@ namespace DecodeWheaRecord.Errors {
         public string ErrorType => Enum.GetName(typeof(WHEA_XPF_MS_CHECK_ERROR_TYPE), (byte)((_RawBits >> 16) & 0x7)); // Bits 16-18
 
         [JsonProperty(Order = 3)]
-        public bool ProcessorContextCorrupt => ((_RawBits >> 25) & 0x1) == 1; // Bit 19
+        public bool ProcessorContextCorrupt => ((_RawBits >> 19) & 0x1) == 1; // Bit 19
 
         [JsonProperty(Order = 4)]
-        public bool Uncorrected => ((_RawBits >> 26) & 0x1) == 1; // Bit 20
+        public bool Uncorrected => ((_RawBits >> 20) & 0x1) == 1; // Bit 20
 
         [JsonProperty(Order = 5)]
-        public bool PreciseIP => ((_RawBits >> 27) & 0x1) == 1; // Bit 21
+        public bool PreciseIP => ((_RawBits >> 21) & 0x1) == 1; // Bit 21
 
         [JsonProperty(Order = 6)]
-        public bool RestartableIP => ((_RawBits >> 28) & 0x1) == 1; // Bit 22
+        public bool RestartableIP => ((_RawBits >> 22) & 0x1) == 1; // Bit 22
 
         [JsonProperty(Order = 7)]
-        public bool Overflow => ((_RawBits >> 29) & 0x1) == 1; // Bit 23
+        public bool Overflow => ((_RawBits >> 23) & 0x1) == 1; // Bit 23
+
+        [JsonProperty(Order = 8)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong Reserved => _RawBits >> 24; // Bits 24-63
 
         [UsedImplicitly]
         public bool ShouldSerializeErrorType() => (_ValidBits & WHEA_XPF_MS_CHECK_VALIDBITS.ErrorTypeValid) != 0;
@@ -467,6 +492,9 @@ namespace DecodeWheaRecord.Errors {
 
         [UsedImplicitly]
         public bool ShouldSerializeOverflow() => (_ValidBits & WHEA_XPF_MS_CHECK_VALIDBITS.OverflowValid) != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
     internal sealed class WHEA_XPF_CONTEXT_INFO : WheaErrorRecord {

@@ -4,8 +4,10 @@
 // ReSharper disable InconsistentNaming
 
 using System;
+using System.Linq;
 using System.Runtime.InteropServices;
 
+using DecodeWheaRecord.Hardware;
 using DecodeWheaRecord.Internal;
 using DecodeWheaRecord.Shared;
 
@@ -16,15 +18,12 @@ using Newtonsoft.Json;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
-    /*
-     * In retrospect this could probably be directly marshalled as a structure,
-     * but supporting the PCI_EXPRESS_CAPABILITY and PCI_EXPRESS_AER_CAPABILITY
-     * structures may change that.
-     */
     internal sealed class WHEA_PCIEXPRESS_ERROR_SECTION : WheaErrorRecord {
-        // Structure size is static
-        private const uint _StructSize = 208;
-        public override uint GetNativeSize() => _StructSize;
+        private const uint StructSize = 208;
+        public override uint GetNativeSize() => StructSize;
+
+        private const uint ExpCapBufferSize = 60;
+        private const uint AerInfoBufferSize = 96;
 
         private WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS _ValidBits;
 
@@ -57,100 +56,104 @@ namespace DecodeWheaRecord.Errors {
         public WHEA_PCIEXPRESS_BRIDGE_CONTROL_STATUS BridgeControlStatus;
 
         [JsonProperty(Order = 9)]
-        [JsonConverter(typeof(HexStringJsonConverter))]
-        public byte[] ExpressCapability; // TODO: PCI_EXPRESS_CAPABILITY
+        public PCI_EXPRESS_CAPABILITY ExpressCapability;
 
         [JsonProperty(Order = 10)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public byte[] AerInfo; // TODO: PCI_EXPRESS_AER_CAPABILITY
+        public byte[] ExpCapUnusedBytes;
 
-        private void WheaPciExpressErrorSection(IntPtr recordAddr, uint sectionOffset) {
-            var sectionAddr = recordAddr + (int)sectionOffset;
+        [JsonProperty(Order = 11)]
+        public PCI_EXPRESS_AER_CAPABILITY AerInfo;
 
-            _ValidBits = (WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(sectionAddr);
-            _PortType = (WHEA_PCIEXPRESS_DEVICE_TYPE)Marshal.ReadInt32(sectionAddr, 8);
-            var offset = 12;
-
-            Version = Marshal.PtrToStructure<WHEA_PCIEXPRESS_VERSION>(sectionAddr + offset);
-            offset += Marshal.SizeOf<WHEA_PCIEXPRESS_VERSION>();
-
-            CommandStatus = Marshal.PtrToStructure<WHEA_PCIEXPRESS_COMMAND_STATUS>(sectionAddr + offset);
-            offset += Marshal.SizeOf<WHEA_PCIEXPRESS_COMMAND_STATUS>();
-
-            Reserved = (uint)Marshal.ReadInt32(sectionAddr, offset);
-            offset += 4;
-
-            DeviceId = Marshal.PtrToStructure<WHEA_PCIEXPRESS_DEVICE_ID>(sectionAddr + offset);
-            offset += Marshal.SizeOf<WHEA_PCIEXPRESS_DEVICE_ID>();
-
-            DeviceSerialNumber = (ulong)Marshal.ReadInt64(sectionAddr, offset);
-            offset += 8;
-
-            BridgeControlStatus = Marshal.PtrToStructure<WHEA_PCIEXPRESS_BRIDGE_CONTROL_STATUS>(sectionAddr + offset);
-            offset += Marshal.SizeOf<WHEA_PCIEXPRESS_BRIDGE_CONTROL_STATUS>();
-
-            ExpressCapability = new byte[60];
-            Marshal.Copy(sectionAddr + offset, ExpressCapability, 0, 60);
-            offset += 60;
-
-            AerInfo = new byte[96];
-            Marshal.Copy(sectionAddr + offset, AerInfo, 0, 96);
-
-            FinalizeRecord(recordAddr, _StructSize);
-        }
+        [JsonProperty(Order = 12)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public byte[] AerInfoUnusedBytes;
 
         public WHEA_PCIEXPRESS_ERROR_SECTION(IntPtr recordAddr, uint sectionOffset, uint bytesRemaining) :
-            base(typeof(WHEA_PCIEXPRESS_ERROR_SECTION), sectionOffset, _StructSize, bytesRemaining) {
+            base(typeof(WHEA_PCIEXPRESS_ERROR_SECTION), sectionOffset, StructSize, bytesRemaining) {
             WheaPciExpressErrorSection(recordAddr, sectionOffset);
         }
 
         public WHEA_PCIEXPRESS_ERROR_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
-            base(sectionDsc, typeof(WHEA_PCIEXPRESS_ERROR_SECTION), _StructSize, bytesRemaining) {
+            base(sectionDsc, typeof(WHEA_PCIEXPRESS_ERROR_SECTION), StructSize, bytesRemaining) {
             WheaPciExpressErrorSection(recordAddr, sectionDsc.SectionOffset);
         }
 
-        [UsedImplicitly]
-        public bool ShouldSerializePortType() =>
-            (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.PortType) ==
-            WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.PortType;
+        private void WheaPciExpressErrorSection(IntPtr recordAddr, uint sectionOffset) {
+            var logCat = SectionType.Name;
+            var sectionAddr = recordAddr + (int)sectionOffset;
+
+            _ValidBits = (WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(sectionAddr);
+            _PortType = (WHEA_PCIEXPRESS_DEVICE_TYPE)Marshal.ReadInt32(sectionAddr, 8);
+            Version = Marshal.PtrToStructure<WHEA_PCIEXPRESS_VERSION>(sectionAddr + 12);
+            CommandStatus = Marshal.PtrToStructure<WHEA_PCIEXPRESS_COMMAND_STATUS>(sectionAddr + 16);
+            Reserved = (uint)Marshal.ReadInt32(sectionAddr, 20);
+            DeviceId = Marshal.PtrToStructure<WHEA_PCIEXPRESS_DEVICE_ID>(sectionAddr + 24);
+            DeviceSerialNumber = (ulong)Marshal.ReadInt64(sectionAddr, 40);
+            BridgeControlStatus = Marshal.PtrToStructure<WHEA_PCIEXPRESS_BRIDGE_CONTROL_STATUS>(sectionAddr + 48);
+
+            ExpressCapability = Marshal.PtrToStructure<PCI_EXPRESS_CAPABILITY>(sectionAddr + 52);
+            var ExpCapStructSize = Marshal.SizeOf<PCI_EXPRESS_CAPABILITY>();
+            var ExpCapBytesRemaining = ExpCapBufferSize - (uint)ExpCapStructSize;
+            if (ExpCapBytesRemaining != 0) {
+                ExpCapUnusedBytes = new byte[ExpCapBytesRemaining];
+                Marshal.Copy(sectionAddr + 52, ExpCapUnusedBytes, ExpCapStructSize, (int)ExpCapBytesRemaining);
+
+                if (ExpCapUnusedBytes.Any(element => element != 0)) {
+                    WarnOutput($"{nameof(ExpCapUnusedBytes)} has non-zero bytes.", logCat);
+                }
+            }
+
+            // TODO: PCI_EXPRESS_ROOTPORT_AER_CAPABILITY? Others?
+            AerInfo = Marshal.PtrToStructure<PCI_EXPRESS_AER_CAPABILITY>(sectionAddr + 112);
+            var AerInfoStructSize = Marshal.SizeOf<PCI_EXPRESS_AER_CAPABILITY>();
+            var AerInfoBytesRemaining = AerInfoBufferSize - (uint)AerInfoStructSize;
+            if (AerInfoBytesRemaining != 0) {
+                AerInfoUnusedBytes = new byte[AerInfoBytesRemaining];
+                Marshal.Copy(sectionAddr + 112, AerInfoUnusedBytes, AerInfoStructSize, (int)AerInfoBytesRemaining);
+
+                if (AerInfoUnusedBytes.Any(element => element != 0)) {
+                    WarnOutput($"{nameof(AerInfoUnusedBytes)} has non-zero bytes.", logCat);
+                }
+            }
+
+            FinalizeRecord(recordAddr, StructSize);
+        }
 
         [UsedImplicitly]
-        public bool ShouldSerializeVersion() =>
-            (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.Version) ==
-            WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.Version;
+        public bool ShouldSerializePortType() => (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.PortType) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeCommandStatus() =>
-            (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.CommandStatus) ==
-            WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.CommandStatus;
+        public bool ShouldSerializeVersion() => (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.Version) != 0;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public bool ShouldSerializeCommandStatus() => (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.CommandStatus) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeDeviceId() =>
-            (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.DeviceId) ==
-            WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.DeviceId;
+        public bool ShouldSerializeReserved() => Reserved != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeDeviceSerialNumber() =>
-            (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.DeviceSerialNumber) ==
-            WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.DeviceSerialNumber;
+        public bool ShouldSerializeDeviceId() => (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.DeviceId) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeBridgeControlStatus() =>
-            (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.BridgeControlStatus) ==
-            WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.BridgeControlStatus;
+        public bool ShouldSerializeDeviceSerialNumber() => (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.DeviceSerialNumber) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeExpressCapability() =>
-            (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.ExpressCapability) ==
-            WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.ExpressCapability;
+        public bool ShouldSerializeBridgeControlStatus() => (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.BridgeControlStatus) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeAerInfo() =>
-            (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.AerInfo) ==
-            WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.AerInfo;
+        public bool ShouldSerializeExpressCapability() => (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.ExpressCapability) != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeExpCapUnusedBytes() =>
+            ShouldSerializeExpressCapability() && ExpCapUnusedBytes != null && ExpCapUnusedBytes.Any(element => element != 0);
+
+        [UsedImplicitly]
+        public bool ShouldSerializeAerInfo() => (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.AerInfo) != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeAerInfoUnusedBytes() =>
+            ShouldSerializeAerInfo() && AerInfoUnusedBytes != null && AerInfoUnusedBytes.Any(element => element != 0);
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -165,11 +168,6 @@ namespace DecodeWheaRecord.Errors {
         public ushort Status;
     }
 
-    /*
-     * Originally defined as a structure of which three fields are ULONGs as
-     * bitfields. This structure has the same in memory format but is simpler
-     * to interact with.
-     */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PCIEXPRESS_DEVICE_ID {
         [JsonProperty(Order = 1)]
@@ -203,7 +201,7 @@ namespace DecodeWheaRecord.Errors {
 
         [JsonProperty(Order = 9)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public byte Reserved1 => (byte)(_SlotNumber & 0xFFF8); // Bits 0-2
+        public byte Reserved1 => (byte)(_SlotNumber & 0x7); // Bits 0-2
 
         [JsonProperty(Order = 10)]
         public ushort SlotNumber => (ushort)(_SlotNumber >> 3); // Bits 3-15
@@ -213,10 +211,10 @@ namespace DecodeWheaRecord.Errors {
         public byte Reserved2;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved1() => IsDebugBuild();
+        public bool ShouldSerializeReserved1() => Reserved1 != 0;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved2() => IsDebugBuild();
+        public bool ShouldSerializeReserved2() => Reserved2 != 0;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -228,7 +226,7 @@ namespace DecodeWheaRecord.Errors {
         public ushort Reserved;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
     // @formatter:int_align_fields true

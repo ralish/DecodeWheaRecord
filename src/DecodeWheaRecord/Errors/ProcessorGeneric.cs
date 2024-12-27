@@ -168,7 +168,7 @@ namespace DecodeWheaRecord.Errors {
 
             Reserved = (ushort)Marshal.ReadInt16(sectionAddr, 14);
             if (Reserved != 0) {
-                WarnOutput($"{nameof(Reserved)} field is non-zero.", logCat);
+                WarnOutput($"{nameof(Reserved)} is non-zero.", logCat);
             }
 
             if (ShouldSerializeProcessorType()) {
@@ -357,11 +357,11 @@ namespace DecodeWheaRecord.Errors {
             _ProcInfo = (uint)Marshal.ReadInt32(structAddr);
 
             if (Reserved1 != 0) {
-                WarnOutput($"{nameof(Reserved1)} field is non-zero.", logCat);
+                WarnOutput($"{nameof(Reserved1)} is non-zero.", logCat);
             }
 
             if (Reserved2 != 0) {
-                WarnOutput($"{nameof(Reserved2)} field is non-zero.", logCat);
+                WarnOutput($"{nameof(Reserved2)} is non-zero.", logCat);
             }
 
             NativeModelId = (uint)Marshal.ReadInt32(structAddr, 4);
