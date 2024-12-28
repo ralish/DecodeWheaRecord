@@ -20,7 +20,7 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors {
+namespace DecodeWheaRecord.Errors.UEFI {
     internal sealed class WHEA_ARM_PROCESSOR_ERROR_SECTION : WheaErrorRecord {
         public override uint GetNativeSize() => SectionLength;
 
@@ -338,26 +338,26 @@ namespace DecodeWheaRecord.Errors {
 
         // Switched to an enumeration
         [JsonProperty(Order = 2)]
-        public string TransactionType => Enum.GetName(typeof(WHEA_ARM_CACHE_ERROR_TRANSACTION_TYPE), (byte)((_RawBits >> 16) & 0x3)); // Bits 16-17
+        public string TransactionType => Enum.GetName(typeof(WHEA_ARM_CACHE_ERROR_TRANSACTION_TYPE), (byte)(_RawBits >> 16 & 0x3)); // Bits 16-17
 
         // Switched to an enumeration
         [JsonProperty(Order = 3)]
-        public string Operation => Enum.GetName(typeof(WHEA_ARM_CACHE_ERROR_OPERATION), (byte)((_RawBits >> 18) & 0xF)); // Bits 18-21
+        public string Operation => Enum.GetName(typeof(WHEA_ARM_CACHE_ERROR_OPERATION), (byte)(_RawBits >> 18 & 0xF)); // Bits 18-21
 
         [JsonProperty(Order = 4)]
-        public byte Level => (byte)((_RawBits >> 22) & 0x7); // Bits 22-24
+        public byte Level => (byte)(_RawBits >> 22 & 0x7); // Bits 22-24
 
         [JsonProperty(Order = 5)]
-        public bool ProcessorContextCorrupt => ((_RawBits >> 25) & 0x1) == 1; // Bit 25
+        public bool ProcessorContextCorrupt => (_RawBits >> 25 & 0x1) == 1; // Bit 25
 
         [JsonProperty(Order = 6)]
-        public bool Corrected => ((_RawBits >> 26) & 0x1) == 1; // Bit 26
+        public bool Corrected => (_RawBits >> 26 & 0x1) == 1; // Bit 26
 
         [JsonProperty(Order = 7)]
-        public bool PrecisePC => ((_RawBits >> 27) & 0x1) == 1; // Bit 27
+        public bool PrecisePC => (_RawBits >> 27 & 0x1) == 1; // Bit 27
 
         [JsonProperty(Order = 8)]
-        public bool RestartablePC => ((_RawBits >> 28) & 0x1) == 1; // Bit 28
+        public bool RestartablePC => (_RawBits >> 28 & 0x1) == 1; // Bit 28
 
         [JsonProperty(Order = 9)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -399,26 +399,26 @@ namespace DecodeWheaRecord.Errors {
 
         // Switched to an enumeration
         [JsonProperty(Order = 2)]
-        public string TransactionType => Enum.GetName(typeof(WHEA_ARM_TLB_ERROR_TRANSACTION_TYPE), (byte)((_RawBits >> 16) & 0x3)); // Bits 16-17
+        public string TransactionType => Enum.GetName(typeof(WHEA_ARM_TLB_ERROR_TRANSACTION_TYPE), (byte)(_RawBits >> 16 & 0x3)); // Bits 16-17
 
         // Switched to an enumeration
         [JsonProperty(Order = 3)]
-        public string Operation => Enum.GetName(typeof(WHEA_ARM_TLB_ERROR_OPERATION), (byte)((_RawBits >> 18) & 0xF)); // Bits 18-21
+        public string Operation => Enum.GetName(typeof(WHEA_ARM_TLB_ERROR_OPERATION), (byte)(_RawBits >> 18 & 0xF)); // Bits 18-21
 
         [JsonProperty(Order = 4)]
-        public byte Level => (byte)((_RawBits >> 22) & 0x7); // Bits 22-24
+        public byte Level => (byte)(_RawBits >> 22 & 0x7); // Bits 22-24
 
         [JsonProperty(Order = 5)]
-        public bool ProcessorContextCorrupt => ((_RawBits >> 25) & 0x1) == 1; // Bit 25
+        public bool ProcessorContextCorrupt => (_RawBits >> 25 & 0x1) == 1; // Bit 25
 
         [JsonProperty(Order = 6)]
-        public bool Corrected => ((_RawBits >> 26) & 0x1) == 1; // Bit 26
+        public bool Corrected => (_RawBits >> 26 & 0x1) == 1; // Bit 26
 
         [JsonProperty(Order = 7)]
-        public bool PrecisePC => ((_RawBits >> 27) & 0x1) == 1; // Bit 27
+        public bool PrecisePC => (_RawBits >> 27 & 0x1) == 1; // Bit 27
 
         [JsonProperty(Order = 8)]
-        public bool RestartablePC => ((_RawBits >> 28) & 0x1) == 1; // Bit 28
+        public bool RestartablePC => (_RawBits >> 28 & 0x1) == 1; // Bit 28
 
         [JsonProperty(Order = 9)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -460,46 +460,46 @@ namespace DecodeWheaRecord.Errors {
 
         // Switched to an enumeration
         [JsonProperty(Order = 2)]
-        public string TransactionType => Enum.GetName(typeof(WHEA_ARM_BUS_ERROR_TRANSACTION_TYPE), (byte)((_RawBits >> 16) & 0x3)); // Bits 16-17
+        public string TransactionType => Enum.GetName(typeof(WHEA_ARM_BUS_ERROR_TRANSACTION_TYPE), (byte)(_RawBits >> 16 & 0x3)); // Bits 16-17
 
         // Switched to an enumeration
         [JsonProperty(Order = 3)]
-        public string Operation => Enum.GetName(typeof(WHEA_ARM_BUS_ERROR_OPERATION), (byte)((_RawBits >> 18) & 0xF)); // Bits 18-21
+        public string Operation => Enum.GetName(typeof(WHEA_ARM_BUS_ERROR_OPERATION), (byte)(_RawBits >> 18 & 0xF)); // Bits 18-21
 
         [JsonProperty(Order = 4)]
-        public byte Level => (byte)((_RawBits >> 22) & 0x7); // Bits 22-24
+        public byte Level => (byte)(_RawBits >> 22 & 0x7); // Bits 22-24
 
         [JsonProperty(Order = 5)]
-        public bool ProcessorContextCorrupt => ((_RawBits >> 25) & 0x1) == 1; // Bit 25
+        public bool ProcessorContextCorrupt => (_RawBits >> 25 & 0x1) == 1; // Bit 25
 
         [JsonProperty(Order = 6)]
-        public bool Corrected => ((_RawBits >> 26) & 0x1) == 1; // Bit 26
+        public bool Corrected => (_RawBits >> 26 & 0x1) == 1; // Bit 26
 
         [JsonProperty(Order = 7)]
-        public bool PrecisePC => ((_RawBits >> 27) & 0x1) == 1; // Bit 27
+        public bool PrecisePC => (_RawBits >> 27 & 0x1) == 1; // Bit 27
 
         [JsonProperty(Order = 8)]
-        public bool RestartablePC => ((_RawBits >> 28) & 0x1) == 1; // Bit 28
+        public bool RestartablePC => (_RawBits >> 28 & 0x1) == 1; // Bit 28
 
         // Switched to an enumeration
         [JsonProperty(Order = 9)]
-        public string ParticipationType => Enum.GetName(typeof(WHEA_ARM_BUS_ERROR_PARTICIPATION_TYPE), (byte)((_RawBits >> 29) & 0x3)); // Bits 29-30
+        public string ParticipationType => Enum.GetName(typeof(WHEA_ARM_BUS_ERROR_PARTICIPATION_TYPE), (byte)(_RawBits >> 29 & 0x3)); // Bits 29-30
 
         [JsonProperty(Order = 10)]
-        public bool Timeout => ((_RawBits >> 31) & 0x1) == 1; // Bit 31
+        public bool Timeout => (_RawBits >> 31 & 0x1) == 1; // Bit 31
 
         // Switched to an enumeration
         [JsonProperty(Order = 11)]
-        public string AddressSpace => Enum.GetName(typeof(WHEA_ARM_BUS_ERROR_ADDRESS_SPACE), (byte)((_RawBits >> 32) & 0x3)); // Bits 32-33
+        public string AddressSpace => Enum.GetName(typeof(WHEA_ARM_BUS_ERROR_ADDRESS_SPACE), (byte)(_RawBits >> 32 & 0x3)); // Bits 32-33
 
         // Future: Defined in the ARM specification
         [JsonProperty(Order = 12)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public ushort MemoryAccessAttributes => (ushort)((_RawBits >> 34) & 0x1FF); // Bits 34-42
+        public ushort MemoryAccessAttributes => (ushort)(_RawBits >> 34 & 0x1FF); // Bits 34-42
 
         // Interpret the bit as a boolean is ambiguous with the field name
         [JsonProperty(Order = 13)]
-        public string AccessMode => ((_RawBits >> 43) & 0x1) == 1 ? "Normal" : "Secure"; // Bit 43
+        public string AccessMode => (_RawBits >> 43 & 0x1) == 1 ? "Normal" : "Secure"; // Bit 43
 
         [JsonProperty(Order = 14)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -1150,16 +1150,16 @@ namespace DecodeWheaRecord.Errors {
         public byte Op2 => (byte)(_RawBits & 0x7); // Bits 0-2
 
         [JsonProperty(Order = 2)]
-        public byte CRm => (byte)((_RawBits >> 3) & 0xF); // Bits 3-6
+        public byte CRm => (byte)(_RawBits >> 3 & 0xF); // Bits 3-6
 
         [JsonProperty(Order = 3)]
-        public byte CRn => (byte)((_RawBits >> 7) & 0x7); // Bits 7-10
+        public byte CRn => (byte)(_RawBits >> 7 & 0x7); // Bits 7-10
 
         [JsonProperty(Order = 4)]
-        public byte Op1 => (byte)((_RawBits >> 11) & 0x7); // Bits 11-13
+        public byte Op1 => (byte)(_RawBits >> 11 & 0x7); // Bits 11-13
 
         [JsonProperty(Order = 5)]
-        public bool O0 => ((_RawBits >> 14) & 0x1) != 0; // Bit 14
+        public bool O0 => (_RawBits >> 14 & 0x1) != 0; // Bit 14
 
         [JsonProperty(Order = 6)]
         public byte Reserved => (byte)(_RawBits >> 15); // Bit 15
@@ -1251,163 +1251,163 @@ namespace DecodeWheaRecord.Errors {
 
     [Flags]
     internal enum WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS : uint {
-        MPIDR              = 0x1,
-        AffinityLevel      = 0x2,
-        RunningState       = 0x4,
+        MPIDR = 0x1,
+        AffinityLevel = 0x2,
+        RunningState = 0x4,
         VendorSpecificInfo = 0x8
     }
 
     [Flags]
     internal enum WHEA_ARM_PROCESSOR_ERROR_INFORMATION_VALID_BITS : ushort {
-        MultipleError        = 0x1,
-        Flags                = 0x2,
-        ErrorInformation     = 0x4,
-        VirtualFaultAddress  = 0x8,
+        MultipleError = 0x1,
+        Flags = 0x2,
+        ErrorInformation = 0x4,
+        VirtualFaultAddress = 0x8,
         PhysicalFaultAddress = 0x10
     }
 
     // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_PROCESSOR_ERROR_INFORMATION_TYPE : byte {
         Cache = 0,
-        TLB   = 1,
-        Bus   = 2,
-        MAE   = 3
+        TLB = 1,
+        Bus = 2,
+        MAE = 3
     }
 
     // Not in the Windows headers and derived from UEFI Specification 2.11
     [Flags]
     internal enum WHEA_ARM_PROCESSOR_ERROR_INFORMATION_FLAGS : byte {
         FirstErrorCaptured = 0x1,
-        LastErrorCaptured  = 0x2,
-        Propagated         = 0x4,
-        Overflow           = 0x8
+        LastErrorCaptured = 0x2,
+        Propagated = 0x4,
+        Overflow = 0x8
     }
 
     [Flags]
     internal enum WHEA_ARM_CACHE_ERROR_VALID_BITS : ushort {
-        TransactionType         = 0x1,
-        Operation               = 0x2,
-        Level                   = 0x4,
+        TransactionType = 0x1,
+        Operation = 0x2,
+        Level = 0x4,
         ProcessorContextCorrupt = 0x8,
-        Corrected               = 0x10,
-        PrecisePC               = 0x20,
-        RestartablePC           = 0x40
+        Corrected = 0x10,
+        PrecisePC = 0x20,
+        RestartablePC = 0x40
     }
 
     // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_CACHE_ERROR_TRANSACTION_TYPE : byte {
         Instruction = 0,
-        DataAccess  = 1,
-        Generic     = 2
+        DataAccess = 1,
+        Generic = 2
     }
 
     // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_CACHE_ERROR_OPERATION : byte {
-        Generic          = 0,
-        GenericRead      = 1,
-        GenericWrite     = 2,
-        DataRead         = 3,
-        DataWrite        = 4,
+        Generic = 0,
+        GenericRead = 1,
+        GenericWrite = 2,
+        DataRead = 3,
+        DataWrite = 4,
         InstructionFetch = 5,
-        Prefetch         = 6,
-        Eviction         = 7,
-        Snooping         = 8,
-        Snooped          = 9,
-        Management       = 10
+        Prefetch = 6,
+        Eviction = 7,
+        Snooping = 8,
+        Snooped = 9,
+        Management = 10
     }
 
     [Flags]
     internal enum WHEA_ARM_TLB_ERROR_VALID_BITS : ushort {
-        TransactionType         = 0x1,
-        Operation               = 0x2,
-        Level                   = 0x4,
+        TransactionType = 0x1,
+        Operation = 0x2,
+        Level = 0x4,
         ProcessorContextCorrupt = 0x8,
-        Corrected               = 0x10,
-        PrecisePC               = 0x20,
-        RestartablePC           = 0x40
+        Corrected = 0x10,
+        PrecisePC = 0x20,
+        RestartablePC = 0x40
     }
 
     // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_TLB_ERROR_TRANSACTION_TYPE : byte {
         Instruction = 0,
-        DataAccess  = 1,
-        Generic     = 2
+        DataAccess = 1,
+        Generic = 2
     }
 
     // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_TLB_ERROR_OPERATION : byte {
-        Generic              = 0,
-        GenericRead          = 1,
-        GenericWrite         = 2,
-        DataRead             = 3,
-        DataWrite            = 4,
-        InstructionFetch     = 5,
-        Prefetch             = 6,
-        LocalManagementOp    = 7,
+        Generic = 0,
+        GenericRead = 1,
+        GenericWrite = 2,
+        DataRead = 3,
+        DataWrite = 4,
+        InstructionFetch = 5,
+        Prefetch = 6,
+        LocalManagementOp = 7,
         ExternalManagementOp = 8
     }
 
     [Flags]
     internal enum WHEA_ARM_BUS_ERROR_VALID_BITS : ushort {
-        TransactionType         = 0x1,
-        Operation               = 0x2,
-        Level                   = 0x4,
+        TransactionType = 0x1,
+        Operation = 0x2,
+        Level = 0x4,
         ProcessorContextCorrupt = 0x8,
-        Corrected               = 0x10,
-        PrecisePC               = 0x20,
-        RestartablePC           = 0x40,
-        ParticipationType       = 0x80,
-        Timeout                 = 0x100,
-        AddressSpace            = 0x200,
-        MemoryAttributes        = 0x400,
-        AccessMode              = 0x800
+        Corrected = 0x10,
+        PrecisePC = 0x20,
+        RestartablePC = 0x40,
+        ParticipationType = 0x80,
+        Timeout = 0x100,
+        AddressSpace = 0x200,
+        MemoryAttributes = 0x400,
+        AccessMode = 0x800
     }
 
     // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_BUS_ERROR_TRANSACTION_TYPE : byte {
         Instruction = 0,
-        DataAccess  = 1,
-        Generic     = 2
+        DataAccess = 1,
+        Generic = 2
     }
 
     // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_BUS_ERROR_OPERATION : byte {
-        Generic          = 0,
-        GenericRead      = 1,
-        GenericWrite     = 2,
-        DataRead         = 3,
-        DataWrite        = 4,
+        Generic = 0,
+        GenericRead = 1,
+        GenericWrite = 2,
+        DataRead = 3,
+        DataWrite = 4,
         InstructionFetch = 5,
-        Prefetch         = 6
+        Prefetch = 6
     }
 
     // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_BUS_ERROR_PARTICIPATION_TYPE : byte {
         ProcessorOriginated = 0,
-        ProcessorResponded  = 1,
-        ProcessorObserved   = 2,
-        Generic             = 3
+        ProcessorResponded = 1,
+        ProcessorObserved = 2,
+        Generic = 3
     }
 
     // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_BUS_ERROR_ADDRESS_SPACE : byte {
         External = 0,
         Internal = 1,
-        Device   = 2
+        Device = 2
     }
 
     // Not in the Windows headers and derived from UEFI Specification 2.11
     internal enum WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE : ushort {
-        AArch32GPR    = 0,
-        AArch32EL1    = 1,
-        AArch32EL2    = 2,
+        AArch32GPR = 0,
+        AArch32EL1 = 1,
+        AArch32EL2 = 2,
         AArch32Secure = 3,
-        AArch64GPR    = 4,
-        AArch64EL1    = 5,
-        AArch64EL2    = 6,
-        AArch64EL3    = 7,
-        AArchMisc     = 8,
-        AArch64TT128  = 9
+        AArch64GPR = 4,
+        AArch64EL1 = 5,
+        AArch64EL2 = 6,
+        AArch64EL3 = 7,
+        AArchMisc = 8,
+        AArch64TT128 = 9
     }
 
     // @formatter:int_align_fields false

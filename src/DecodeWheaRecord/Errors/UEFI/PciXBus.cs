@@ -16,7 +16,7 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors {
+namespace DecodeWheaRecord.Errors.UEFI {
     // Structure size: 72 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PCIXBUS_ERROR_SECTION : IWheaRecord {
@@ -105,7 +105,7 @@ namespace DecodeWheaRecord.Errors {
         public ulong Command => _RawBits & 0xFFFFFFFFFFFFFF; // Bits 0 - 55
 
         [JsonProperty(Order = 2)]
-        public bool PCIXCommand => ((_RawBits >> 56) & 0x1) == 1; // Bit 56
+        public bool PCIXCommand => (_RawBits >> 56 & 0x1) == 1; // Bit 56
 
         [JsonProperty(Order = 3)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -127,26 +127,26 @@ namespace DecodeWheaRecord.Errors {
     [Flags]
     internal enum WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS : ulong {
         ErrorStatus = 0x1,
-        ErrorType   = 0x2,
-        BusId       = 0x4,
-        BusAddress  = 0x8,
-        BusData     = 0x10,
-        BusCommand  = 0x20,
+        ErrorType = 0x2,
+        BusId = 0x4,
+        BusAddress = 0x8,
+        BusData = 0x10,
+        BusCommand = 0x20,
         RequesterId = 0x40,
         CompleterId = 0x80,
-        TargetId    = 0x100
+        TargetId = 0x100
     }
 
     // From PCIXBUS_ERRTYPE preprocessor definitions
     internal enum WHEA_PCIXBUS_ERROR_TYPE : ushort {
-        Unknown          = 0,
-        DataParity       = 1,
-        System           = 2,
-        MasterAbort      = 3,
-        BusTimeout       = 4,
+        Unknown = 0,
+        DataParity = 1,
+        System = 2,
+        MasterAbort = 3,
+        BusTimeout = 4,
         MasterDataParity = 5,
-        AddressParity    = 6,
-        CommandParity    = 7
+        AddressParity = 6,
+        CommandParity = 7
     }
 
     // @formatter:int_align_fields false

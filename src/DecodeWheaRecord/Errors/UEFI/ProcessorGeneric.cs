@@ -16,7 +16,7 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors {
+namespace DecodeWheaRecord.Errors.UEFI {
     internal sealed class WHEA_PROCESSOR_GENERIC_ERROR_SECTION : WheaErrorRecord {
         private const uint StructSize = 192;
         public override uint GetNativeSize() => StructSize;
@@ -324,20 +324,20 @@ namespace DecodeWheaRecord.Errors {
         public byte Stepping => (byte)(_ProcInfo & 0xF); // Bits 0-3
 
         [JsonProperty(Order = 2)]
-        public byte Model => (byte)((_ProcInfo >> 4) & 0xF); // Bits 4-7
+        public byte Model => (byte)(_ProcInfo >> 4 & 0xF); // Bits 4-7
 
         [JsonProperty(Order = 3)]
-        public byte Family => (byte)((_ProcInfo >> 8) & 0xF); // Bits 8-11
+        public byte Family => (byte)(_ProcInfo >> 8 & 0xF); // Bits 8-11
 
         [JsonProperty(Order = 4)]
-        public byte ProcessorType => (byte)((_ProcInfo >> 12) & 0x3); // Bits 12-13
+        public byte ProcessorType => (byte)(_ProcInfo >> 12 & 0x3); // Bits 12-13
 
         [JsonProperty(Order = 5)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public byte Reserved1 => (byte)((_ProcInfo >> 14) & 0x3); // Bits 14-15
+        public byte Reserved1 => (byte)(_ProcInfo >> 14 & 0x3); // Bits 14-15
 
         [JsonProperty(Order = 6)]
-        public byte ExtendedModel => (byte)((_ProcInfo >> 16) & 0xF); // Bits 16-19
+        public byte ExtendedModel => (byte)(_ProcInfo >> 16 & 0xF); // Bits 16-19
 
         [JsonProperty(Order = 7)]
         public byte ExtendedFamily => (byte)(_ProcInfo >> 20); // Bits 20-27
@@ -385,20 +385,20 @@ namespace DecodeWheaRecord.Errors {
 
     [Flags]
     internal enum WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS : ulong {
-        ProcessorType      = 0x1,
-        InstructionSet     = 0x2,
-        ErrorType          = 0x4,
-        Operation          = 0x8,
-        Flags              = 0x10,
-        Level              = 0x20,
-        CPUVersion         = 0x40,
-        CPUBrandString     = 0x80,
-        ProcessorId        = 0x100,
-        TargetAddress      = 0x200,
-        RequesterId        = 0x400,
-        ResponderId        = 0x800,
+        ProcessorType = 0x1,
+        InstructionSet = 0x2,
+        ErrorType = 0x4,
+        Operation = 0x8,
+        Flags = 0x10,
+        Level = 0x20,
+        CPUVersion = 0x40,
+        CPUBrandString = 0x80,
+        ProcessorId = 0x100,
+        TargetAddress = 0x200,
+        RequesterId = 0x400,
+        ResponderId = 0x800,
         InstructionPointer = 0x1000,
-        NativeModelId      = 0x2000 // Not in UEFI specification
+        NativeModelId = 0x2000 // Not in UEFI specification
     }
 
     // From GENPROC_PROCTYPE preprocessor definitions
@@ -410,9 +410,9 @@ namespace DecodeWheaRecord.Errors {
 
     // From GENPROC_PROCISA preprocessor definitions
     internal enum WHEA_PROCESSOR_GENERIC_ISA_TYPE : byte {
-        X86   = 0,
-        IPF   = 1,
-        X64   = 2,
+        X86 = 0,
+        IPF = 1,
+        X64 = 2,
         ARM32 = 3, // Windows headers incorrectly set to 4
         ARM64 = 4  // Windows headers incorrectly set to 8
     }
@@ -420,17 +420,17 @@ namespace DecodeWheaRecord.Errors {
     // From GENPROC_PROCERRTYPE preprocessor definitions
     internal enum WHEA_PROCESSOR_GENERIC_ERROR_TYPE : byte {
         Unknown = 0,
-        Cache   = 1,
-        TLB     = 2,
-        Bus     = 4,
-        MAE     = 8
+        Cache = 1,
+        TLB = 2,
+        Bus = 4,
+        MAE = 8
     }
 
     // From GENPROC_OP preprocessor definitions
     internal enum WHEA_PROCESSOR_GENERIC_OP_TYPE : byte {
-        Generic        = 0,
-        DataRead       = 1,
-        DataWrite      = 2,
+        Generic = 0,
+        DataRead = 1,
+        DataWrite = 2,
         InstructionExe = 3
     }
 
@@ -438,9 +438,9 @@ namespace DecodeWheaRecord.Errors {
     [Flags]
     internal enum WHEA_PROCESSOR_GENERIC_ERROR_SECTION_FLAGS : byte {
         Restartable = 0x1,
-        PreciseIP   = 0x2,
-        Overflow    = 0x4,
-        Corrected   = 0x8
+        PreciseIP = 0x2,
+        Overflow = 0x4,
+        Corrected = 0x8
     }
 
     // @formatter:int_align_fields false
