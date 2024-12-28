@@ -94,7 +94,7 @@ namespace DecodeWheaRecord.Errors {
                 WarnOutput($"{nameof(FirmwareRecordId)} is not NULL but {nameof(Revision)} is >= 1.", logCat);
             }
 
-            if (Revision >= 2 && _Type != WHEA_FIRMWARE_RECORD_TYPE.SocFwType2 && FirmwareRecordExt != Guid.Empty) {
+            if (Revision >= 2 && _Type != WHEA_FIRMWARE_RECORD_TYPE.SocFirmwareType2 && FirmwareRecordExt != Guid.Empty) {
                 WarnOutput($"{nameof(FirmwareRecordExt)} is not NULL but {nameof(Type)} indicates it should be.", logCat);
             }
 
@@ -109,7 +109,7 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeReserved() => Reserved.Any(element => element != 0);
 
         [UsedImplicitly]
-        public bool ShouldSerializeFirmwareRecordExt() => _Type == WHEA_FIRMWARE_RECORD_TYPE.SocFwType2;
+        public bool ShouldSerializeFirmwareRecordExt() => _Type == WHEA_FIRMWARE_RECORD_TYPE.SocFirmwareType2;
     }
 
     // @formatter:int_align_fields true
@@ -117,8 +117,8 @@ namespace DecodeWheaRecord.Errors {
     // From WHEA_FIRMWARE_RECORD_TYPE preprocessor definitions
     internal enum WHEA_FIRMWARE_RECORD_TYPE : byte {
         IpfSal     = 0,
-        SocFwType1 = 1, // Added
-        SocFwType2 = 2  // Added
+        SocFirmwareType1 = 1, // Added
+        SocFirmwareType2 = 2  // Added
     }
 
     // @formatter:int_align_fields false
