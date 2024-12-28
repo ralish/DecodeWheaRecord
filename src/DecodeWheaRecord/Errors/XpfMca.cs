@@ -23,9 +23,6 @@ namespace DecodeWheaRecord.Errors {
         private uint _NativeSize;
         public override uint GetNativeSize() => _NativeSize;
 
-        // Size up to and including the GlobalCapability field
-        private const uint BaseStructSize = 272;
-
         // Maximum count of extended registers in ExtendedRegisters array
         internal const int WHEA_XPF_MCA_EXTREG_MAX_COUNT = 24;
 
@@ -34,6 +31,13 @@ namespace DecodeWheaRecord.Errors {
 
         // Count of MCA banks in each "Ex" array in the Version 4 structure
         internal const int WHEA_XPF_MCA_EXBANK_COUNT = 32;
+
+        // Size up to and including the GlobalCapability field
+        private const uint BaseStructSize = 272;
+
+        // For validating the VersionNumber field
+        private const uint MinSupportedVersion = 2;
+        private const uint MaxSupportedVersion = 4;
 
         [JsonProperty(Order = 1)]
         public uint VersionNumber;
@@ -153,6 +157,9 @@ namespace DecodeWheaRecord.Errors {
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
             VersionNumber = (uint)Marshal.ReadInt32(sectionAddr);
+            if (VersionNumber < MinSupportedVersion || VersionNumber > MaxSupportedVersion) {
+                throw new InvalidDataException($"{nameof(VersionNumber)} is unknown or invalid: {VersionNumber}");
+            }
 
             _CpuVendor = (WHEA_CPU_VENDOR)Marshal.ReadInt32(sectionAddr, 4);
             if (string.IsNullOrEmpty(CpuVendor)) {
