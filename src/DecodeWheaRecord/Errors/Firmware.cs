@@ -49,7 +49,11 @@ namespace DecodeWheaRecord.Errors {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong FirmwareRecordId;
 
-        // Introduced in UEFI Specification 2.7 and not in Windows headers
+        /*
+         * Revision 2 fields (UEFI Specification 2.7)
+         */
+
+        // Not in the Windows headers
         [JsonProperty(Order = 5)]
         public Guid FirmwareRecordExt;
 

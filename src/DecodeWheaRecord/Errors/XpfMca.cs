@@ -7,6 +7,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 using DecodeWheaRecord.Internal;
@@ -18,22 +19,21 @@ using Newtonsoft.Json;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
-    /*
-     * Marshalling this structure is moderately complicated, containing unions
-     * of structures and fixed-size arrays, where the structure or element type
-     * differs based on the processor microarchitecture. The marshaller has a
-     * lot of trouble directly marshalling the structure so we do it manually.
-     */
     internal sealed class WHEA_XPF_MCA_SECTION : WheaErrorRecord {
-        // Size up to and including the GlobalCapability field
-        private const uint BaseStructSize = 272;
-
         private uint _NativeSize;
         public override uint GetNativeSize() => _NativeSize;
 
-        internal const int WHEA_AMD_EXT_REG_NUM = 10;
-        internal const int WHEA_XPF_MCA_EXBANK_COUNT = 32;
+        // Size up to and including the GlobalCapability field
+        private const uint BaseStructSize = 272;
+
+        // Maximum count of extended registers in ExtendedRegisters array
         internal const int WHEA_XPF_MCA_EXTREG_MAX_COUNT = 24;
+
+        // Number of AMD extended registers in WHEA_AMD_EXTENDED_REGISTERS
+        internal const int WHEA_AMD_EXT_REG_NUM = 10;
+
+        // Count of MCA banks in each "Ex" array in the Version 4 structure
+        internal const int WHEA_XPF_MCA_EXBANK_COUNT = 32;
 
         [JsonProperty(Order = 1)]
         public uint VersionNumber;
@@ -62,11 +62,13 @@ namespace DecodeWheaRecord.Errors {
         public uint BankNumber;
 
         /*
-         * The next three fields were originally a single field named Status
-         * with type MCI_STATUS, consisting of a union of the three possible
-         * structures subject to the CPU architecture of the system. Directly
-         * defining all three structures in the parent structure helps to make
-         * the serialization slightly easier to deal with.
+         * The next three fields contain MCI status information where some of
+         * the bits are interpreted dependent on the CPU vendor. The Windows
+         * headers define a union with a "common" structure in addition to AMD
+         * and Intel variants. We directly embed the different structure types
+         * and marshal the correct one.
+         *
+         * Original type: MCI_STATUS
          */
 
         [JsonProperty(Order = 8)]
@@ -91,6 +93,13 @@ namespace DecodeWheaRecord.Errors {
 
         [JsonProperty(Order = 12)]
         public uint ApicId;
+
+        /*
+         * The next two fields comprise what was originally an embedded union
+         * which contains either a vendor-agnostic array of extended register
+         * values or an AMD-specific variant. As per the earlier comment, we
+         * directly embed the the different types and marshal the correct one.
+         */
 
         [JsonProperty(Order = 13, ItemConverterType = typeof(HexStringJsonConverter))]
         public ulong[] ExtendedRegisters;
@@ -119,11 +128,9 @@ namespace DecodeWheaRecord.Errors {
         public uint[] BankNumberEx;
 
         /*
-         * The next three fields were originally a single field named StatusEx
-         * with type MCI_STATUS[], consisting of a union of the three possible
-         * structures subject to the CPU architecture of the system. Directly
-         * defining all three structures in the parent structure helps to make
-         * the serialization slightly easier to deal with.
+         * See the earlier comment pertaining to the CommonBits, AmdBits, and
+         * IntelBits fields. The same applies here except these fields are an
+         * array of the common or vendor-specific MCI status information type.
          */
 
         [JsonProperty(Order = 18)]
@@ -157,41 +164,36 @@ namespace DecodeWheaRecord.Errors {
             _GlobalStatus = (MCG_STATUS)Marshal.ReadInt64(sectionAddr, 20);
             InstructionPointer = (ulong)Marshal.ReadInt64(sectionAddr, 28);
             BankNumber = (uint)Marshal.ReadInt32(sectionAddr, 36);
-            var offset = 40;
 
             // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
             switch (_CpuVendor) {
                 case WHEA_CPU_VENDOR.Amd:
-                    AmdBits = Marshal.PtrToStructure<MCI_STATUS_AMD_BITS>(sectionAddr + offset);
+                    AmdBits = Marshal.PtrToStructure<MCI_STATUS_AMD_BITS>(sectionAddr + 40);
                     break;
                 case WHEA_CPU_VENDOR.Intel:
-                    IntelBits = Marshal.PtrToStructure<MCI_STATUS_INTEL_BITS>(sectionAddr + offset);
+                    IntelBits = Marshal.PtrToStructure<MCI_STATUS_INTEL_BITS>(sectionAddr + 40);
                     break;
                 case WHEA_CPU_VENDOR.Other:
-                    CommonBits = Marshal.PtrToStructure<MCI_STATUS_BITS_COMMON>(sectionAddr + offset);
+                    CommonBits = Marshal.PtrToStructure<MCI_STATUS_BITS_COMMON>(sectionAddr + 40);
                     break;
             }
 
-            // AMD & Intel structures have the same size
-            offset += Marshal.SizeOf<MCI_STATUS_BITS_COMMON>();
-
-            Address = (ulong)Marshal.ReadInt64(sectionAddr, offset);
-            Misc = (ulong)Marshal.ReadInt64(sectionAddr, offset + 8);
-            ExtendedRegisterCount = (uint)Marshal.ReadInt32(sectionAddr, offset + 16);
-            ApicId = (uint)Marshal.ReadInt32(sectionAddr, offset + 20);
-            offset += 24;
+            Address = (ulong)Marshal.ReadInt64(sectionAddr, 48);
+            Misc = (ulong)Marshal.ReadInt64(sectionAddr, 56);
+            ExtendedRegisterCount = (uint)Marshal.ReadInt32(sectionAddr, 64);
+            ApicId = (uint)Marshal.ReadInt32(sectionAddr, 68);
 
             // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
             switch (_CpuVendor) {
                 case WHEA_CPU_VENDOR.Amd:
-                    AMDExtendedRegisters = Marshal.PtrToStructure<WHEA_AMD_EXTENDED_REGISTERS>(sectionAddr + offset);
+                    AMDExtendedRegisters = Marshal.PtrToStructure<WHEA_AMD_EXTENDED_REGISTERS>(sectionAddr + 72);
                     break;
                 case WHEA_CPU_VENDOR.Intel:
                     var numExtRegs = ExtendedRegisterCount <= WHEA_XPF_MCA_EXTREG_MAX_COUNT ? ExtendedRegisterCount : WHEA_XPF_MCA_EXTREG_MAX_COUNT;
                     var extRegsTmp = new long[WHEA_XPF_MCA_EXTREG_MAX_COUNT];
                     ExtendedRegisters = new ulong[WHEA_XPF_MCA_EXTREG_MAX_COUNT];
 
-                    Marshal.Copy(sectionAddr + offset, extRegsTmp, 0, (int)numExtRegs);
+                    Marshal.Copy(sectionAddr + 72, extRegsTmp, 0, (int)numExtRegs);
                     for (var i = 0; i < numExtRegs; i++) {
                         ExtendedRegisters[i] = (ulong)extRegsTmp[i];
                     }
@@ -202,15 +204,12 @@ namespace DecodeWheaRecord.Errors {
                     break;
             }
 
-            // AMD structure has the same size
-            offset += sizeof(ulong) * WHEA_XPF_MCA_EXTREG_MAX_COUNT;
-
-            GlobalCapability = Marshal.PtrToStructure<MCG_CAP>(sectionAddr + offset);
-            offset += Marshal.SizeOf<MCG_CAP>();
+            GlobalCapability = Marshal.PtrToStructure<MCG_CAP>(sectionAddr + 264);
+            var offset = 272;
 
             if (VersionNumber >= 3) {
                 RecoveryInfo = Marshal.PtrToStructure<XPF_RECOVERY_INFO>(sectionAddr + offset);
-                offset += Marshal.SizeOf<XPF_RECOVERY_INFO>();
+                offset += Marshal.SizeOf<XPF_RECOVERY_INFO>(); // 292 bytes
             }
 
             if (VersionNumber >= 4) {
@@ -224,7 +223,7 @@ namespace DecodeWheaRecord.Errors {
                 for (var i = 0; i < WHEA_XPF_MCA_EXBANK_COUNT; i++) {
                     BankNumberEx[i] = (uint)bankNumberExTmp[i];
                 }
-                offset += sizeof(uint) * WHEA_XPF_MCA_EXBANK_COUNT;
+                offset += 4 * WHEA_XPF_MCA_EXBANK_COUNT;
 
                 // AMD & Intel structures have the same size
                 var elementSize = Marshal.SizeOf<MCI_STATUS_BITS_COMMON>();
@@ -262,7 +261,7 @@ namespace DecodeWheaRecord.Errors {
                 for (var i = 0; i < WHEA_XPF_MCA_EXBANK_COUNT; i++) {
                     AddressEx[i] = (ulong)addressExTmp[i];
                 }
-                offset += sizeof(ulong) * WHEA_XPF_MCA_EXBANK_COUNT;
+                offset += 8 * WHEA_XPF_MCA_EXBANK_COUNT;
 
                 var miscExTmp = new long[WHEA_XPF_MCA_EXBANK_COUNT];
                 MiscEx = new ulong[WHEA_XPF_MCA_EXBANK_COUNT];
@@ -271,7 +270,7 @@ namespace DecodeWheaRecord.Errors {
                 for (var i = 0; i < WHEA_XPF_MCA_EXBANK_COUNT; i++) {
                     MiscEx[i] = (ulong)miscExTmp[i];
                 }
-                offset += sizeof(ulong) * WHEA_XPF_MCA_EXBANK_COUNT;
+                offset += 8 * WHEA_XPF_MCA_EXBANK_COUNT; // 1192 bytes
             }
 
             _NativeSize = (uint)offset;
@@ -318,93 +317,189 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeMiscEx() => VersionNumber >= 4;
     }
 
-    /*
-     * Originally defined as a ULONG64 bitfield. This structure has the same in
-     * memory format but is simpler to interact with.
-     */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class MCG_CAP {
-        private MCG_CAP_FLAGS _Flags;
+        private ulong _RawBits;
 
         [JsonProperty(Order = 1)]
-        public string Flags => GetEnabledFlagsAsString(_Flags);
+        public byte CountField => (byte)_RawBits; // Bits 0-7
 
         [JsonProperty(Order = 2)]
-        public byte CountField => (byte)_Flags;
+        public bool ControlMsrPresent => ((_RawBits >> 8) & 0x1) == 1; // Bit 8
 
         [JsonProperty(Order = 3)]
-        public byte ExtendedRegisterCount => (byte)((uint)_Flags >> 15);
-    }
-
-    /*
-     * Originally defined as a ULONG64 bitfield. This structure has the same in
-     * memory format but is simpler to interact with.
-     */
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class MCI_STATUS_BITS_COMMON {
-        [JsonProperty(Order = 1)]
-        public ushort McaErrorCode;
-
-        [JsonProperty(Order = 2)]
-        public ushort ModelErrorCode;
-
-        private MCI_STATUS_BITS_COMMON_FLAGS _Flags;
-
-        [JsonProperty(Order = 3)]
-        public string Flags => GetEnabledFlagsAsString(_Flags);
-    }
-
-    /*
-     * Originally defined as a ULONG64 bitfield. This structure has the same in
-     * memory format but is simpler to interact with.
-     */
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class MCI_STATUS_AMD_BITS {
-        [JsonProperty(Order = 1)]
-        public ushort McaErrorCode;
-
-        [JsonProperty(Order = 2)]
-        public ushort ModelErrorCode;
-
-        private MCI_STATUS_AMD_BITS_FLAGS _Flags;
-
-        [JsonProperty(Order = 3)]
-        public string Flags => GetEnabledFlagsAsString(_Flags);
+        public bool ExtendedMsrsPresent => ((_RawBits >> 9) & 0x1) == 1; // Bit 9
 
         [JsonProperty(Order = 4)]
-        public ushort ImplementationSpecific1 => (ushort)(((uint)_Flags >> 12) & 0xFFF);
+        public bool SignalingExtensionPresent => ((_RawBits >> 10) & 0x1) == 1; // Bit 10
 
         [JsonProperty(Order = 5)]
-        public ushort ImplementationSpecific2 => (ushort)((uint)_Flags & 0x7FF);
-    }
-
-    /*
-     * Originally defined as a ULONG64 bitfield. This structure has the same in
-     * memory format but is simpler to interact with.
-     */
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class MCI_STATUS_INTEL_BITS {
-        [JsonProperty(Order = 1)]
-        public ushort McaErrorCode;
-
-        [JsonProperty(Order = 2)]
-        public ushort ModelErrorCode;
-
-        private MCI_STATUS_INTEL_BITS_FLAGS _Flags;
-
-        [JsonProperty(Order = 3)]
-        public string Flags => GetEnabledFlagsAsString(_Flags);
-
-        [JsonProperty(Order = 4)]
-        public byte OtherInfo => (byte)((uint)_Flags & 0x1F);
-
-        [JsonProperty(Order = 5)]
-        public ushort CorrectedErrorCount => (ushort)(((uint)_Flags >> 5) & 0x7FFF);
+        public bool ThresholdErrorStatusPresent => ((_RawBits >> 11) & 0x1) == 1; // Bit 11
 
         [JsonProperty(Order = 6)]
-        public byte ThresholdErrorStatus => (byte)(((uint)_Flags >> 20) & 0x3);
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public byte Reserved => (byte)((_RawBits >> 12) & 0xF); // Bits 12-15
+
+        [JsonProperty(Order = 7)]
+        public byte ExtendedRegisterCount => (byte)(_RawBits >> 16); // Bits 16-23
+
+        [JsonProperty(Order = 8)]
+        public bool SoftwareErrorRecoverySupported => ((_RawBits >> 24) & 0x1) == 1; // Bit 24
+
+        [JsonProperty(Order = 9)]
+        public bool EnhancedMachineCheckCapability => ((_RawBits >> 25) & 0x1) == 1; // Bit 25
+
+        [JsonProperty(Order = 10)]
+        public bool ExtendedErrorLogging => ((_RawBits >> 26) & 0x1) == 1; // Bit 26
+
+        [JsonProperty(Order = 11)]
+        public bool LocalMachineCheckException => ((_RawBits >> 27) & 0x1) == 1; // Bit 27
+
+        [JsonProperty(Order = 12)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong Reserved2 => _RawBits >> 28; // Bit 28-63
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved2() => Reserved != 0;
     }
 
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    internal sealed class MCI_STATUS_BITS_COMMON {
+        private ulong _RawBits;
+
+        [JsonProperty(Order = 1)]
+        public ushort McaErrorCode => (ushort)_RawBits; // Bits 0-15
+
+        [JsonProperty(Order = 2)]
+        public ushort ModelErrorCode => (ushort)(_RawBits >> 16); // Bits 16-31
+
+        [JsonProperty(Order = 3)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public uint Reserved => (uint)((_RawBits >> 32) & 0x1FFFFFF); // Bits 32-56
+
+        [JsonProperty(Order = 4)]
+        public bool ContextCorrupt => ((_RawBits >> 57) & 0x1) == 1; // Bit 57
+
+        [JsonProperty(Order = 5)]
+        public bool AddressValid => ((_RawBits >> 58) & 0x1) == 1; // Bit 58
+
+        [JsonProperty(Order = 6)]
+        public bool MiscValid => ((_RawBits >> 59) & 0x1) == 1; // Bit 59
+
+        [JsonProperty(Order = 7)]
+        public bool ErrorEnabled => ((_RawBits >> 60) & 0x1) == 1; // Bit 60
+
+        [JsonProperty(Order = 8)]
+        public bool UncorrectedError => ((_RawBits >> 61) & 0x1) == 1; // Bit 61
+
+        [JsonProperty(Order = 9)]
+        public bool StatusOverFlow => ((_RawBits >> 62) & 0x1) == 1; // Bit 62
+
+        [JsonProperty(Order = 10)]
+        public bool Valid => ((_RawBits >> 63) & 0x1) == 1; // Bit 63
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    internal sealed class MCI_STATUS_AMD_BITS {
+        private ulong _RawBits;
+
+        [JsonProperty(Order = 1)]
+        public ushort McaErrorCode => (ushort)_RawBits; // Bits 0-15
+
+        [JsonProperty(Order = 2)]
+        public ushort ModelErrorCode => (ushort)(_RawBits >> 16); // Bits 16-31
+
+        [JsonProperty(Order = 3)]
+        public ushort ImplementationSpecific2 => (ushort)((_RawBits >> 32) & 0x7FF); // Bits 32-42
+
+        [JsonProperty(Order = 4)]
+        public bool Poison => ((_RawBits >> 43) & 0x1) == 1; // Bit 43
+
+        [JsonProperty(Order = 5)]
+        public bool Deferred => ((_RawBits >> 44) & 0x1) == 1; // Bit 44
+
+        [JsonProperty(Order = 6)]
+        public ushort ImplementationSpecific1 => (ushort)((_RawBits >> 45) & 0xFFF); // Bits 45-56
+
+        [JsonProperty(Order = 7)]
+        public bool ContextCorrupt => ((_RawBits >> 57) & 0x1) == 1; // Bit 57
+
+        [JsonProperty(Order = 8)]
+        public bool AddressValid => ((_RawBits >> 58) & 0x1) == 1; // Bit 58
+
+        [JsonProperty(Order = 9)]
+        public bool MiscValid => ((_RawBits >> 59) & 0x1) == 1; // Bit 59
+
+        [JsonProperty(Order = 10)]
+        public bool ErrorEnabled => ((_RawBits >> 60) & 0x1) == 1; // Bit 60
+
+        [JsonProperty(Order = 11)]
+        public bool UncorrectedError => ((_RawBits >> 61) & 0x1) == 1; // Bit 61
+
+        [JsonProperty(Order = 12)]
+        public bool StatusOverFlow => ((_RawBits >> 62) & 0x1) == 1; // Bit 62
+
+        [JsonProperty(Order = 13)]
+        public bool Valid => ((_RawBits >> 63) & 0x1) == 1; // Bit 63
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    internal sealed class MCI_STATUS_INTEL_BITS {
+        private ulong _RawBits;
+
+        [JsonProperty(Order = 1)]
+        public ushort McaErrorCode => (ushort)_RawBits; // Bits 0-15
+
+        [JsonProperty(Order = 2)]
+        public ushort ModelErrorCode => (ushort)(_RawBits >> 16); // Bits 16-31
+
+        [JsonProperty(Order = 3)]
+        public byte OtherInfo => (byte)((_RawBits >> 32) & 0x1F); // Bits 32-36
+
+        [JsonProperty(Order = 4)]
+        public bool FirmwareUpdateError => ((_RawBits >> 37) & 0x1) == 1; // Bit 37
+
+        [JsonProperty(Order = 5)]
+        public ushort CorrectedErrorCount => (ushort)((_RawBits >> 38) & 0x7FFF); // Bits 38-52
+
+        [JsonProperty(Order = 6)]
+        public byte ThresholdErrorStatus => (byte)((_RawBits >> 53) & 0x3); // Bits 53-54
+
+        [JsonProperty(Order = 7)]
+        public bool ActionRequired => ((_RawBits >> 55) & 0x1) == 1; // Bit 55
+
+        [JsonProperty(Order = 8)]
+        public bool Signalling => ((_RawBits >> 56) & 0x1) == 1; // Bit 56
+
+        [JsonProperty(Order = 9)]
+        public bool ContextCorrupt => ((_RawBits >> 57) & 0x1) == 1; // Bit 57
+
+        [JsonProperty(Order = 10)]
+        public bool AddressValid => ((_RawBits >> 58) & 0x1) == 1; // Bit 58
+
+        [JsonProperty(Order = 11)]
+        public bool MiscValid => ((_RawBits >> 59) & 0x1) == 1; // Bit 59
+
+        [JsonProperty(Order = 12)]
+        public bool ErrorEnabled => ((_RawBits >> 60) & 0x1) == 1; // Bit 60
+
+        [JsonProperty(Order = 13)]
+        public bool UncorrectedError => ((_RawBits >> 61) & 0x1) == 1; // Bit 61
+
+        [JsonProperty(Order = 14)]
+        public bool StatusOverFlow => ((_RawBits >> 62) & 0x1) == 1; // Bit 62
+
+        [JsonProperty(Order = 15)]
+        public bool Valid => ((_RawBits >> 63) & 0x1) == 1; // Bit 63
+    }
+
+    // Structure size: 192 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_AMD_EXTENDED_REGISTERS {
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -437,14 +532,15 @@ namespace DecodeWheaRecord.Errors {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong RasCap;
 
-        [JsonConverter(typeof(HexStringJsonConverter))]
+        [JsonProperty(ItemConverterType = typeof(HexStringJsonConverter))]
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = WHEA_XPF_MCA_SECTION.WHEA_XPF_MCA_EXTREG_MAX_COUNT - WHEA_XPF_MCA_SECTION.WHEA_AMD_EXT_REG_NUM)]
         public ulong[] Reserved;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public bool ShouldSerializeReserved() => Reserved.Any(element => element != 0);
     }
 
+    // Structure size: 20 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class XPF_RECOVERY_INFO {
         private XPF_RECOVERY_INFO_FAILURE_REASON_FLAGS _FailureReason;
@@ -486,31 +582,24 @@ namespace DecodeWheaRecord.Errors {
         public uint Reserved4;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public bool ShouldSerializeReserved() => Reserved != 0;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved2() => IsDebugBuild();
+        public bool ShouldSerializeReserved2() => Reserved2 != 0;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved3() => IsDebugBuild();
+        public bool ShouldSerializeReserved3() => Reserved3 != 0;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved4() => IsDebugBuild();
+        public bool ShouldSerializeReserved4() => Reserved4 != 0;
     }
 
     // @formatter:int_align_fields true
 
-    // Originally defined in the MCG_CAP structure
-    [Flags]
-    internal enum MCG_CAP_FLAGS : ulong {
-        ControlMsrPresent              = 0x100,
-        ExtendedMsrsPresent            = 0x200,
-        SignalingExtensionPresent      = 0x400,
-        ThresholdErrorStatusPresent    = 0x800,
-        SoftwareErrorRecoverySupported = 0x1000000,
-        EnhancedMachineCheckCapability = 0x2000000,
-        ExtendedErrorLogging           = 0x4000000,
-        LocalMachineCheckException     = 0x8000000
+    internal enum WHEA_CPU_VENDOR : uint {
+        Other = 0,
+        Intel = 1,
+        Amd   = 2
     }
 
     [Flags]
@@ -521,61 +610,7 @@ namespace DecodeWheaRecord.Errors {
         LocalMceValid          = 0x8
     }
 
-    // Originally defined in the MCI_STATUS_AMD_BITS structure
-    [Flags]
-    internal enum MCI_STATUS_AMD_BITS_FLAGS : uint {
-        Poison           = 0x800,
-        Deferred         = 0x1000,
-        ContextCorrupt   = 0x2000000,
-        AddressValid     = 0x4000000,
-        MiscValid        = 0x8000000,
-        ErrorEnabled     = 0x10000000,
-        UncorrectedError = 0x20000000,
-        StatusOverFlow   = 0x40000000,
-        Valid            = 0x80000000
-    }
-
-    // Originally defined in the MCI_STATUS_BITS_COMMON structure
-    [Flags]
-    internal enum MCI_STATUS_BITS_COMMON_FLAGS : uint {
-        ContextCorrupt   = 0x2000000,
-        AddressValid     = 0x4000000,
-        MiscValid        = 0x8000000,
-        ErrorEnabled     = 0x10000000,
-        UncorrectedError = 0x20000000,
-        StatusOverFlow   = 0x40000000,
-        Valid            = 0x80000000
-    }
-
-    // Originally defined in the MCI_STATUS_INTEL_BITS structure
-    [Flags]
-    internal enum MCI_STATUS_INTEL_BITS_FLAGS : uint {
-        FirmwareUpdateError = 0x20,
-        ActionRequired      = 0x800000,
-        Signalling          = 0x1000000,
-        ContextCorrupt      = 0x2000000,
-        AddressValid        = 0x4000000,
-        MiscValid           = 0x8000000,
-        ErrorEnabled        = 0x10000000,
-        UncorrectedError    = 0x20000000,
-        StatusOverFlow      = 0x40000000,
-        Valid               = 0x80000000
-    }
-
-    internal enum WHEA_CPU_VENDOR : uint {
-        Other = 0,
-        Intel = 1,
-        Amd   = 2
-    }
-
-    // Originally defined in the XPF_RECOVERY_INFO structure
-    [Flags]
-    internal enum XPF_RECOVERY_INFO_ACTION_FLAGS : uint {
-        RecoveryAttempted = 0x1,
-        HvHandled         = 0x2
-    }
-
-    // Originally defined in the XPF_RECOVERY_INFO structure
+    // Originally defined in a structure embedded in XPF_RECOVERY_INFO
     [Flags]
     internal enum XPF_RECOVERY_INFO_FAILURE_REASON_FLAGS : uint {
         NotSupported             = 0x1,
@@ -589,6 +624,13 @@ namespace DecodeWheaRecord.Errors {
         InterruptsDisabled       = 0x100,
         SwapBusy                 = 0x200,
         StackOverflow            = 0x400
+    }
+
+    // Originally defined in a structure embedded in XPF_RECOVERY_INFO
+    [Flags]
+    internal enum XPF_RECOVERY_INFO_ACTION_FLAGS : uint {
+        RecoveryAttempted = 0x1,
+        HvHandled         = 0x2
     }
 
     // @formatter:int_align_fields false

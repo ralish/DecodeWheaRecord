@@ -5,6 +5,7 @@
 // ReSharper disable ClassNeverInstantiated.Global
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable InconsistentNaming
+// ReSharper disable MemberCanBePrivate.Global
 
 using System;
 using System.Collections.Generic;
@@ -108,10 +109,10 @@ namespace DecodeWheaRecord.Errors {
         /*
          * Processor check info types
          */
-        private static readonly Guid WHEA_BUSCHECK_GUID = Guid.Parse("1cf3f8b3-c5b1-49a2-aa59-5eef92ffa63c");
-        private static readonly Guid WHEA_CACHECHECK_GUID = Guid.Parse("a55701f5-e3ef-43de-ac72-249b573fad2c");
-        private static readonly Guid WHEA_MSCHECK_GUID = Guid.Parse("48ab7f57-dc34-4f6c-a7d3-b0b5b0a74314");
-        private static readonly Guid WHEA_TLBCHECK_GUID = Guid.Parse("fc06b535-5e1f-4562-9f25-0a3b9adb63c3");
+        internal static readonly Guid WHEA_BUSCHECK_GUID = Guid.Parse("1cf3f8b3-c5b1-49a2-aa59-5eef92ffa63c");
+        internal static readonly Guid WHEA_CACHECHECK_GUID = Guid.Parse("a55701f5-e3ef-43de-ac72-249b573fad2c");
+        internal static readonly Guid WHEA_MSCHECK_GUID = Guid.Parse("48ab7f57-dc34-4f6c-a7d3-b0b5b0a74314");
+        internal static readonly Guid WHEA_TLBCHECK_GUID = Guid.Parse("fc06b535-5e1f-4562-9f25-0a3b9adb63c3");
 
         private static readonly Dictionary<Guid, string> CheckInfoTypes = new Dictionary<Guid, string> {
             { WHEA_BUSCHECK_GUID, "Bus" },
@@ -134,7 +135,7 @@ namespace DecodeWheaRecord.Errors {
          * The next four fields contain the check information for the type of
          * check as determined by the CheckInfoId field. The Windows headers
          * define them in an embedded union but we directly embed them and
-         * marshal only the correct one when marshalling the structure.
+         * marshal only the correct one.
          */
 
         [JsonProperty(Order = 3)]
@@ -561,7 +562,7 @@ namespace DecodeWheaRecord.Errors {
                     RegisterDataContext64 = Marshal.PtrToStructure<WHEA_X64_REGISTER_STATE>(ctxInfoStructAddr);
                     break;
                 case WHEA_XPF_CONTEXT_INFO_TYPE.DebugRegistersX32:
-                    numRegisters = RegisterDataSize / sizeof(long);
+                    numRegisters = RegisterDataSize / 8;
 
                     // Values are 32-bit registers zero-extended to 64-bits
                     var tmpRegisterDataDebug32 = new long[numRegisters];
@@ -576,7 +577,7 @@ namespace DecodeWheaRecord.Errors {
                 case WHEA_XPF_CONTEXT_INFO_TYPE.DebugRegistersX64:
                 case WHEA_XPF_CONTEXT_INFO_TYPE.MmRegisters:
                 case WHEA_XPF_CONTEXT_INFO_TYPE.MsrRegisters:
-                    numRegisters = RegisterDataSize / sizeof(long);
+                    numRegisters = RegisterDataSize / 8;
 
                     var tmpRegisterData64 = new long[numRegisters];
                     Marshal.Copy(ctxInfoStructAddr, tmpRegisterData64, 0, numRegisters);

@@ -479,7 +479,7 @@ namespace DecodeWheaRecord.Hardware {
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class PCI_EXPRESS_ERROR_SOURCE_ID {
-        private ushort _RawBits;
+        private uint _RawBits;
 
         [JsonProperty(Order = 1)]
         public byte CorrectableSourceIdFun => (byte)(_RawBits & 0x7); // Bits 0-2
