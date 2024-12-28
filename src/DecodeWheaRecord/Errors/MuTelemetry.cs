@@ -9,9 +9,8 @@ using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.Utilities;
-
 namespace DecodeWheaRecord.Errors {
+    // Structure size: 56 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class MU_TELEMETRY_SECTION : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<MU_TELEMETRY_SECTION>();
@@ -38,6 +37,6 @@ namespace DecodeWheaRecord.Errors {
         public ulong AdditionalInfo2;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 }

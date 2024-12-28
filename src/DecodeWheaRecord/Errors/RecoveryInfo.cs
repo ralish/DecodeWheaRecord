@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using Newtonsoft.Json;
 
 namespace DecodeWheaRecord.Errors {
+    // Structure size: 39 bytes
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
     internal sealed class WHEA_ERROR_RECOVERY_INFO_SECTION : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_ERROR_RECOVERY_INFO_SECTION>();
@@ -57,12 +58,17 @@ namespace DecodeWheaRecord.Errors {
         PoisonNotPresent = 0x10
     }
 
+    internal enum WHEA_RECOVERY_TYPE : uint {
+        ActionRequired = 1,
+        ActionOptional = 2
+    }
+
     internal enum WHEA_RECOVERY_FAILURE_REASON : uint {
         KernelCouldNotMarkMemoryBad        = 1,
         KernelMarkMemoryBadTimedOut        = 2,
         NoRecoveryContext                  = 3,
         NotContinuable                     = 4,
-        Pcc                                = 5, // Processor Context Corrupt
+        ProcessorContextCorrupt            = 5,
         Overflow                           = 6,
         NotSupported                       = 7,
         MiscOrAddrNotValid                 = 8,
@@ -75,11 +81,6 @@ namespace DecodeWheaRecord.Errors {
         UnexpectedFailure                  = 15,
         KernelWillPageFaultBCAtCurrentIrql = 16,
         FarNotValid                        = 17
-    }
-
-    internal enum WHEA_RECOVERY_TYPE : uint {
-        ActionRequired = 1,
-        ActionOptional = 2
     }
 
     // @formatter:int_align_fields false

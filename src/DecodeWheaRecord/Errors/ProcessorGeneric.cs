@@ -91,7 +91,7 @@ namespace DecodeWheaRecord.Errors {
         private string _CPUBrandStringXPF;
 
         [JsonProperty(Order = 10)]
-        public string CPUBrandStringXPF => _CPUBrandStringXPF.TrimEnd('\0');
+        public string CPUBrandStringXPF => _CPUBrandStringXPF.Trim('\0');
 
         // Future: Decode the returned PAL_BRAND_INFO data
         [JsonProperty(Order = 10)]

@@ -21,7 +21,7 @@ namespace DecodeWheaRecord.Errors {
         public override uint GetNativeSize() => _StructSize;
 
         // Size up to and including the ErrorType field
-        private const uint MinStructSize = 73; // Not a typo
+        private const uint MinStructSize = 73;
 
         // Size up to and including the ModuleHandle field
         private const uint StructSizeWin1803 = 80;
