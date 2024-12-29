@@ -18,7 +18,7 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors.Microsoft {
+namespace DecodeWheaRecord.Errors {
     internal sealed class WHEA_XPF_MCA_SECTION : WheaErrorRecord {
         private uint _NativeSize;
         public override uint GetNativeSize() => _NativeSize;
@@ -332,35 +332,35 @@ namespace DecodeWheaRecord.Errors.Microsoft {
         public byte CountField => (byte)_RawBits; // Bits 0-7
 
         [JsonProperty(Order = 2)]
-        public bool ControlMsrPresent => (_RawBits >> 8 & 0x1) == 1; // Bit 8
+        public bool ControlMsrPresent => ((_RawBits >> 8) & 0x1) == 1; // Bit 8
 
         [JsonProperty(Order = 3)]
-        public bool ExtendedMsrsPresent => (_RawBits >> 9 & 0x1) == 1; // Bit 9
+        public bool ExtendedMsrsPresent => ((_RawBits >> 9) & 0x1) == 1; // Bit 9
 
         [JsonProperty(Order = 4)]
-        public bool SignalingExtensionPresent => (_RawBits >> 10 & 0x1) == 1; // Bit 10
+        public bool SignalingExtensionPresent => ((_RawBits >> 10) & 0x1) == 1; // Bit 10
 
         [JsonProperty(Order = 5)]
-        public bool ThresholdErrorStatusPresent => (_RawBits >> 11 & 0x1) == 1; // Bit 11
+        public bool ThresholdErrorStatusPresent => ((_RawBits >> 11) & 0x1) == 1; // Bit 11
 
         [JsonProperty(Order = 6)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public byte Reserved => (byte)(_RawBits >> 12 & 0xF); // Bits 12-15
+        public byte Reserved => (byte)((_RawBits >> 12) & 0xF); // Bits 12-15
 
         [JsonProperty(Order = 7)]
         public byte ExtendedRegisterCount => (byte)(_RawBits >> 16); // Bits 16-23
 
         [JsonProperty(Order = 8)]
-        public bool SoftwareErrorRecoverySupported => (_RawBits >> 24 & 0x1) == 1; // Bit 24
+        public bool SoftwareErrorRecoverySupported => ((_RawBits >> 24) & 0x1) == 1; // Bit 24
 
         [JsonProperty(Order = 9)]
-        public bool EnhancedMachineCheckCapability => (_RawBits >> 25 & 0x1) == 1; // Bit 25
+        public bool EnhancedMachineCheckCapability => ((_RawBits >> 25) & 0x1) == 1; // Bit 25
 
         [JsonProperty(Order = 10)]
-        public bool ExtendedErrorLogging => (_RawBits >> 26 & 0x1) == 1; // Bit 26
+        public bool ExtendedErrorLogging => ((_RawBits >> 26) & 0x1) == 1; // Bit 26
 
         [JsonProperty(Order = 11)]
-        public bool LocalMachineCheckException => (_RawBits >> 27 & 0x1) == 1; // Bit 27
+        public bool LocalMachineCheckException => ((_RawBits >> 27) & 0x1) == 1; // Bit 27
 
         [JsonProperty(Order = 12)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -385,28 +385,28 @@ namespace DecodeWheaRecord.Errors.Microsoft {
 
         [JsonProperty(Order = 3)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public uint Reserved => (uint)(_RawBits >> 32 & 0x1FFFFFF); // Bits 32-56
+        public uint Reserved => (uint)((_RawBits >> 32) & 0x1FFFFFF); // Bits 32-56
 
         [JsonProperty(Order = 4)]
-        public bool ContextCorrupt => (_RawBits >> 57 & 0x1) == 1; // Bit 57
+        public bool ContextCorrupt => ((_RawBits >> 57) & 0x1) == 1; // Bit 57
 
         [JsonProperty(Order = 5)]
-        public bool AddressValid => (_RawBits >> 58 & 0x1) == 1; // Bit 58
+        public bool AddressValid => ((_RawBits >> 58) & 0x1) == 1; // Bit 58
 
         [JsonProperty(Order = 6)]
-        public bool MiscValid => (_RawBits >> 59 & 0x1) == 1; // Bit 59
+        public bool MiscValid => ((_RawBits >> 59) & 0x1) == 1; // Bit 59
 
         [JsonProperty(Order = 7)]
-        public bool ErrorEnabled => (_RawBits >> 60 & 0x1) == 1; // Bit 60
+        public bool ErrorEnabled => ((_RawBits >> 60) & 0x1) == 1; // Bit 60
 
         [JsonProperty(Order = 8)]
-        public bool UncorrectedError => (_RawBits >> 61 & 0x1) == 1; // Bit 61
+        public bool UncorrectedError => ((_RawBits >> 61) & 0x1) == 1; // Bit 61
 
         [JsonProperty(Order = 9)]
-        public bool StatusOverFlow => (_RawBits >> 62 & 0x1) == 1; // Bit 62
+        public bool StatusOverFlow => ((_RawBits >> 62) & 0x1) == 1; // Bit 62
 
         [JsonProperty(Order = 10)]
-        public bool Valid => (_RawBits >> 63 & 0x1) == 1; // Bit 63
+        public bool Valid => ((_RawBits >> 63) & 0x1) == 1; // Bit 63
 
         [UsedImplicitly]
         public bool ShouldSerializeReserved() => Reserved != 0;
@@ -423,37 +423,37 @@ namespace DecodeWheaRecord.Errors.Microsoft {
         public ushort ModelErrorCode => (ushort)(_RawBits >> 16); // Bits 16-31
 
         [JsonProperty(Order = 3)]
-        public ushort ImplementationSpecific2 => (ushort)(_RawBits >> 32 & 0x7FF); // Bits 32-42
+        public ushort ImplementationSpecific2 => (ushort)((_RawBits >> 32) & 0x7FF); // Bits 32-42
 
         [JsonProperty(Order = 4)]
-        public bool Poison => (_RawBits >> 43 & 0x1) == 1; // Bit 43
+        public bool Poison => ((_RawBits >> 43) & 0x1) == 1; // Bit 43
 
         [JsonProperty(Order = 5)]
-        public bool Deferred => (_RawBits >> 44 & 0x1) == 1; // Bit 44
+        public bool Deferred => ((_RawBits >> 44) & 0x1) == 1; // Bit 44
 
         [JsonProperty(Order = 6)]
-        public ushort ImplementationSpecific1 => (ushort)(_RawBits >> 45 & 0xFFF); // Bits 45-56
+        public ushort ImplementationSpecific1 => (ushort)((_RawBits >> 45) & 0xFFF); // Bits 45-56
 
         [JsonProperty(Order = 7)]
-        public bool ContextCorrupt => (_RawBits >> 57 & 0x1) == 1; // Bit 57
+        public bool ContextCorrupt => ((_RawBits >> 57) & 0x1) == 1; // Bit 57
 
         [JsonProperty(Order = 8)]
-        public bool AddressValid => (_RawBits >> 58 & 0x1) == 1; // Bit 58
+        public bool AddressValid => ((_RawBits >> 58) & 0x1) == 1; // Bit 58
 
         [JsonProperty(Order = 9)]
-        public bool MiscValid => (_RawBits >> 59 & 0x1) == 1; // Bit 59
+        public bool MiscValid => ((_RawBits >> 59) & 0x1) == 1; // Bit 59
 
         [JsonProperty(Order = 10)]
-        public bool ErrorEnabled => (_RawBits >> 60 & 0x1) == 1; // Bit 60
+        public bool ErrorEnabled => ((_RawBits >> 60) & 0x1) == 1; // Bit 60
 
         [JsonProperty(Order = 11)]
-        public bool UncorrectedError => (_RawBits >> 61 & 0x1) == 1; // Bit 61
+        public bool UncorrectedError => ((_RawBits >> 61) & 0x1) == 1; // Bit 61
 
         [JsonProperty(Order = 12)]
-        public bool StatusOverFlow => (_RawBits >> 62 & 0x1) == 1; // Bit 62
+        public bool StatusOverFlow => ((_RawBits >> 62) & 0x1) == 1; // Bit 62
 
         [JsonProperty(Order = 13)]
-        public bool Valid => (_RawBits >> 63 & 0x1) == 1; // Bit 63
+        public bool Valid => ((_RawBits >> 63) & 0x1) == 1; // Bit 63
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -467,43 +467,43 @@ namespace DecodeWheaRecord.Errors.Microsoft {
         public ushort ModelErrorCode => (ushort)(_RawBits >> 16); // Bits 16-31
 
         [JsonProperty(Order = 3)]
-        public byte OtherInfo => (byte)(_RawBits >> 32 & 0x1F); // Bits 32-36
+        public byte OtherInfo => (byte)((_RawBits >> 32) & 0x1F); // Bits 32-36
 
         [JsonProperty(Order = 4)]
-        public bool FirmwareUpdateError => (_RawBits >> 37 & 0x1) == 1; // Bit 37
+        public bool FirmwareUpdateError => ((_RawBits >> 37) & 0x1) == 1; // Bit 37
 
         [JsonProperty(Order = 5)]
-        public ushort CorrectedErrorCount => (ushort)(_RawBits >> 38 & 0x7FFF); // Bits 38-52
+        public ushort CorrectedErrorCount => (ushort)((_RawBits >> 38) & 0x7FFF); // Bits 38-52
 
         [JsonProperty(Order = 6)]
-        public byte ThresholdErrorStatus => (byte)(_RawBits >> 53 & 0x3); // Bits 53-54
+        public byte ThresholdErrorStatus => (byte)((_RawBits >> 53) & 0x3); // Bits 53-54
 
         [JsonProperty(Order = 7)]
-        public bool ActionRequired => (_RawBits >> 55 & 0x1) == 1; // Bit 55
+        public bool ActionRequired => ((_RawBits >> 55) & 0x1) == 1; // Bit 55
 
         [JsonProperty(Order = 8)]
-        public bool Signalling => (_RawBits >> 56 & 0x1) == 1; // Bit 56
+        public bool Signalling => ((_RawBits >> 56) & 0x1) == 1; // Bit 56
 
         [JsonProperty(Order = 9)]
-        public bool ContextCorrupt => (_RawBits >> 57 & 0x1) == 1; // Bit 57
+        public bool ContextCorrupt => ((_RawBits >> 57) & 0x1) == 1; // Bit 57
 
         [JsonProperty(Order = 10)]
-        public bool AddressValid => (_RawBits >> 58 & 0x1) == 1; // Bit 58
+        public bool AddressValid => ((_RawBits >> 58) & 0x1) == 1; // Bit 58
 
         [JsonProperty(Order = 11)]
-        public bool MiscValid => (_RawBits >> 59 & 0x1) == 1; // Bit 59
+        public bool MiscValid => ((_RawBits >> 59) & 0x1) == 1; // Bit 59
 
         [JsonProperty(Order = 12)]
-        public bool ErrorEnabled => (_RawBits >> 60 & 0x1) == 1; // Bit 60
+        public bool ErrorEnabled => ((_RawBits >> 60) & 0x1) == 1; // Bit 60
 
         [JsonProperty(Order = 13)]
-        public bool UncorrectedError => (_RawBits >> 61 & 0x1) == 1; // Bit 61
+        public bool UncorrectedError => ((_RawBits >> 61) & 0x1) == 1; // Bit 61
 
         [JsonProperty(Order = 14)]
-        public bool StatusOverFlow => (_RawBits >> 62 & 0x1) == 1; // Bit 62
+        public bool StatusOverFlow => ((_RawBits >> 62) & 0x1) == 1; // Bit 62
 
         [JsonProperty(Order = 15)]
-        public bool Valid => (_RawBits >> 63 & 0x1) == 1; // Bit 63
+        public bool Valid => ((_RawBits >> 63) & 0x1) == 1; // Bit 63
     }
 
     // Structure size: 192 bytes
@@ -606,38 +606,38 @@ namespace DecodeWheaRecord.Errors.Microsoft {
     internal enum WHEA_CPU_VENDOR : uint {
         Other = 0,
         Intel = 1,
-        Amd = 2
+        Amd   = 2
     }
 
     [Flags]
     internal enum MCG_STATUS : ulong {
-        RestartIpValid = 0x1,
-        ErrorIpValid = 0x2,
+        RestartIpValid         = 0x1,
+        ErrorIpValid           = 0x2,
         MachineCheckInProgress = 0x4,
-        LocalMceValid = 0x8
+        LocalMceValid          = 0x8
     }
 
     // Originally defined in a structure embedded in XPF_RECOVERY_INFO
     [Flags]
     internal enum XPF_RECOVERY_INFO_FAILURE_REASON_FLAGS : uint {
-        NotSupported = 0x1,
-        Overflow = 0x2,
-        ContextCorrupt = 0x4,
+        NotSupported             = 0x1,
+        Overflow                 = 0x2,
+        ContextCorrupt           = 0x4,
         RestartIpErrorIpNotValid = 0x8,
-        NoRecoveryContext = 0x10,
-        MiscOrAddrNotValid = 0x20,
-        InvalidAddressMode = 0x40,
-        HighIrql = 0x80,
-        InterruptsDisabled = 0x100,
-        SwapBusy = 0x200,
-        StackOverflow = 0x400
+        NoRecoveryContext        = 0x10,
+        MiscOrAddrNotValid       = 0x20,
+        InvalidAddressMode       = 0x40,
+        HighIrql                 = 0x80,
+        InterruptsDisabled       = 0x100,
+        SwapBusy                 = 0x200,
+        StackOverflow            = 0x400
     }
 
     // Originally defined in a structure embedded in XPF_RECOVERY_INFO
     [Flags]
     internal enum XPF_RECOVERY_INFO_ACTION_FLAGS : uint {
         RecoveryAttempted = 0x1,
-        HvHandled = 0x2
+        HvHandled         = 0x2
     }
 
     // @formatter:int_align_fields false

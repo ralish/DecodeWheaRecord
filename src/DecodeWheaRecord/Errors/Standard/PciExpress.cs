@@ -17,7 +17,7 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors.UEFI {
+namespace DecodeWheaRecord.Errors {
     internal sealed class WHEA_PCIEXPRESS_ERROR_SECTION : WheaErrorRecord {
         private const uint StructSize = 208;
         public override uint GetNativeSize() => StructSize;
@@ -237,14 +237,16 @@ namespace DecodeWheaRecord.Errors.UEFI {
 
     [Flags]
     internal enum WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS : ulong {
-        PortType = 0x1,
-        Version = 0x2,
-        CommandStatus = 0x4,
-        DeviceId = 0x8,
-        DeviceSerialNumber = 0x10,
+        PortType            = 0x1,
+        Version             = 0x2,
+        CommandStatus       = 0x4,
+        DeviceIdPciConfig   = 0x8,
+        DeviceSerialNumber  = 0x10,
         BridgeControlStatus = 0x20,
-        ExpressCapability = 0x40,
-        AerInfo = 0x80
+        ExpressCapability   = 0x40,
+        AerInfo             = 0x80,
+        DeviceIdRcrbHeader  = 0x100, // Added
+        RcrbHighAddress     = 0x200  // Added
     }
 
     // @formatter:int_align_fields false

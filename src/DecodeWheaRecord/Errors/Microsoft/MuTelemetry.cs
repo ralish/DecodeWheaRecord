@@ -9,7 +9,7 @@ using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-namespace DecodeWheaRecord.Errors.Microsoft {
+namespace DecodeWheaRecord.Errors {
     // Structure size: 56 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class MU_TELEMETRY_SECTION : IWheaRecord {

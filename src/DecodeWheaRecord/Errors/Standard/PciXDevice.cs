@@ -15,7 +15,7 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors.UEFI {
+namespace DecodeWheaRecord.Errors {
     internal sealed class WHEA_PCIXDEVICE_ERROR_SECTION : WheaErrorRecord {
         private uint _NativeSize;
         public override uint GetNativeSize() => _NativeSize;
@@ -184,10 +184,10 @@ of the array containing the register address/data pair values will be skipped.";
 
     [Flags]
     internal enum WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS : ulong {
-        ErrorStatus = 0x1,
-        IdInfo = 0x2,
-        MemoryNumber = 0x4,
-        IoNumber = 0x8,
+        ErrorStatus       = 0x1,
+        IdInfo            = 0x2,
+        MemoryNumber      = 0x4,
+        IoNumber          = 0x8,
         RegisterDataPairs = 0x10
     }
 

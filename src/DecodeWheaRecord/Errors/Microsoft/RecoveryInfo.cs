@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 
 using Newtonsoft.Json;
 
-namespace DecodeWheaRecord.Errors.Microsoft {
+namespace DecodeWheaRecord.Errors {
     // Structure size: 39 bytes
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
     internal sealed class WHEA_ERROR_RECOVERY_INFO_SECTION : IWheaRecord {
@@ -51,10 +51,10 @@ namespace DecodeWheaRecord.Errors.Microsoft {
 
     [Flags]
     internal enum WHEA_RECOVERY_ACTION : ulong {
-        NoneAttempted = 0x1,
+        NoneAttempted    = 0x1,
         TerminateProcess = 0x2,
-        ForwardedToVm = 0x4,
-        MarkPageBad = 0x8,
+        ForwardedToVm    = 0x4,
+        MarkPageBad      = 0x8,
         PoisonNotPresent = 0x10
     }
 
@@ -64,23 +64,23 @@ namespace DecodeWheaRecord.Errors.Microsoft {
     }
 
     internal enum WHEA_RECOVERY_FAILURE_REASON : uint {
-        KernelCouldNotMarkMemoryBad = 1,
-        KernelMarkMemoryBadTimedOut = 2,
-        NoRecoveryContext = 3,
-        NotContinuable = 4,
-        ProcessorContextCorrupt = 5,
-        Overflow = 6,
-        NotSupported = 7,
-        MiscOrAddrNotValid = 8,
-        InvalidAddressMode = 9,
-        HighIrql = 10,
-        InsufficientAltContextWrappers = 11,
-        InterruptsDisabled = 12,
-        SwapBusy = 13,
-        StackOverflow = 14,
-        UnexpectedFailure = 15,
+        KernelCouldNotMarkMemoryBad        = 1,
+        KernelMarkMemoryBadTimedOut        = 2,
+        NoRecoveryContext                  = 3,
+        NotContinuable                     = 4,
+        ProcessorContextCorrupt            = 5,
+        Overflow                           = 6,
+        NotSupported                       = 7,
+        MiscOrAddrNotValid                 = 8,
+        InvalidAddressMode                 = 9,
+        HighIrql                           = 10,
+        InsufficientAltContextWrappers     = 11,
+        InterruptsDisabled                 = 12,
+        SwapBusy                           = 13,
+        StackOverflow                      = 14,
+        UnexpectedFailure                  = 15,
         KernelWillPageFaultBCAtCurrentIrql = 16,
-        FarNotValid = 17
+        FarNotValid                        = 17
     }
 
     // @formatter:int_align_fields false

@@ -16,7 +16,7 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors.UEFI {
+namespace DecodeWheaRecord.Errors {
     internal sealed class WHEA_FIRMWARE_ERROR_RECORD_REFERENCE : WheaErrorRecord {
         private uint _StructSize;
         public override uint GetNativeSize() => _StructSize;
@@ -116,7 +116,7 @@ namespace DecodeWheaRecord.Errors.UEFI {
 
     // From WHEA_FIRMWARE_RECORD_TYPE preprocessor definitions
     internal enum WHEA_FIRMWARE_RECORD_TYPE : byte {
-        IpfSal = 0,
+        IpfSal           = 0,
         SocFirmwareType1 = 1, // Added
         SocFirmwareType2 = 2  // Added
     }

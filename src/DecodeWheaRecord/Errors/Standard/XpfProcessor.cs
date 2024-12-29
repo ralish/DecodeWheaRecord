@@ -20,7 +20,7 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors.UEFI {
+namespace DecodeWheaRecord.Errors {
     internal sealed class WHEA_XPF_PROCESSOR_ERROR_SECTION : WheaErrorRecord {
         private uint _StructSize;
         public override uint GetNativeSize() => _StructSize;
@@ -38,11 +38,11 @@ namespace DecodeWheaRecord.Errors.UEFI {
 
         // See WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS structure comment
         [JsonProperty(Order = 2)]
-        public byte ProcInfoCount => (byte)(_RawValidBits >> 2 & 0x3F); // Bits 2-7
+        public byte ProcInfoCount => (byte)((_RawValidBits >> 2) & 0x3F); // Bits 2-7
 
         // See WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS structure comment
         [JsonProperty(Order = 3)]
-        public byte ContextInfoCount => (byte)(_RawValidBits >> 8 & 0x3F); // Bits 8-13
+        public byte ContextInfoCount => (byte)((_RawValidBits >> 8) & 0x3F); // Bits 8-13
 
         [JsonProperty(Order = 4)]
         public ulong LocalAPICId;
@@ -233,29 +233,29 @@ namespace DecodeWheaRecord.Errors.UEFI {
 
         // Switched to an enumeration
         [JsonProperty(Order = 2)]
-        public string TransactionType => Enum.GetName(typeof(WHEA_XPF_CACHE_CHECK_TRANSACTION_TYPE), (byte)(_RawBits >> 16 & 0x3)); // Bits 16-17
+        public string TransactionType => Enum.GetName(typeof(WHEA_XPF_CACHE_CHECK_TRANSACTION_TYPE), (byte)((_RawBits >> 16) & 0x3)); // Bits 16-17
 
         // Switched to an enumeration
         [JsonProperty(Order = 3)]
-        public string Operation => Enum.GetName(typeof(WHEA_XPF_CACHE_CHECK_OPERATION), (byte)(_RawBits >> 18 & 0xF)); // Bits 18-21
+        public string Operation => Enum.GetName(typeof(WHEA_XPF_CACHE_CHECK_OPERATION), (byte)((_RawBits >> 18) & 0xF)); // Bits 18-21
 
         [JsonProperty(Order = 4)]
-        public byte Level => (byte)(_RawBits >> 22 & 0x7); // Bits 22-24
+        public byte Level => (byte)((_RawBits >> 22) & 0x7); // Bits 22-24
 
         [JsonProperty(Order = 5)]
-        public bool ProcessorContextCorrupt => (_RawBits >> 25 & 0x1) == 1; // Bit 25
+        public bool ProcessorContextCorrupt => ((_RawBits >> 25) & 0x1) == 1; // Bit 25
 
         [JsonProperty(Order = 6)]
-        public bool Uncorrected => (_RawBits >> 26 & 0x1) == 1; // Bit 26
+        public bool Uncorrected => ((_RawBits >> 26) & 0x1) == 1; // Bit 26
 
         [JsonProperty(Order = 7)]
-        public bool PreciseIP => (_RawBits >> 27 & 0x1) == 1; // Bit 27
+        public bool PreciseIP => ((_RawBits >> 27) & 0x1) == 1; // Bit 27
 
         [JsonProperty(Order = 8)]
-        public bool RestartableIP => (_RawBits >> 28 & 0x1) == 1; // Bit 28
+        public bool RestartableIP => ((_RawBits >> 28) & 0x1) == 1; // Bit 28
 
         [JsonProperty(Order = 9)]
-        public bool Overflow => (_RawBits >> 29 & 0x1) == 1; // Bit 29
+        public bool Overflow => ((_RawBits >> 29) & 0x1) == 1; // Bit 29
 
         [JsonProperty(Order = 10)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -300,29 +300,29 @@ namespace DecodeWheaRecord.Errors.UEFI {
 
         // Switched to an enumeration
         [JsonProperty(Order = 2)]
-        public string TransactionType => Enum.GetName(typeof(WHEA_XPF_TLB_CHECK_TRANSACTION_TYPE), (byte)(_RawBits >> 16 & 0x3)); // Bits 16-17
+        public string TransactionType => Enum.GetName(typeof(WHEA_XPF_TLB_CHECK_TRANSACTION_TYPE), (byte)((_RawBits >> 16) & 0x3)); // Bits 16-17
 
         // Switched to an enumeration
         [JsonProperty(Order = 3)]
-        public string Operation => Enum.GetName(typeof(WHEA_XPF_TLB_CHECK_OPERATION), (byte)(_RawBits >> 18 & 0xF)); // Bits 18-21
+        public string Operation => Enum.GetName(typeof(WHEA_XPF_TLB_CHECK_OPERATION), (byte)((_RawBits >> 18) & 0xF)); // Bits 18-21
 
         [JsonProperty(Order = 4)]
-        public byte Level => (byte)(_RawBits >> 22 & 0x7); // Bits 22-24
+        public byte Level => (byte)((_RawBits >> 22) & 0x7); // Bits 22-24
 
         [JsonProperty(Order = 5)]
-        public bool ProcessorContextCorrupt => (_RawBits >> 25 & 0x1) == 1; // Bit 25
+        public bool ProcessorContextCorrupt => ((_RawBits >> 25) & 0x1) == 1; // Bit 25
 
         [JsonProperty(Order = 6)]
-        public bool Uncorrected => (_RawBits >> 26 & 0x1) == 1; // Bit 26
+        public bool Uncorrected => ((_RawBits >> 26) & 0x1) == 1; // Bit 26
 
         [JsonProperty(Order = 7)]
-        public bool PreciseIP => (_RawBits >> 27 & 0x1) == 1; // Bit 27
+        public bool PreciseIP => ((_RawBits >> 27) & 0x1) == 1; // Bit 27
 
         [JsonProperty(Order = 8)]
-        public bool RestartableIP => (_RawBits >> 28 & 0x1) == 1; // Bit 28
+        public bool RestartableIP => ((_RawBits >> 28) & 0x1) == 1; // Bit 28
 
         [JsonProperty(Order = 9)]
-        public bool Overflow => (_RawBits >> 29 & 0x1) == 1; // Bit 29
+        public bool Overflow => ((_RawBits >> 29) & 0x1) == 1; // Bit 29
 
         [JsonProperty(Order = 10)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -367,40 +367,40 @@ namespace DecodeWheaRecord.Errors.UEFI {
 
         // Switched to an enumeration
         [JsonProperty(Order = 2)]
-        public string TransactionType => Enum.GetName(typeof(WHEA_XPF_BUS_CHECK_TRANSACTION_TYPE), (byte)(_RawBits >> 16 & 0x3)); // Bits 16-17
+        public string TransactionType => Enum.GetName(typeof(WHEA_XPF_BUS_CHECK_TRANSACTION_TYPE), (byte)((_RawBits >> 16) & 0x3)); // Bits 16-17
 
         // Switched to an enumeration
         [JsonProperty(Order = 3)]
-        public string Operation => Enum.GetName(typeof(WHEA_XPF_BUS_CHECK_OPERATION), (byte)(_RawBits >> 18 & 0xF)); // Bits 18-21
+        public string Operation => Enum.GetName(typeof(WHEA_XPF_BUS_CHECK_OPERATION), (byte)((_RawBits >> 18) & 0xF)); // Bits 18-21
 
         [JsonProperty(Order = 4)]
-        public byte Level => (byte)(_RawBits >> 22 & 0x7); // Bits 22-24
+        public byte Level => (byte)((_RawBits >> 22) & 0x7); // Bits 22-24
 
         [JsonProperty(Order = 5)]
-        public bool ProcessorContextCorrupt => (_RawBits >> 25 & 0x1) == 1; // Bit 25
+        public bool ProcessorContextCorrupt => ((_RawBits >> 25) & 0x1) == 1; // Bit 25
 
         [JsonProperty(Order = 6)]
-        public bool Uncorrected => (_RawBits >> 26 & 0x1) == 1; // Bit 26
+        public bool Uncorrected => ((_RawBits >> 26) & 0x1) == 1; // Bit 26
 
         [JsonProperty(Order = 7)]
-        public bool PreciseIP => (_RawBits >> 27 & 0x1) == 1; // Bit 27
+        public bool PreciseIP => ((_RawBits >> 27) & 0x1) == 1; // Bit 27
 
         [JsonProperty(Order = 8)]
-        public bool RestartableIP => (_RawBits >> 28 & 0x1) == 1; // Bit 28
+        public bool RestartableIP => ((_RawBits >> 28) & 0x1) == 1; // Bit 28
 
         [JsonProperty(Order = 9)]
-        public bool Overflow => (_RawBits >> 29 & 0x1) == 1; // Bit 29
+        public bool Overflow => ((_RawBits >> 29) & 0x1) == 1; // Bit 29
 
         // Switched to an enumeration
         [JsonProperty(Order = 10)]
-        public string Participation => Enum.GetName(typeof(WHEA_XPF_BUS_CHECK_PARTICIPATION), (byte)(_RawBits >> 30 & 0x3)); // Bits 30-31
+        public string Participation => Enum.GetName(typeof(WHEA_XPF_BUS_CHECK_PARTICIPATION), (byte)((_RawBits >> 30) & 0x3)); // Bits 30-31
 
         [JsonProperty(Order = 11)]
-        public bool Timeout => (_RawBits >> 32 & 0x1) == 1; // Bit 32
+        public bool Timeout => ((_RawBits >> 32) & 0x1) == 1; // Bit 32
 
         // Switched to an enumeration
         [JsonProperty(Order = 12)]
-        public string AddressSpace => Enum.GetName(typeof(WHEA_XPF_BUS_CHECK_ADDRESS), (byte)(_RawBits >> 33 & 0x3)); // Bits 33-34
+        public string AddressSpace => Enum.GetName(typeof(WHEA_XPF_BUS_CHECK_ADDRESS), (byte)((_RawBits >> 33) & 0x3)); // Bits 33-34
 
         [JsonProperty(Order = 13)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -454,22 +454,22 @@ namespace DecodeWheaRecord.Errors.UEFI {
 
         // Switched to an enumeration
         [JsonProperty(Order = 2)]
-        public string ErrorType => Enum.GetName(typeof(WHEA_XPF_MS_CHECK_ERROR_TYPE), (byte)(_RawBits >> 16 & 0x7)); // Bits 16-18
+        public string ErrorType => Enum.GetName(typeof(WHEA_XPF_MS_CHECK_ERROR_TYPE), (byte)((_RawBits >> 16) & 0x7)); // Bits 16-18
 
         [JsonProperty(Order = 3)]
-        public bool ProcessorContextCorrupt => (_RawBits >> 19 & 0x1) == 1; // Bit 19
+        public bool ProcessorContextCorrupt => ((_RawBits >> 19) & 0x1) == 1; // Bit 19
 
         [JsonProperty(Order = 4)]
-        public bool Uncorrected => (_RawBits >> 20 & 0x1) == 1; // Bit 20
+        public bool Uncorrected => ((_RawBits >> 20) & 0x1) == 1; // Bit 20
 
         [JsonProperty(Order = 5)]
-        public bool PreciseIP => (_RawBits >> 21 & 0x1) == 1; // Bit 21
+        public bool PreciseIP => ((_RawBits >> 21) & 0x1) == 1; // Bit 21
 
         [JsonProperty(Order = 6)]
-        public bool RestartableIP => (_RawBits >> 22 & 0x1) == 1; // Bit 22
+        public bool RestartableIP => ((_RawBits >> 22) & 0x1) == 1; // Bit 22
 
         [JsonProperty(Order = 7)]
-        public bool Overflow => (_RawBits >> 23 & 0x1) == 1; // Bit 23
+        public bool Overflow => ((_RawBits >> 23) & 0x1) == 1; // Bit 23
 
         [JsonProperty(Order = 8)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -843,163 +843,163 @@ namespace DecodeWheaRecord.Errors.UEFI {
     [Flags]
     internal enum WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS : ulong {
         LocalAPICId = 0x1,
-        CpuId = 0x2
+        CpuId       = 0x2
     }
 
     [Flags]
     internal enum WHEA_XPF_PROCINFO_VALIDBITS : ulong {
-        CheckInfo = 0x1,
-        TargetId = 0x2,
-        RequesterId = 0x4,
-        ResponderId = 0x8,
+        CheckInfo          = 0x1,
+        TargetId           = 0x2,
+        RequesterId        = 0x4,
+        ResponderId        = 0x8,
         InstructionPointer = 0x10
     }
 
     // Originally defined in the WHEA_XPF_CACHE_CHECK bitfield
     [Flags]
     internal enum WHEA_XPF_CACHE_CHECK_VALIDBITS : ushort {
-        TransactionTypeValid = 0x1,
-        OperationValid = 0x2,
-        LevelValid = 0x4,
+        TransactionTypeValid         = 0x1,
+        OperationValid               = 0x2,
+        LevelValid                   = 0x4,
         ProcessorContextCorruptValid = 0x8,
-        UncorrectedValid = 0x10,
-        PreciseIPValid = 0x20,
-        RestartableIPValid = 0x40,
-        OverflowValid = 0x80
+        UncorrectedValid             = 0x10,
+        PreciseIPValid               = 0x20,
+        RestartableIPValid           = 0x40,
+        OverflowValid                = 0x80
     }
 
     // From XPF_CACHE_CHECK_TRANSACTIONTYPE preprocessor definitions
     internal enum WHEA_XPF_CACHE_CHECK_TRANSACTION_TYPE : byte {
         Instruction = 0,
-        DataAccess = 1,
-        Generic = 2
+        DataAccess  = 1,
+        Generic     = 2
     }
 
     // From XPF_CACHE_CHECK_OPERATION preprocessor definitions
     internal enum WHEA_XPF_CACHE_CHECK_OPERATION : byte {
-        Generic = 0,
-        GenericRead = 1,
-        GenericWrite = 2,
-        DataRead = 3,
-        DataWrite = 4,
+        Generic          = 0,
+        GenericRead      = 1,
+        GenericWrite     = 2,
+        DataRead         = 3,
+        DataWrite        = 4,
         InstructionFetch = 5,
-        Prefetch = 6,
-        Eviction = 7,
-        Snoop = 8
+        Prefetch         = 6,
+        Eviction         = 7,
+        Snoop            = 8
     }
 
     // Originally defined in the WHEA_XPF_TLB_CHECK bitfield
     [Flags]
     internal enum WHEA_XPF_TLB_CHECK_VALIDBITS : ushort {
-        TransactionTypeValid = 0x1,
-        OperationValid = 0x2,
-        LevelValid = 0x4,
+        TransactionTypeValid         = 0x1,
+        OperationValid               = 0x2,
+        LevelValid                   = 0x4,
         ProcessorContextCorruptValid = 0x8,
-        UncorrectedValid = 0x10,
-        PreciseIPValid = 0x20,
-        RestartableIPValid = 0x40,
-        OverflowValid = 0x80
+        UncorrectedValid             = 0x10,
+        PreciseIPValid               = 0x20,
+        RestartableIPValid           = 0x40,
+        OverflowValid                = 0x80
     }
 
     // From XPF_TLB_CHECK_TRANSACTIONTYPE preprocessor definitions
     internal enum WHEA_XPF_TLB_CHECK_TRANSACTION_TYPE : byte {
         Instruction = 0,
-        DataAccess = 1,
-        Generic = 2
+        DataAccess  = 1,
+        Generic     = 2
     }
 
     // From XPF_TLB_CHECK_OPERATION preprocessor definitions
     internal enum WHEA_XPF_TLB_CHECK_OPERATION : byte {
-        Generic = 0,
-        GenericRead = 1,
-        GenericWrite = 2,
-        DataRead = 3,
-        DataWrite = 4,
+        Generic          = 0,
+        GenericRead      = 1,
+        GenericWrite     = 2,
+        DataRead         = 3,
+        DataWrite        = 4,
         InstructionFetch = 5,
-        Prefetch = 6
+        Prefetch         = 6
     }
 
     // Originally defined in the WHEA_XPF_BUS_CHECK bitfield
     [Flags]
     internal enum WHEA_XPF_BUS_CHECK_VALIDBITS : ushort {
-        TransactionTypeValid = 0x1,
-        OperationValid = 0x2,
-        LevelValid = 0x4,
+        TransactionTypeValid         = 0x1,
+        OperationValid               = 0x2,
+        LevelValid                   = 0x4,
         ProcessorContextCorruptValid = 0x8,
-        UncorrectedValid = 0x10,
-        PreciseIPValid = 0x20,
-        RestartableIPValid = 0x40,
-        OverflowValid = 0x80,
-        ParticipationValid = 0x100,
-        TimeoutValid = 0x200,
-        AddressSpaceValid = 0x400
+        UncorrectedValid             = 0x10,
+        PreciseIPValid               = 0x20,
+        RestartableIPValid           = 0x40,
+        OverflowValid                = 0x80,
+        ParticipationValid           = 0x100,
+        TimeoutValid                 = 0x200,
+        AddressSpaceValid            = 0x400
     }
 
     // From XPF_BUS_CHECK_TRANSACTIONTYPE preprocessor definitions
     internal enum WHEA_XPF_BUS_CHECK_TRANSACTION_TYPE : byte {
         Instruction = 0,
-        DataAccess = 1,
-        Generic = 2
+        DataAccess  = 1,
+        Generic     = 2
     }
 
     // From XPF_BUS_CHECK_OPERATION preprocessor definitions
     internal enum WHEA_XPF_BUS_CHECK_OPERATION : byte {
-        Generic = 0,
-        GenericRead = 1,
-        GenericWrite = 2,
-        DataRead = 3,
-        DataWrite = 4,
+        Generic          = 0,
+        GenericRead      = 1,
+        GenericWrite     = 2,
+        DataRead         = 3,
+        DataWrite        = 4,
         InstructionFetch = 5,
-        Prefetch = 6
+        Prefetch         = 6
     }
 
     // From XPF_BUS_CHECK_PARTICIPATION preprocessor definitions
     internal enum WHEA_XPF_BUS_CHECK_PARTICIPATION : byte {
         ProcessorOriginated = 0,
-        ProcessorResponded = 1,
-        ProcessorObserved = 2,
-        Generic = 3
+        ProcessorResponded  = 1,
+        ProcessorObserved   = 2,
+        Generic             = 3
     }
 
     // From XPF_BUS_CHECK_ADDRESS preprocessor definitions
     internal enum WHEA_XPF_BUS_CHECK_ADDRESS : byte {
-        Memory = 0,
+        Memory   = 0,
         Reserved = 1,
-        IO = 2,
-        Other = 3
+        IO       = 2,
+        Other    = 3
     }
 
     // Originally defined in the WHEA_XPF_MS_CHECK bitfield
     [Flags]
     internal enum WHEA_XPF_MS_CHECK_VALIDBITS : ushort {
-        ErrorTypeValid = 0x1,
+        ErrorTypeValid               = 0x1,
         ProcessorContextCorruptValid = 0x2,
-        UncorrectedValid = 0x4,
-        PreciseIPValid = 0x8,
-        RestartableIPValid = 0x10,
-        OverflowValid = 0x20
+        UncorrectedValid             = 0x4,
+        PreciseIPValid               = 0x8,
+        RestartableIPValid           = 0x10,
+        OverflowValid                = 0x20
     }
 
     // From XPF_MS_CHECK_ERRORTYPE preprocessor definitions
     internal enum WHEA_XPF_MS_CHECK_ERROR_TYPE : byte {
-        NoError = 0,
-        Unclassified = 1,
-        McRomParity = 2,
-        External = 3,
-        Frc = 4,
+        NoError              = 0,
+        Unclassified         = 1,
+        McRomParity          = 2,
+        External             = 3,
+        Frc                  = 4,
         InternalUnclassified = 5
     }
 
     // From XPF_CONTEXT_INFO preprocessor definitions
     internal enum WHEA_XPF_CONTEXT_INFO_TYPE : ushort {
-        UnclassifiedData = 0,
-        MsrRegisters = 1,
-        ContextX32 = 2,
-        ContextX64 = 3,
-        FxSave = 4,
+        UnclassifiedData  = 0,
+        MsrRegisters      = 1,
+        ContextX32        = 2,
+        ContextX64        = 3,
+        FxSave            = 4,
         DebugRegistersX32 = 5,
         DebugRegistersX64 = 6,
-        MmRegisters = 7
+        MmRegisters       = 7
     }
 
     // @formatter:int_align_fields false
