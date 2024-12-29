@@ -98,10 +98,13 @@ namespace DecodeWheaRecord.Errors {
 
             _Revision = Marshal.PtrToStructure<WHEA_REVISION>(structAddr + 8);
             var hdrRevision = new Version(_Revision.MajorRevision, _Revision.MinorRevision);
-            var maxRevision = new Version(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION >> 8, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION & 0xFF);
-            if (hdrRevision > maxRevision) {
-                var msg = $"{nameof(Revision)} is greater than latest supported of {maxRevision.ToString(2)}: {hdrRevision.ToString(2)}";
+            var supRevision = new Version(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION >> 8, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION & 0xFF);
+            if (hdrRevision.MajorRevision > supRevision.MajorRevision) {
+                var msg = $"{nameof(Revision)} major version is greater than latest supported: {hdrRevision.ToString(1)} > {supRevision.ToString(1)}";
                 throw new InvalidDataException(msg);
+            }
+            if (hdrRevision > supRevision) {
+                WarnOutput($"{nameof(Revision)} minor version is greater than latest supported: {hdrRevision.ToString(2)} > {supRevision.ToString(2)}");
             }
 
             _ValidBits = (WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS)Marshal.ReadByte(structAddr, 10);
@@ -143,7 +146,13 @@ namespace DecodeWheaRecord.Errors {
         ResourceNotAvailable = 0x10,
         LatentError          = 0x20,
         Propagated           = 0x40,
-        FruTextByPlugin      = 0x80
+
+        /*
+         * The UEFI Specification defines this as the Overflow bit, but it's
+         * different in the Windows headers. We'll use the Windows definition
+         * but it's odd as why redefine what appears to be an important bit?
+         */
+        FruTextByPlugin = 0x80
     }
 
     // @formatter:int_align_fields false

@@ -71,9 +71,11 @@ namespace DecodeWheaRecord.Errors {
         public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
 
         /*
-         * Length of the error record in its entirety. This includes the error
-         * record header (this structure), error record section descriptors,
-         * and any error record sections.
+         * Length of the error record in its entirety; i.e. the error record
+         * header (this structure), error record section descriptors, and the
+         * error record sections. Extra buffer space may also be included to
+         * support dynamic addition of further error record sections and the
+         * associated error record section descriptors.
          */
         [JsonProperty(Order = 7)]
         public uint Length;
@@ -111,7 +113,12 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 15)]
         public WHEA_PERSISTENCE_INFO PersistenceInfo;
 
-        // Only populated in Azure by a PSHED plugin (AzPshedPi)
+        /*
+         * Only populated in Azure by a PSHED plugin (AzPshedPi)
+         *
+         * Microsoft is being a bit naughty here as the UEFI Specification is
+         * explicit that these bytes must be zero.
+         */
         [JsonProperty(Order = 16)]
         public uint OsBuildNumber;
 
@@ -130,10 +137,13 @@ namespace DecodeWheaRecord.Errors {
 
             _Revision = Marshal.PtrToStructure<WHEA_REVISION>(recordAddr + 4);
             var hdrRevision = new Version(_Revision.MajorRevision, _Revision.MinorRevision);
-            var maxRevision = new Version(WHEA_ERROR_RECORD_REVISION >> 8, WHEA_ERROR_RECORD_REVISION & 0xFF);
-            if (hdrRevision > maxRevision) {
-                var msg = $"{nameof(Revision)} is greater than latest supported of {maxRevision.ToString(2)}: {hdrRevision.ToString(2)}";
+            var supRevision = new Version(WHEA_ERROR_RECORD_REVISION >> 8, WHEA_ERROR_RECORD_REVISION & 0xFF);
+            if (hdrRevision.MajorRevision > supRevision.MajorRevision) {
+                var msg = $"{nameof(Revision)} major version is greater than latest supported: {hdrRevision.ToString(1)} > {supRevision.ToString(1)}";
                 throw new InvalidDataException(msg);
+            }
+            if (hdrRevision > supRevision) {
+                WarnOutput($"{nameof(Revision)} minor version is greater than latest supported: {hdrRevision.ToString(2)} > {supRevision.ToString(2)}");
             }
 
             SignatureEnd = (uint)Marshal.ReadInt32(recordAddr, 6);
@@ -162,7 +172,7 @@ namespace DecodeWheaRecord.Errors {
                 }
 
                 WarnOutput(msg, logCat);
-                WarnOutput("Error record is likely to be partially and/or incorrectly decoded.", logCat);
+                WarnOutput("Error record may be incorrectly and/or partially decoded.", logCat);
             }
 
             _Timestamp = Marshal.PtrToStructure<WHEA_TIMESTAMP>(recordAddr + 24);
@@ -280,12 +290,12 @@ namespace DecodeWheaRecord.Errors {
         Recovered          = 0x1,
         PreviousError      = 0x2,
         Simulated          = 0x4,
-        DeviceDriver       = 0x8,
-        CriticalEvent      = 0x10,
-        PersistPfn         = 0x20,
-        SectionsTruncated  = 0x40,
-        RecoveryInProgress = 0x80,
-        Throttle           = 0x100
+        DeviceDriver       = 0x8,  // Not in UEFI Specification
+        CriticalEvent      = 0x10, // Not in UEFI Specification
+        PersistPfn         = 0x20, // Not in UEFI Specification
+        SectionsTruncated  = 0x40, // Not in UEFI Specification
+        RecoveryInProgress = 0x80, // Not in UEFI Specification
+        Throttle           = 0x100 // Not in UEFI Specification
     }
 
     // @formatter:int_align_fields false
