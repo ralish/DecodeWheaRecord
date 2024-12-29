@@ -158,9 +158,15 @@ namespace DecodeWheaRecord.Errors {
 
     // Structure size: 4 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_PCIEXPRESS_BRIDGE_CONTROL_STATUS {
-        public ushort BridgeSecondaryStatus;
-        public ushort BridgeControl;
+    internal sealed class WHEA_PCIEXPRESS_VERSION {
+        public byte MinorVersion;
+        public byte MajorVersion;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ushort Reserved;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
     // Structure size: 4 bytes
@@ -222,15 +228,9 @@ namespace DecodeWheaRecord.Errors {
 
     // Structure size: 4 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_PCIEXPRESS_VERSION {
-        public byte MinorVersion;
-        public byte MajorVersion;
-
-        [JsonConverter(typeof(HexStringJsonConverter))]
-        public ushort Reserved;
-
-        [UsedImplicitly]
-        public bool ShouldSerializeReserved() => Reserved != 0;
+    internal sealed class WHEA_PCIEXPRESS_BRIDGE_CONTROL_STATUS {
+        public ushort BridgeSecondaryStatus;
+        public ushort BridgeControl;
     }
 
     // @formatter:int_align_fields true
@@ -240,13 +240,11 @@ namespace DecodeWheaRecord.Errors {
         PortType            = 0x1,
         Version             = 0x2,
         CommandStatus       = 0x4,
-        DeviceIdPciConfig   = 0x8,
+        DeviceId            = 0x8,
         DeviceSerialNumber  = 0x10,
         BridgeControlStatus = 0x20,
         ExpressCapability   = 0x40,
-        AerInfo             = 0x80,
-        DeviceIdRcrbHeader  = 0x100, // Added
-        RcrbHighAddress     = 0x200  // Added
+        AerInfo             = 0x80
     }
 
     // @formatter:int_align_fields false

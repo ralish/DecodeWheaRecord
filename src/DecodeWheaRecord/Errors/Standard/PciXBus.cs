@@ -97,6 +97,13 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeTargetId() => (_ValidBits & WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS.TargetId) != 0;
     }
 
+    // Structure size: 2 bytes
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    internal sealed class WHEA_PCIXBUS_ID {
+        public byte BusNumber;
+        public byte BusSegment;
+    }
+
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PCIXBUS_COMMAND {
         private ulong _RawBits;
@@ -113,13 +120,6 @@ namespace DecodeWheaRecord.Errors {
 
         [UsedImplicitly]
         public bool ShouldSerializeReserved() => Reserved != 0;
-    }
-
-    // Structure size: 2 bytes
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_PCIXBUS_ID {
-        public byte BusNumber;
-        public byte BusSegment;
     }
 
     // @formatter:int_align_fields true
