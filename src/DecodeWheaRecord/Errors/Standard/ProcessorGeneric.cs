@@ -144,9 +144,9 @@ namespace DecodeWheaRecord.Errors {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong InstructionPointer;
 
-        public WHEA_PROCESSOR_GENERIC_ERROR_SECTION(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
-            base(typeof(WHEA_PROCESSOR_GENERIC_ERROR_SECTION), structOffset, StructSize, bytesRemaining) {
-            WheaProcessorGenericErrorSection(recordAddr, structOffset, bytesRemaining);
+        public WHEA_PROCESSOR_GENERIC_ERROR_SECTION(IntPtr recordAddr, uint sectionOffset, uint bytesRemaining) :
+            base(typeof(WHEA_PROCESSOR_GENERIC_ERROR_SECTION), sectionOffset, StructSize, bytesRemaining) {
+            WheaProcessorGenericErrorSection(recordAddr, sectionOffset, bytesRemaining);
         }
 
         public WHEA_PROCESSOR_GENERIC_ERROR_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
@@ -154,9 +154,9 @@ namespace DecodeWheaRecord.Errors {
             WheaProcessorGenericErrorSection(recordAddr, sectionDsc.SectionOffset, bytesRemaining);
         }
 
-        private void WheaProcessorGenericErrorSection(IntPtr recordAddr, uint structOffset, uint bytesRemaining) {
+        private void WheaProcessorGenericErrorSection(IntPtr recordAddr, uint sectionOffset, uint bytesRemaining) {
             var logCat = SectionType.Name;
-            var sectionAddr = recordAddr + (int)structOffset;
+            var sectionAddr = recordAddr + (int)sectionOffset;
 
             _ValidBits = (WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(sectionAddr);
             _ProcessorType = (WHEA_PROCESSOR_GENERIC_PROC_TYPE)Marshal.ReadByte(sectionAddr, 8);
@@ -175,7 +175,7 @@ namespace DecodeWheaRecord.Errors {
                 switch (_ProcessorType) {
                     case WHEA_PROCESSOR_GENERIC_PROC_TYPE.XPF:
                         CPUVersionXPF = new WHEA_PROCESSOR_FAMILY_INFO(recordAddr,
-                                                                       structOffset + 16,
+                                                                       sectionOffset + 16,
                                                                        bytesRemaining - 16,
                                                                        ShouldSerializeNativeModelId());
 
