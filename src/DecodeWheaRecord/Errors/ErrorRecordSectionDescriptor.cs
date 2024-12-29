@@ -1,5 +1,3 @@
-#pragma warning disable IDE0044 // Make field readonly
-
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable InconsistentNaming
 
@@ -18,9 +16,8 @@ using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
     internal sealed class WHEA_ERROR_RECORD_SECTION_DESCRIPTOR : WheaErrorRecord {
-        // Structure size is static
-        internal const uint DescriptorSize = 72;
-        public override uint GetNativeSize() => DescriptorSize;
+        internal const uint StructSize = 72;
+        public override uint GetNativeSize() => StructSize;
 
         /*
          * The header defines the revision as a single value but the structure
@@ -69,9 +66,7 @@ namespace DecodeWheaRecord.Errors {
 
         [JsonProperty(Order = 7)]
         public new string SectionType =>
-            WheaGuids.SectionTypes.TryGetValue(_SectionType, out var SectionTypeValue)
-                ? SectionTypeValue
-                : _SectionType.ToString();
+            WheaGuids.SectionTypes.TryGetValue(_SectionType, out var SectionTypeValue) ? SectionTypeValue : _SectionType.ToString();
 
         [JsonProperty(Order = 8)]
         public Guid FRUId;
@@ -81,28 +76,27 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 9)]
         public string SectionSeverity => Enum.GetName(typeof(WHEA_ERROR_SEVERITY), _SectionSeverity);
 
+        private string _FRUText;
+
         [JsonProperty(Order = 10)]
-        public string FRUText;
+        public string FRUText => _FRUText.Trim('\0');
 
-        public WHEA_ERROR_RECORD_SECTION_DESCRIPTOR(IntPtr recordAddr, uint descriptorOffset, uint bytesRemaining) :
-            base(typeof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR), descriptorOffset, DescriptorSize, bytesRemaining) {
-            var descriptorAddr = recordAddr + (int)descriptorOffset;
-            var recordSize = descriptorOffset + bytesRemaining;
+        public WHEA_ERROR_RECORD_SECTION_DESCRIPTOR(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR), structOffset, StructSize, bytesRemaining) {
+            var structAddr = recordAddr + (int)structOffset;
+            var recordSize = structOffset + bytesRemaining;
 
-            SectionOffset = (uint)Marshal.ReadInt32(descriptorAddr);
+            SectionOffset = (uint)Marshal.ReadInt32(structAddr);
             if (SectionOffset > recordSize) {
-                var msg = $"{nameof(SectionOffset)} is beyond the record size: {SectionOffset} > {recordSize}";
-                throw new InvalidDataException(msg);
+                throw new InvalidDataException($"{nameof(SectionOffset)} is beyond the record size: {SectionOffset} > {recordSize}");
             }
 
-            SectionLength = (uint)Marshal.ReadInt32(descriptorAddr, 4);
+            SectionLength = (uint)Marshal.ReadInt32(structAddr, 4);
             if (SectionOffset + SectionLength > recordSize) {
-                var msg = $"{nameof(SectionLength)} is beyond the record size: {SectionOffset} + {SectionLength} > {recordSize}";
-                throw new InvalidDataException(msg);
+                throw new InvalidDataException($"{nameof(SectionLength)} is beyond the record size: {SectionOffset} + {SectionLength} > {recordSize}");
             }
 
-            _Revision = Marshal.PtrToStructure<WHEA_REVISION>(descriptorAddr + 8);
-            var offset = 8 + Marshal.SizeOf<WHEA_REVISION>();
+            _Revision = Marshal.PtrToStructure<WHEA_REVISION>(structAddr + 8);
             var hdrRevision = new Version(_Revision.MajorRevision, _Revision.MinorRevision);
             var maxRevision = new Version(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION >> 8, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION & 0xFF);
             if (hdrRevision > maxRevision) {
@@ -110,40 +104,36 @@ namespace DecodeWheaRecord.Errors {
                 throw new InvalidDataException(msg);
             }
 
-            _ValidBits = (WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS)Marshal.ReadByte(descriptorAddr, offset);
-            Reserved = Marshal.ReadByte(descriptorAddr, offset + 1);
-            _Flags = (WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_FLAGS)Marshal.ReadInt32(descriptorAddr, offset + 2);
-            offset += 6;
+            _ValidBits = (WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS)Marshal.ReadByte(structAddr, 10);
+            Reserved = Marshal.ReadByte(structAddr, 11);
+            _Flags = (WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_FLAGS)Marshal.ReadInt32(structAddr, 11);
+            _SectionType = Marshal.PtrToStructure<Guid>(structAddr + 16);
+            FRUId = Marshal.PtrToStructure<Guid>(structAddr + 32);
+            _SectionSeverity = (WHEA_ERROR_SEVERITY)Marshal.ReadInt32(structAddr, 48);
+            _FRUText = Marshal.PtrToStringAnsi(structAddr + 52, 20);
 
-            _SectionType = Marshal.PtrToStructure<Guid>(descriptorAddr + offset);
-            FRUId = Marshal.PtrToStructure<Guid>(descriptorAddr + offset);
-            offset += 32;
-
-            _SectionSeverity = (WHEA_ERROR_SEVERITY)Marshal.ReadInt32(descriptorAddr, offset);
-            offset += 4;
-
-            FRUText = Marshal.PtrToStringAnsi(descriptorAddr + offset, 20).Trim('\0');
-
-            FinalizeRecord(recordAddr, DescriptorSize);
+            FinalizeRecord(recordAddr, StructSize);
         }
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public bool ShouldSerializeReserved() => Reserved != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeFRUId() =>
-            (_ValidBits & WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS.FRUId) ==
-            WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS.FRUId;
+        public bool ShouldSerializeFRUId() => (_ValidBits & WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS.FRUId) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeFRUText() =>
-            (_ValidBits & WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS.FRUText) ==
-            WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS.FRUText;
+        public bool ShouldSerializeFRUText() => (_ValidBits & WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS.FRUText) != 0;
     }
 
     // @formatter:int_align_fields true
 
-    // Also specified as preprocessor definitions
+    [Flags]
+    internal enum WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS : byte {
+        FRUId   = 0x1,
+        FRUText = 0x2
+    }
+
+    // Also in WHEA_SECTION_DESCRIPTOR_FLAGS preprocessor definitions
     [Flags]
     internal enum WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_FLAGS : uint {
         Primary              = 0x1,
@@ -154,12 +144,6 @@ namespace DecodeWheaRecord.Errors {
         LatentError          = 0x20,
         Propagated           = 0x40,
         FruTextByPlugin      = 0x80
-    }
-
-    [Flags]
-    internal enum WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_VALIDBITS : byte {
-        FRUId   = 0x1,
-        FRUText = 0x2
     }
 
     // @formatter:int_align_fields false
