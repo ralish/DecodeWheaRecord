@@ -20,8 +20,8 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_ARM_PROCESSOR_ERROR_SECTION : WheaErrorRecord {
+namespace DecodeWheaRecord.Errors.Standard {
+    internal sealed class WHEA_ARM_PROCESSOR_ERROR_SECTION : WheaRecord {
         public override uint GetNativeSize() => SectionLength;
 
         // Size up to and including the PSCIState field
@@ -50,7 +50,6 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 3)]
         public ushort ContextInformationStructures;
 
-        // Total size of the error section
         [JsonProperty(Order = 4)]
         public uint SectionLength;
 
@@ -96,71 +95,77 @@ namespace DecodeWheaRecord.Errors {
 
         public WHEA_ARM_PROCESSOR_ERROR_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
             base(sectionDsc, typeof(WHEA_ARM_PROCESSOR_ERROR_SECTION), MinStructSize, bytesRemaining) {
-            var logCat = SectionType.Name;
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
             _ValidBits = (WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS)Marshal.ReadInt32(sectionAddr);
-
             ErrorInformationStructures = (ushort)Marshal.ReadInt16(sectionAddr, 4);
+
             if (ErrorInformationStructures == 0) {
-                WarnOutput($"{nameof(ErrorInformationStructures)} is zero (expected at least one structure).", logCat);
+                WarnOutput($"{nameof(ErrorInformationStructures)} is zero (expected at least one structure).", SectionType.Name);
             } else if (ErrorInformationStructures > MaxErrorInformationStructures) {
-                WarnOutput($"{nameof(ErrorInformationStructures)} is greater than maximum allowed of {MaxErrorInformationStructures}.", logCat);
+                var msg =
+                    $"{nameof(ErrorInformationStructures)} is greater than maximum allowed: {ErrorInformationStructures} > {MaxErrorInformationStructures}.";
+                WarnOutput(msg, SectionType.Name);
             }
 
             ContextInformationStructures = (ushort)Marshal.ReadInt16(sectionAddr, 6);
-
             SectionLength = (uint)Marshal.ReadInt32(sectionAddr, 8);
+
             if (SectionLength < MinStructSize) {
                 throw new InvalidDataException($"{nameof(SectionLength)} is less than minimum expected bytes: {SectionLength} < {MinStructSize}");
             }
+
             if (SectionLength > sectionDsc.SectionLength) {
                 throw new InvalidDataException($"{nameof(SectionLength)} is greater than in section descriptor: {SectionLength} > {sectionDsc.SectionLength}");
             }
 
             ErrorAffinityLevel = Marshal.ReadByte(sectionAddr, 12);
+
             if (ShouldSerializeErrorAffinityLevel() && ErrorAffinityLevel > MaxErrorAffinityLevel) {
-                WarnOutput($"{nameof(ErrorAffinityLevel)} above maximum of {MaxErrorAffinityLevel}.", logCat);
+                WarnOutput($"{nameof(ErrorAffinityLevel)} above maximum of {MaxErrorAffinityLevel}.", SectionType.Name);
             }
 
-            Marshal.Copy(sectionAddr + 13, Reserved, 0, 3);
+            Marshal.Copy(sectionAddr, Reserved, 13, 3);
+
             if (Reserved.Any(element => element != 0)) {
-                WarnOutput($"{nameof(Reserved)} has non-zero bytes.", logCat);
+                WarnOutput($"{nameof(Reserved)} has non-zero bytes.", SectionType.Name);
             }
 
             MPIDR_EL1 = (ulong)Marshal.ReadInt64(sectionAddr, 16);
             MIDR_EL1 = (ulong)Marshal.ReadInt64(sectionAddr, 24);
             RunningState = (uint)Marshal.ReadInt32(sectionAddr, 32);
-
             PSCIState = (uint)Marshal.ReadInt32(sectionAddr, 36);
+
             // PSCIState should be zero when bit 0 of RunningState is set
             if (ShouldSerializeRunningState() && (RunningState & 0x1) == 1 && PSCIState != 0) {
-                WarnOutput($"{nameof(PSCIState)} is non-zero but {nameof(RunningState)} indicates it should be zero.", logCat);
+                WarnOutput($"{nameof(PSCIState)} is non-zero but {nameof(RunningState)} indicates it should be zero.", SectionType.Name);
             }
 
-            var offset = 40;
+            var offset = MinStructSize;
 
             ErrorInformation = new WHEA_ARM_PROCESSOR_ERROR_INFORMATION[ErrorInformationStructures];
+
             if (ErrorInformationStructures > 0) {
                 for (var i = 0; i < ErrorInformationStructures; i++) {
                     ErrorInformation[i] = new WHEA_ARM_PROCESSOR_ERROR_INFORMATION(recordAddr,
-                                                                                   sectionDsc.SectionOffset + (uint)offset,
-                                                                                   SectionLength - (uint)offset);
-                    offset += (int)ErrorInformation[i].GetNativeSize();
+                                                                                   sectionDsc.SectionOffset + offset,
+                                                                                   SectionLength - offset);
+                    offset += ErrorInformation[i].GetNativeSize();
                 }
             }
 
             ContextInformation = new WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER[ContextInformationStructures];
+
             if (ContextInformationStructures > 0) {
                 for (var i = 0; i < ContextInformationStructures; i++) {
                     ContextInformation[i] = new WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER(recordAddr,
-                                                                                                    sectionDsc.SectionOffset + (uint)offset,
-                                                                                                    SectionLength - (uint)offset);
+                                                                                                    sectionDsc.SectionOffset + offset,
+                                                                                                    SectionLength - offset);
 
                     // Pad when the size is not a multiple of 16 bytes
                     var ctxInfoStructSize = ContextInformation[i].GetNativeSize();
                     var ctxInfoStructPad = ctxInfoStructSize % 16;
-                    offset += (int)(ctxInfoStructSize + ctxInfoStructPad);
+                    offset += ctxInfoStructSize + ctxInfoStructPad;
                 }
             }
 
@@ -168,9 +173,9 @@ namespace DecodeWheaRecord.Errors {
             if (offset < SectionLength) {
                 if (ShouldSerializeVendorInformation()) {
                     VendorInformation = new byte[SectionLength - offset];
-                    Marshal.Copy(recordAddr + offset, VendorInformation, 0, VendorInformation.Length);
+                    Marshal.Copy(recordAddr, VendorInformation, (int)offset, VendorInformation.Length);
                 } else {
-                    WarnOutput($"Number of bytes marshalled less than {nameof(SectionLength)}: {SectionLength - offset} > {SectionLength}", logCat);
+                    WarnOutput($"Number of bytes marshalled less than {nameof(SectionLength)}: {SectionLength - offset} > {SectionLength}", SectionType.Name);
                 }
             }
 
@@ -197,7 +202,7 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeVendorInformation() => (_ValidBits & WHEA_ARM_PROCESSOR_ERROR_SECTION_VALID_BITS.VendorSpecificInfo) != 0;
     }
 
-    internal sealed class WHEA_ARM_PROCESSOR_ERROR_INFORMATION : WheaErrorRecord {
+    internal sealed class WHEA_ARM_PROCESSOR_ERROR_INFORMATION : WheaRecord {
         public override uint GetNativeSize() => Length;
 
         // Per UEFI Specification 2.11
@@ -271,11 +276,13 @@ namespace DecodeWheaRecord.Errors {
             var structAddr = recordAddr + (int)structOffset;
 
             Version = Marshal.ReadByte(structAddr);
+
             if (Version != ExpectedVersion) {
                 throw new InvalidDataException($"Expected {nameof(Version)} to be {ExpectedVersion} but found: {Version}");
             }
 
             Length = Marshal.ReadByte(structAddr, 1);
+
             if (Length != ExpectedLength) {
                 throw new InvalidDataException($"Expected {nameof(Length)} to be {ExpectedLength} but found: {Length}");
             }
@@ -546,7 +553,7 @@ namespace DecodeWheaRecord.Errors {
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER : WheaErrorRecord {
+    internal sealed class WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER : WheaRecord {
         private uint _StructSize;
         public override uint GetNativeSize() => _StructSize;
 
@@ -602,13 +609,14 @@ namespace DecodeWheaRecord.Errors {
         public WHEA_ARM_MISR_CSR AArchMisc;
 
         [JsonProperty(Order = 4)]
-        public WHEA_ARMV8_AARCH64_TT128 AArch64TT128;
+        public WHEA_ARMV8_AARCH64_TT128 AArch64TT128; // Added
 
         public WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
             base(typeof(WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER), structOffset, MinStructSize, bytesRemaining) {
             var structAddr = recordAddr + (int)structOffset;
 
             Version = (ushort)Marshal.ReadInt16(structAddr);
+
             if (Version != ExpectedVersion) {
                 throw new InvalidDataException($"Expected {nameof(Version)} to be {ExpectedVersion} but found: {Version}");
             }
@@ -1134,7 +1142,7 @@ namespace DecodeWheaRecord.Errors {
     // Structure size: 10 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARM_MISR_CSR {
-        // Switched to a 16-bit bitfield
+        // Switched to a bitfield
         public WHEA_ARM_MISR_CSR_MRS_ENCODING MRSEncoding;
 
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -1175,7 +1183,7 @@ namespace DecodeWheaRecord.Errors {
      * mode. While ARMv8 can run in big-endian mode, Windows on ARM64 always
      * runs in little-endian mode so this feels like a safe assumption.
      */
-    internal sealed class WHEA_ARMV8_AARCH64_TT128 : WheaErrorRecord {
+    internal sealed class WHEA_ARMV8_AARCH64_TT128 : WheaRecord {
         private const uint StructSize = 96;
         public override uint GetNativeSize() => StructSize;
 

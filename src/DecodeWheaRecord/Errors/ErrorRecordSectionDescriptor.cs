@@ -1,3 +1,5 @@
+#pragma warning disable IDE0044 // Make field readonly
+
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable InconsistentNaming
 
@@ -15,7 +17,7 @@ using Newtonsoft.Json;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_ERROR_RECORD_SECTION_DESCRIPTOR : WheaErrorRecord {
+    internal sealed class WHEA_ERROR_RECORD_SECTION_DESCRIPTOR : WheaRecord {
         internal const uint StructSize = 72;
         public override uint GetNativeSize() => StructSize;
 
@@ -66,7 +68,7 @@ namespace DecodeWheaRecord.Errors {
 
         [JsonProperty(Order = 7)]
         public new string SectionType =>
-            WheaGuids.SectionTypes.TryGetValue(_SectionType, out var SectionTypeValue) ? SectionTypeValue : _SectionType.ToString();
+            WheaGuids.SectionTypes.TryGetValue(_SectionType, out var sectionTypeValue) ? sectionTypeValue : _SectionType.ToString();
 
         [JsonProperty(Order = 8)]
         public Guid FRUId;
@@ -87,22 +89,26 @@ namespace DecodeWheaRecord.Errors {
             var recordSize = structOffset + bytesRemaining;
 
             SectionOffset = (uint)Marshal.ReadInt32(structAddr);
+
             if (SectionOffset > recordSize) {
                 throw new InvalidDataException($"{nameof(SectionOffset)} is beyond the record size: {SectionOffset} > {recordSize}");
             }
 
             SectionLength = (uint)Marshal.ReadInt32(structAddr, 4);
+
             if (SectionOffset + SectionLength > recordSize) {
                 throw new InvalidDataException($"{nameof(SectionLength)} is beyond the record size: {SectionOffset} + {SectionLength} > {recordSize}");
             }
 
             _Revision = Marshal.PtrToStructure<WHEA_REVISION>(structAddr + 8);
+
             var hdrRevision = new Version(_Revision.MajorRevision, _Revision.MinorRevision);
             var supRevision = new Version(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION >> 8, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION & 0xFF);
             if (hdrRevision.MajorRevision > supRevision.MajorRevision) {
                 var msg = $"{nameof(Revision)} major version is greater than latest supported: {hdrRevision.ToString(1)} > {supRevision.ToString(1)}";
                 throw new InvalidDataException(msg);
             }
+
             if (hdrRevision > supRevision) {
                 WarnOutput($"{nameof(Revision)} minor version is greater than latest supported: {hdrRevision.ToString(2)} > {supRevision.ToString(2)}");
             }
@@ -150,7 +156,7 @@ namespace DecodeWheaRecord.Errors {
         /*
          * The UEFI Specification defines this as the Overflow bit, but it's
          * different in the Windows headers. We'll use the Windows definition
-         * but it's odd as why redefine what appears to be an important bit?
+         * but it's odd, as why redefine what appears to be an important bit?
          */
         FruTextByPlugin = 0x80
     }

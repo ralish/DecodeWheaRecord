@@ -16,7 +16,7 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors {
+namespace DecodeWheaRecord.Errors.Standard {
     // Structure size: 72 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PCIXBUS_ERROR_SECTION : IWheaRecord {

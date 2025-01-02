@@ -9,8 +9,14 @@ using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-namespace DecodeWheaRecord.Errors {
-    // Structure size: 56 bytes
+namespace DecodeWheaRecord.Errors.Microsoft {
+    /*
+     * Structure size: 56 bytes
+     *
+     * This has nothing to do with Microsoft Update but refers to Project Mu,
+     * an open-source UEFI implementation from Microsoft used in several of
+     * their products (e.g. Hyper-V and Surface systems).
+     */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class MU_TELEMETRY_SECTION : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<MU_TELEMETRY_SECTION>();

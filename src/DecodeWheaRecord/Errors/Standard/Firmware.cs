@@ -16,8 +16,8 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_FIRMWARE_ERROR_RECORD_REFERENCE : WheaErrorRecord {
+namespace DecodeWheaRecord.Errors.Standard {
+    internal sealed class WHEA_FIRMWARE_ERROR_RECORD_REFERENCE : WheaRecord {
         private uint _StructSize;
         public override uint GetNativeSize() => _StructSize;
 
@@ -27,6 +27,7 @@ namespace DecodeWheaRecord.Errors {
         // Size up to and including the FirmwareRecordExt field
         private const uint StructSizeRev2 = 32;
 
+        // Switched to an enumeration
         private WHEA_FIRMWARE_RECORD_TYPE _Type;
 
         [JsonProperty(Order = 1)]
@@ -59,12 +60,11 @@ namespace DecodeWheaRecord.Errors {
 
         public WHEA_FIRMWARE_ERROR_RECORD_REFERENCE(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
             base(sectionDsc, typeof(WHEA_FIRMWARE_ERROR_RECORD_REFERENCE), MinStructSize, bytesRemaining) {
-            var logCat = SectionType.Name;
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
             _Type = (WHEA_FIRMWARE_RECORD_TYPE)Marshal.ReadByte(sectionAddr);
-
             Revision = Marshal.ReadByte(sectionAddr, 1);
+
             uint expectedStructSize;
             switch (Revision) {
                 case 0:
@@ -81,24 +81,25 @@ namespace DecodeWheaRecord.Errors {
                 throw new InvalidDataException($"Expected length is greater than in section descriptor: {expectedStructSize} > {sectionDsc.SectionLength}");
             }
 
-            Marshal.Copy(sectionAddr + 2, Reserved, 0, 6);
+            Marshal.Copy(sectionAddr, Reserved, 2, 6);
             FirmwareRecordId = (ulong)Marshal.ReadInt64(sectionAddr, 8);
-            var offset = 16;
+
+            _StructSize = MinStructSize;
 
             if (Revision >= 2) {
-                FirmwareRecordExt = Marshal.PtrToStructure<Guid>(sectionAddr + offset);
-                offset += 16;
+                FirmwareRecordExt = Marshal.PtrToStructure<Guid>(sectionAddr + 16);
+
+                _StructSize = StructSizeRev2;
             }
 
             if (Revision >= 1 && FirmwareRecordId != 0) {
-                WarnOutput($"{nameof(FirmwareRecordId)} is not NULL but {nameof(Revision)} is >= 1.", logCat);
+                WarnOutput($"{nameof(FirmwareRecordId)} is not NULL but {nameof(Revision)} is >= 1.", SectionType.Name);
             }
 
             if (Revision >= 2 && _Type != WHEA_FIRMWARE_RECORD_TYPE.SocFirmwareType2 && FirmwareRecordExt != Guid.Empty) {
-                WarnOutput($"{nameof(FirmwareRecordExt)} is not NULL but {nameof(Type)} indicates it should be.", logCat);
+                WarnOutput($"{nameof(FirmwareRecordExt)} is not NULL but {nameof(Type)} indicates it should be.", SectionType.Name);
             }
 
-            _StructSize = (uint)offset;
             FinalizeRecord(recordAddr, _StructSize);
         }
 

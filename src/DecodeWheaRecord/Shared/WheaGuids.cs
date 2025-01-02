@@ -109,7 +109,7 @@ namespace DecodeWheaRecord.Shared {
         internal static readonly Dictionary<Guid, string> SectionTypes = new Dictionary<Guid, string> {
             // Standard
             { ARM_PROCESSOR_ERROR_SECTION_GUID, "ARM Processor Error" },
-            { FIRMWARE_ERROR_RECORD_REFERENCE_GUID, "Firmware Error" },
+            { FIRMWARE_ERROR_RECORD_REFERENCE_GUID, "Firmware Error Record Reference" },
             { IPF_PROCESSOR_ERROR_SECTION_GUID, "IA64 Processor Error" },
             { MEMORY_ERROR_SECTION_GUID, "Memory Error" },
             { PCIEXPRESS_ERROR_SECTION_GUID, "PCI Express Error" },
@@ -128,22 +128,22 @@ namespace DecodeWheaRecord.Shared {
             { Guid.Parse("61ec04fc-48e6-d813-25c9-8daa44750b12"), "Memory Error 2" },
 
             // Microsoft
-            { ARM_RAS_NODE_SECTION_GUID, "ARM_RAS_NODE_SECTION_GUID" },                     // TODO
-            { GENERIC_SECTION_GUID, "GENERIC_SECTION_GUID" },                               // TODO
-            { IPF_SAL_RECORD_SECTION_GUID, "IPF_SAL_RECORD_SECTION_GUID" },                 // TODO
-            { IPMI_MSR_DUMP_SECTION_GUID, "MSR Dump" },                                     // TODO
-            { MEMORY_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID, "Correctable Memory Error" },  // TODO
-            { MEMORY_ERROR_EXT_SECTION_INTEL_GUID, "MEMORY_ERROR_EXT_SECTION_INTEL_GUID" }, // TODO
+            { ARM_RAS_NODE_SECTION_GUID, "ARM RAS Node Error" },
+            //{ GENERIC_SECTION_GUID, "GENERIC_SECTION_GUID" }, // TODO
+            { IPF_SAL_RECORD_SECTION_GUID, "IA64 SAL Record" },
+            { IPMI_MSR_DUMP_SECTION_GUID, "IPMI MSR Dump" },
+            { MEMORY_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID, "Correctable Memory Error Summary" },
+            //{ MEMORY_ERROR_EXT_SECTION_INTEL_GUID, "MEMORY_ERROR_EXT_SECTION_INTEL_GUID" }, // TODO
             { MU_TELEMETRY_SECTION_GUID, "Project Mu Telemetry" },
-            { NMI_SECTION_GUID, "NMI Error" },                                         // TODO
-            { PCI_RECOVERY_SECTION_GUID, "PCI_RECOVERY_SECTION_GUID" },                // TODO
-            { PCIE_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID, "Correctable PCIe Error" }, // TODO
-            { PMEM_ERROR_SECTION_GUID, "Persistent Mememory Error" },                  // TODO
+            { NMI_SECTION_GUID, "NMI Error" },
+            { PCI_RECOVERY_SECTION_GUID, "PCI Recovery" },
+            { PCIE_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID, "Correctable PCIe Error Summary" },
+            { PMEM_ERROR_SECTION_GUID, "Persistent Memory Error" },
             { RECOVERY_INFO_SECTION_GUID, "Error Recovery Information" },
-            { SEA_SECTION_GUID, "SEA_SECTION_GUID" },                                 // TODO
-            { SEI_SECTION_GUID, "SEI_SECTION_GUID" },                                 // TODO
-            { WHEA_DEVICE_ERROR_SUMMARY_GUID, "WHEA_DEVICE_ERROR_SUMMARY_GUID" },     // TODO
-            { WHEA_DPC_CAPABILITY_SECTION_GUID, "WHEA_DPC_CAPABILITY_SECTION_GUID" }, // TODO
+            { SEA_SECTION_GUID, "ARM SEA Exception" },
+            { SEI_SECTION_GUID, "ARM SEI Exception" },
+            //{ WHEA_DEVICE_ERROR_SUMMARY_GUID, "WHEA_DEVICE_ERROR_SUMMARY_GUID" }, // TODO
+            { WHEA_DPC_CAPABILITY_SECTION_GUID, "PCI Express DPC Capability" },
             { WHEA_ERROR_PACKET_SECTION_GUID, "Hardware Error Packet" },
             { XPF_MCA_SECTION_GUID, "IA32/AMD64 Machine Check Error" }
         };

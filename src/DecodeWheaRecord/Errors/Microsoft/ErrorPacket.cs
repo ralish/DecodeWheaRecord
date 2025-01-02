@@ -1,12 +1,14 @@
+#pragma warning disable IDE0044 // Make field readonly
+
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable InconsistentNaming
-// ReSharper disable MemberCanBePrivate.Global
 
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
+using DecodeWheaRecord.Errors.Standard;
 using DecodeWheaRecord.Internal;
 using DecodeWheaRecord.Shared;
 
@@ -16,16 +18,16 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors {
+namespace DecodeWheaRecord.Errors.Microsoft {
     internal static class WHEA_ERROR_PACKET {
         /*
          * Values are reversed from header definitions as validation is
          * performed against the fields as a string instead of an integer.
          */
-        internal const string WHEA_ERROR_PACKET_V1_SIGNATURE = "ErPt";
-        internal const string WHEA_ERROR_PACKET_V2_SIGNATURE = "WHEA";
+        private const string WHEA_ERROR_PACKET_V1_SIGNATURE = "ErPt";
+        private const string WHEA_ERROR_PACKET_V2_SIGNATURE = "WHEA";
 
-        public static WheaErrorRecord CreateBySignature(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) {
+        public static WheaRecord CreateBySignature(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) {
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
             var signatureBytes = BitConverter.GetBytes((uint)Marshal.ReadInt32(sectionAddr));
             var signature = Encoding.ASCII.GetString(signatureBytes);
@@ -36,13 +38,13 @@ namespace DecodeWheaRecord.Errors {
                 case WHEA_ERROR_PACKET_V2_SIGNATURE:
                     return new WHEA_ERROR_PACKET_V2(sectionDsc, recordAddr, bytesRemaining);
                 default:
-                    throw new InvalidDataException($"Unexpected signature: {signature}");
+                    throw new InvalidDataException($"Unknown signature: {signature}");
             }
         }
     }
 
     // Windows Server 2008 & Windows Vista SP1+
-    internal sealed class WHEA_ERROR_PACKET_V1 : WheaErrorRecord {
+    internal sealed class WHEA_ERROR_PACKET_V1 : WheaRecord {
         public override uint GetNativeSize() => Size;
 
         /*
@@ -51,7 +53,7 @@ namespace DecodeWheaRecord.Errors {
          */
         private const uint MinStructSize = 280;
 
-        internal const int WHEA_ERROR_PACKET_V1_VERSION = 2; // Not a typo
+        private const int WHEA_ERROR_PACKET_V1_VERSION = 2; // Not a typo
 
         private uint _Signature;
 
@@ -161,18 +163,21 @@ namespace DecodeWheaRecord.Errors {
             base(sectionDsc, typeof(WHEA_ERROR_PACKET_V1), MinStructSize, bytesRemaining) {
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
+            // Verified previously in CreateBySignature
             _Signature = (uint)Marshal.ReadInt32(sectionAddr);
-            _Flags = (WHEA_ERROR_PACKET_FLAGS)Marshal.ReadInt32(sectionAddr, 4);
 
+            _Flags = (WHEA_ERROR_PACKET_FLAGS)Marshal.ReadInt32(sectionAddr, 4);
             Size = (uint)Marshal.ReadInt32(sectionAddr, 8);
+
             if (Size > sectionDsc.SectionLength) {
-                throw new InvalidDataException($"{nameof(Size)} is greater than in section descriptor: {Size} > {sectionDsc.SectionLength}");
+                var msg = $"{nameof(Size)} is greater than in section descriptor: {Size} > {sectionDsc.SectionLength}";
+                throw new InvalidDataException(msg);
             }
 
             RawDataLength = (uint)Marshal.ReadInt32(sectionAddr, 12);
-            if (MinStructSize + RawDataLength != Size) {
-                var msg = $"Sum of base structure size and {nameof(RawDataLength)} does not result in expected size: " +
-                          $"{MinStructSize} + {RawDataLength} != {Size}";
+
+            if (MinStructSize + RawDataLength > Size) {
+                var msg = $"Base structure size with {nameof(RawDataLength)} exceeds {nameof(Size)} value: {MinStructSize} + {RawDataLength} > {Size}";
                 throw new InvalidDataException(msg);
             }
 
@@ -183,10 +188,11 @@ namespace DecodeWheaRecord.Errors {
             ErrorSourceId = (uint)Marshal.ReadInt32(sectionAddr, 40);
             _ErrorSourceType = (WHEA_ERROR_SOURCE_TYPE)Marshal.ReadInt32(sectionAddr, 44);
             Reserved2 = (uint)Marshal.ReadInt32(sectionAddr, 48);
-
             Version = (uint)Marshal.ReadInt32(sectionAddr, 52);
+
             if (Version != WHEA_ERROR_PACKET_V1_VERSION) {
-                throw new InvalidDataException($"Expected {nameof(Version)} to be {WHEA_ERROR_PACKET_V1_VERSION} but found: {Version}");
+                var msg = $"Expected {nameof(Version)} to be {WHEA_ERROR_PACKET_V1_VERSION} but found: {Version}";
+                throw new InvalidDataException(msg);
             }
 
             Cpu = (ulong)Marshal.ReadInt64(sectionAddr, 56);
@@ -223,16 +229,16 @@ namespace DecodeWheaRecord.Errors {
             }
 
             _RawDataFormat = (WHEA_RAW_DATA_FORMAT)Marshal.ReadInt32(sectionAddr, 272);
-
             RawDataOffset = (uint)Marshal.ReadInt32(sectionAddr, 276);
-            if (MinStructSize + RawDataOffset > Size) {
-                var msg = $"{nameof(RawDataOffset)} is beyond the end of the {nameof(RawData)} buffer: {MinStructSize} + {RawDataOffset} > {Size}";
+
+            if (RawDataOffset > RawDataLength) {
+                var msg = $"{nameof(RawDataOffset)} is beyond the end of the {nameof(RawData)} buffer: {RawDataOffset} > {RawDataLength}";
                 throw new InvalidDataException(msg);
             }
 
             if (RawDataLength > 0) {
                 RawData = new byte[RawDataLength];
-                Marshal.Copy(sectionAddr + (int)RawDataOffset, RawData, 0, (int)RawDataLength);
+                Marshal.Copy(sectionAddr, RawData, (int)MinStructSize, (int)RawDataLength);
             }
 
             FinalizeRecord(recordAddr, Size);
@@ -267,13 +273,13 @@ namespace DecodeWheaRecord.Errors {
     }
 
     // Windows Server 2008 R2, Windows 7, and later
-    internal sealed class WHEA_ERROR_PACKET_V2 : WheaErrorRecord {
+    internal sealed class WHEA_ERROR_PACKET_V2 : WheaRecord {
         public override uint GetNativeSize() => Length;
 
         // Size up to and including the PshedDataLength field
         private const uint MinStructSize = 80;
 
-        internal const int WHEA_ERROR_PACKET_V2_VERSION = 3; // Not a typo
+        private const int WHEA_ERROR_PACKET_V2_VERSION = 3; // Not a typo
 
         private uint _Signature;
 
@@ -321,7 +327,7 @@ namespace DecodeWheaRecord.Errors {
         private Guid _NotifyType;
 
         [JsonProperty(Order = 9)]
-        public string NotifyType => WheaGuids.NotifyTypes.TryGetValue(_NotifyType, out var NotifyTypeValue) ? NotifyTypeValue : _NotifyType.ToString();
+        public string NotifyType => WheaGuids.NotifyTypes.TryGetValue(_NotifyType, out var notifyTypeValue) ? notifyTypeValue : _NotifyType.ToString();
 
         [JsonProperty(Order = 10)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -364,16 +370,21 @@ namespace DecodeWheaRecord.Errors {
             base(sectionDsc, typeof(WHEA_ERROR_PACKET_V2), MinStructSize, bytesRemaining) {
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
+            // Verified previously in CreateBySignature
             _Signature = (uint)Marshal.ReadInt32(sectionAddr);
 
             Version = (uint)Marshal.ReadInt32(sectionAddr, 4);
+
             if (Version != WHEA_ERROR_PACKET_V2_VERSION) {
-                throw new InvalidDataException($"Expected {nameof(Version)} to be {WHEA_ERROR_PACKET_V2_VERSION} but found: {Version}");
+                var msg = $"Expected {nameof(Version)} to be {WHEA_ERROR_PACKET_V2_VERSION} but found: {Version}";
+                throw new InvalidDataException(msg);
             }
 
             Length = (uint)Marshal.ReadInt32(sectionAddr, 8);
+
             if (Length > sectionDsc.SectionLength) {
-                throw new InvalidDataException($"{nameof(Length)} is greater than in section descriptor: {Length} > {sectionDsc.SectionLength}");
+                var msg = $"{nameof(Length)} is greater than in section descriptor: {Length} > {sectionDsc.SectionLength}";
+                throw new InvalidDataException(msg);
             }
 
             _Flags = (WHEA_ERROR_PACKET_FLAGS)Marshal.ReadInt32(sectionAddr, 12);
@@ -390,9 +401,9 @@ namespace DecodeWheaRecord.Errors {
             PshedDataOffset = (uint)Marshal.ReadInt32(sectionAddr, 72);
             PshedDataLength = (uint)Marshal.ReadInt32(sectionAddr, 76);
 
-            if (MinStructSize + DataLength + PshedDataLength != Length) {
-                var msg = $"Sum of base structure size, {nameof(DataLength)}, and {nameof(PshedDataLength)} does not result in expected size: " +
-                          $"{MinStructSize} + {DataLength} + {PshedDataLength} != {Length}";
+            if (MinStructSize + DataLength + PshedDataLength > Length) {
+                var msg = $"Base structure size with {nameof(DataLength)} and {nameof(PshedDataLength)} exceeds {nameof(Length)} value: " +
+                          $"{MinStructSize} + {DataLength} + {PshedDataLength} > {Length}";
                 throw new InvalidDataException(msg);
             }
 
@@ -408,12 +419,12 @@ namespace DecodeWheaRecord.Errors {
 
             if (DataLength > 0) {
                 Data = new byte[DataLength];
-                Marshal.Copy(sectionAddr + (int)DataOffset, Data, 0, (int)DataLength);
+                Marshal.Copy(sectionAddr, Data, (int)DataOffset, (int)DataLength);
             }
 
             if (PshedDataLength > 0) {
                 PshedData = new byte[PshedDataLength];
-                Marshal.Copy(sectionAddr + (int)PshedDataOffset, PshedData, 0, (int)PshedDataLength);
+                Marshal.Copy(sectionAddr, PshedData, (int)PshedDataOffset, (int)PshedDataLength);
             }
 
             FinalizeRecord(recordAddr, Length);

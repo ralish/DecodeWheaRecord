@@ -15,10 +15,10 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_PCIXDEVICE_ERROR_SECTION : WheaErrorRecord {
-        private uint _NativeSize;
-        public override uint GetNativeSize() => _NativeSize;
+namespace DecodeWheaRecord.Errors.Standard {
+    internal sealed class WHEA_PCIXDEVICE_ERROR_SECTION : WheaRecord {
+        private uint _StructSize;
+        public override uint GetNativeSize() => _StructSize;
 
         // Size up to and including the IoNumber field
         private const uint MinStructSize = 40;
@@ -54,7 +54,6 @@ namespace DecodeWheaRecord.Errors {
         }
 
         private void WheaPciXDeviceErrorSection(IntPtr recordAddr, uint sectionOffset) {
-            var logCat = SectionType.Name;
             var sectionAddr = recordAddr + (int)sectionOffset;
 
             _ValidBits = (WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(sectionAddr);
@@ -62,7 +61,8 @@ namespace DecodeWheaRecord.Errors {
             IdInfo = Marshal.PtrToStructure<WHEA_PCIXDEVICE_ID>(sectionAddr + 16);
             MemoryNumber = (uint)Marshal.ReadInt32(sectionAddr, 32);
             IoNumber = (uint)Marshal.ReadInt32(sectionAddr, 36);
-            var offset = 40;
+
+            var offset = MinStructSize;
 
             uint NumRegisterDataPairs = 0;
             if (ShouldSerializeMemoryNumber()) {
@@ -77,7 +77,7 @@ valid data and both fields are set to a non-zero value. It's unclear if this is
 a valid state for the structure as the Memory Mapped and Programmed IO register
 address/data pair values are represented using the same structure and share the
 same array. Distinguishing between the two types of data may not be possible.";
-                    WarnOutput(msg, logCat);
+                    WarnOutput(msg, SectionType.Name);
                 }
 
                 NumRegisterDataPairs += MemoryNumber;
@@ -88,28 +88,30 @@ same array. Distinguishing between the two types of data may not be possible.";
 
                 if (ShouldSerializeMemoryNumber() || ShouldSerializeIoNumber()) {
                     var elementSize = Marshal.SizeOf<WHEA_PCIXDEVICE_REGISTER_PAIR>();
+
                     for (var i = 0; i < RegisterDataPairs.Length; i++) {
-                        RegisterDataPairs[i] = Marshal.PtrToStructure<WHEA_PCIXDEVICE_REGISTER_PAIR>(sectionAddr + offset + i * elementSize);
+                        RegisterDataPairs[i] = Marshal.PtrToStructure<WHEA_PCIXDEVICE_REGISTER_PAIR>(sectionAddr + (int)offset + i * elementSize);
                     }
-                    offset += RegisterDataPairs.Length * elementSize;
+
+                    offset += (uint)(RegisterDataPairs.Length * elementSize);
                 } else {
                     var msg = $@"
 The {nameof(ValidBits)} field indicates the {nameof(RegisterDataPairs)} field contains valid data
 but neither the {nameof(MemoryNumber)} or {nameof(IoNumber)} fields are marked as valid. One of
 these fields is required to determine the size of the {nameof(RegisterDataPairs)} array.
 Deserialisation of the array will be skipped.";
-                    ErrorOutput(msg, logCat);
+                    ErrorOutput(msg, SectionType.Name);
                 }
             } else {
                 var msg = $@"
 The {nameof(ValidBits)} field indicates the {nameof(MemoryNumber)} and/or {nameof(IoNumber)} fields contain
 valid data but the {nameof(RegisterDataPairs)} field is not marked valid. Deserialisation
 of the array containing the register address/data pair values will be skipped.";
-                ErrorOutput(msg, logCat);
+                ErrorOutput(msg, SectionType.Name);
             }
 
-            _NativeSize = (uint)offset;
-            FinalizeRecord(recordAddr, _NativeSize);
+            _StructSize = offset;
+            FinalizeRecord(recordAddr, _StructSize);
         }
 
         [UsedImplicitly]

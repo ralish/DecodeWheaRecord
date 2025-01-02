@@ -5,7 +5,6 @@
 // ReSharper disable ClassNeverInstantiated.Global
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable InconsistentNaming
-// ReSharper disable MemberCanBePrivate.Global
 
 using System;
 using System.Collections.Generic;
@@ -20,8 +19,8 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_XPF_PROCESSOR_ERROR_SECTION : WheaErrorRecord {
+namespace DecodeWheaRecord.Errors.Standard {
+    internal sealed class WHEA_XPF_PROCESSOR_ERROR_SECTION : WheaRecord {
         private uint _StructSize;
         public override uint GetNativeSize() => _StructSize;
 
@@ -64,34 +63,37 @@ namespace DecodeWheaRecord.Errors {
 
             _RawValidBits = (ulong)Marshal.ReadInt64(sectionAddr);
             LocalAPICId = (ulong)Marshal.ReadInt64(sectionAddr, 8);
-            Marshal.Copy(sectionAddr + 16, CpuId, 0, CpuId.Length);
-            var offset = 64;
+            Marshal.Copy(sectionAddr, CpuId, 16, CpuId.Length);
+
+            var offset = MinStructSize;
 
             ProcInfo = new WHEA_XPF_PROCINFO[ProcInfoCount];
+
             if (ProcInfoCount > 0) {
                 for (var i = 0; i < ProcInfoCount; i++) {
                     ProcInfo[i] = new WHEA_XPF_PROCINFO(recordAddr,
-                                                        sectionDsc.SectionOffset + (uint)offset,
-                                                        sectionDsc.SectionLength - (uint)offset);
-                    offset += (int)ProcInfo[i].GetNativeSize();
+                                                        sectionDsc.SectionOffset + offset,
+                                                        sectionDsc.SectionLength - offset);
+                    offset += ProcInfo[i].GetNativeSize();
                 }
             }
 
             ContextInfo = new WHEA_XPF_CONTEXT_INFO[ContextInfoCount];
+
             if (ContextInfoCount > 0) {
                 for (var i = 0; i < ContextInfoCount; i++) {
                     ContextInfo[i] = new WHEA_XPF_CONTEXT_INFO(recordAddr,
-                                                               sectionDsc.SectionOffset + (uint)offset,
-                                                               sectionDsc.SectionLength - (uint)offset);
+                                                               sectionDsc.SectionOffset + offset,
+                                                               sectionDsc.SectionLength - offset);
 
                     // Pad when the size is not a multiple of 16 bytes
                     var ctxInfoStructSize = ContextInfo[i].GetNativeSize();
                     var ctxInfoStructPad = ctxInfoStructSize % 16;
-                    offset += (int)(ctxInfoStructSize + ctxInfoStructPad);
+                    offset += ctxInfoStructSize + ctxInfoStructPad;
                 }
             }
 
-            _StructSize = (uint)offset;
+            _StructSize = offset;
             FinalizeRecord(recordAddr, _StructSize);
         }
 
@@ -102,17 +104,17 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeCpuId() => (_ValidBits & WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS.CpuId) != 0;
     }
 
-    internal sealed class WHEA_XPF_PROCINFO : WheaErrorRecord {
+    internal sealed class WHEA_XPF_PROCINFO : WheaRecord {
         private const uint StructSize = 64;
         public override uint GetNativeSize() => StructSize;
 
         /*
          * Processor check info types
          */
-        internal static readonly Guid WHEA_BUSCHECK_GUID = Guid.Parse("1cf3f8b3-c5b1-49a2-aa59-5eef92ffa63c");
-        internal static readonly Guid WHEA_CACHECHECK_GUID = Guid.Parse("a55701f5-e3ef-43de-ac72-249b573fad2c");
-        internal static readonly Guid WHEA_MSCHECK_GUID = Guid.Parse("48ab7f57-dc34-4f6c-a7d3-b0b5b0a74314");
-        internal static readonly Guid WHEA_TLBCHECK_GUID = Guid.Parse("fc06b535-5e1f-4562-9f25-0a3b9adb63c3");
+        private static readonly Guid WHEA_BUSCHECK_GUID = Guid.Parse("1cf3f8b3-c5b1-49a2-aa59-5eef92ffa63c");
+        private static readonly Guid WHEA_CACHECHECK_GUID = Guid.Parse("a55701f5-e3ef-43de-ac72-249b573fad2c");
+        private static readonly Guid WHEA_MSCHECK_GUID = Guid.Parse("48ab7f57-dc34-4f6c-a7d3-b0b5b0a74314");
+        private static readonly Guid WHEA_TLBCHECK_GUID = Guid.Parse("fc06b535-5e1f-4562-9f25-0a3b9adb63c3");
 
         private static readonly Dictionary<Guid, string> CheckInfoTypes = new Dictionary<Guid, string> {
             { WHEA_BUSCHECK_GUID, "Bus" },
@@ -124,7 +126,7 @@ namespace DecodeWheaRecord.Errors {
         private Guid _CheckInfoId;
 
         [JsonProperty(Order = 1)]
-        public string CheckInfoId => CheckInfoTypes.TryGetValue(_CheckInfoId, out var CheckInfoTypeValue) ? CheckInfoTypeValue : _CheckInfoId.ToString();
+        public string CheckInfoId => CheckInfoTypes.TryGetValue(_CheckInfoId, out var checkInfoTypeValue) ? checkInfoTypeValue : _CheckInfoId.ToString();
 
         private WHEA_XPF_PROCINFO_VALIDBITS _ValidBits;
 
@@ -134,8 +136,8 @@ namespace DecodeWheaRecord.Errors {
         /*
          * The next four fields contain the check information for the type of
          * check as determined by the CheckInfoId field. The Windows headers
-         * define them in an embedded union but we directly embed them and
-         * marshal only the correct one.
+         * define them in a union in the structure but we directly embed them
+         * and marshal only the correct one.
          */
 
         [JsonProperty(Order = 3)]
@@ -497,7 +499,7 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
-    internal sealed class WHEA_XPF_CONTEXT_INFO : WheaErrorRecord {
+    internal sealed class WHEA_XPF_CONTEXT_INFO : WheaRecord {
         private uint _StructSize;
         public override uint GetNativeSize() => _StructSize;
 
@@ -562,29 +564,29 @@ namespace DecodeWheaRecord.Errors {
                     RegisterDataContext64 = Marshal.PtrToStructure<WHEA_X64_REGISTER_STATE>(ctxInfoStructAddr);
                     break;
                 case WHEA_XPF_CONTEXT_INFO_TYPE.DebugRegistersX32:
-                    numRegisters = RegisterDataSize / 8;
+                    numRegisters = RegisterDataSize / sizeof(long);
 
                     // Values are 32-bit registers zero-extended to 64-bits
-                    var tmpRegisterDataDebug32 = new long[numRegisters];
-                    Marshal.Copy(ctxInfoStructAddr, tmpRegisterDataDebug32, 0, numRegisters);
+                    var registerDataDebug32 = new long[numRegisters];
+                    Marshal.Copy(ctxInfoStructAddr, registerDataDebug32, 0, numRegisters);
 
                     RegisterData32 = new uint[numRegisters];
                     for (var i = 0; i < numRegisters; i++) {
-                        RegisterData32[i] = (uint)tmpRegisterDataDebug32[i];
+                        RegisterData32[i] = (uint)registerDataDebug32[i];
                     }
 
                     break;
                 case WHEA_XPF_CONTEXT_INFO_TYPE.DebugRegistersX64:
                 case WHEA_XPF_CONTEXT_INFO_TYPE.MmRegisters:
                 case WHEA_XPF_CONTEXT_INFO_TYPE.MsrRegisters:
-                    numRegisters = RegisterDataSize / 8;
+                    numRegisters = RegisterDataSize / sizeof(long);
 
-                    var tmpRegisterData64 = new long[numRegisters];
-                    Marshal.Copy(ctxInfoStructAddr, tmpRegisterData64, 0, numRegisters);
+                    var registerData64 = new long[numRegisters];
+                    Marshal.Copy(ctxInfoStructAddr, registerData64, 0, numRegisters);
 
                     RegisterData64 = new ulong[numRegisters];
                     for (var i = 0; i < numRegisters; i++) {
-                        RegisterData64[i] = (ulong)tmpRegisterData64[i];
+                        RegisterData64[i] = (ulong)registerData64[i];
                     }
 
                     break;

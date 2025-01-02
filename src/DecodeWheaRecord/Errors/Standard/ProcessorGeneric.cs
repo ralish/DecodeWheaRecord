@@ -16,11 +16,12 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_PROCESSOR_GENERIC_ERROR_SECTION : WheaErrorRecord {
+namespace DecodeWheaRecord.Errors.Standard {
+    internal sealed class WHEA_PROCESSOR_GENERIC_ERROR_SECTION : WheaRecord {
         private const uint StructSize = 192;
         public override uint GetNativeSize() => StructSize;
 
+        // CPUBrandString is really a statically sized buffer
         private const uint CPUBrandStringSize = 128;
 
         private WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS _ValidBits;
@@ -65,6 +66,13 @@ namespace DecodeWheaRecord.Errors {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Reserved;
 
+        /*
+         * Only the first of the next four fields is in the UEFI Specification.
+         * The extra fields are to modify how the data is interpreted based on
+         * the processor type. Only one of the fields will be serialized for a
+         * given error record.
+         */
+
         // For when the processor type can't be determined (possible?)
         [JsonProperty(Order = 9)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -82,6 +90,13 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 9)]
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong CPUVersionARM;
+
+        /*
+         * Only the first of the next four fields is in the UEFI Specification.
+         * The extra fields are to modify how the data is interpreted based on
+         * the processor type. Only one of the fields will be serialized for a
+         * given error record.
+         */
 
         // For when the processor type can't be determined (possible?)
         [JsonProperty(Order = 10)]
@@ -104,6 +119,13 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 10)]
         [JsonConverter(typeof(HexStringJsonConverter))]
         public byte[] CPUBrandStringARM => _CPUBrandStringARM.Any(element => element != 0) ? _CPUBrandStringARM : new byte[] { 0 };
+
+        /*
+         * Only the first of the next four fields is in the UEFI Specification.
+         * The extra fields are to modify how the data is interpreted based on
+         * the processor type. Only one of the fields will be serialized for a
+         * given error record.
+         */
 
         // For when the processor type can't be determined (possible?)
         [JsonProperty(Order = 11)]
@@ -155,7 +177,6 @@ namespace DecodeWheaRecord.Errors {
         }
 
         private void WheaProcessorGenericErrorSection(IntPtr recordAddr, uint sectionOffset, uint bytesRemaining) {
-            var logCat = SectionType.Name;
             var sectionAddr = recordAddr + (int)sectionOffset;
 
             _ValidBits = (WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(sectionAddr);
@@ -165,10 +186,10 @@ namespace DecodeWheaRecord.Errors {
             _Operation = (WHEA_PROCESSOR_GENERIC_OP_TYPE)Marshal.ReadByte(sectionAddr, 11);
             _Flags = (WHEA_PROCESSOR_GENERIC_ERROR_SECTION_FLAGS)Marshal.ReadByte(sectionAddr, 12);
             Level = Marshal.ReadByte(sectionAddr, 13);
-
             Reserved = (ushort)Marshal.ReadInt16(sectionAddr, 14);
+
             if (Reserved != 0) {
-                WarnOutput($"{nameof(Reserved)} is non-zero.", logCat);
+                WarnOutput($"{nameof(Reserved)} is non-zero.", SectionType.Name);
             }
 
             if (ShouldSerializeProcessorType()) {
@@ -186,7 +207,7 @@ namespace DecodeWheaRecord.Errors {
                         CPUVersionIPF = (ulong)Marshal.ReadInt64(sectionAddr, 16);
 
                         CPUBrandStringIPF = new byte[CPUBrandStringSize];
-                        Marshal.Copy(sectionAddr + 24, CPUBrandStringIPF, 0, CPUBrandStringIPF.Length);
+                        Marshal.Copy(sectionAddr, CPUBrandStringIPF, 24, CPUBrandStringIPF.Length);
 
                         ProcessorIdIPF = (ulong)Marshal.ReadInt64(sectionAddr, 24 + (int)CPUBrandStringSize);
                         break;
@@ -194,7 +215,7 @@ namespace DecodeWheaRecord.Errors {
                         CPUVersionARM = (ulong)Marshal.ReadInt64(sectionAddr, 16);
 
                         _CPUBrandStringARM = new byte[CPUBrandStringSize];
-                        Marshal.Copy(sectionAddr + 24, _CPUBrandStringARM, 0, _CPUBrandStringARM.Length);
+                        Marshal.Copy(sectionAddr, _CPUBrandStringARM, 24, _CPUBrandStringARM.Length);
 
                         ProcessorIdARM = (ulong)Marshal.ReadInt64(sectionAddr, 24 + (int)CPUBrandStringSize);
                         break;
@@ -203,19 +224,22 @@ namespace DecodeWheaRecord.Errors {
                 }
             } else {
                 CPUVersion = (ulong)Marshal.ReadInt64(sectionAddr, 16);
+
                 if (ShouldSerializeCPUVersion()) {
-                    WarnOutput($"{nameof(CPUVersion)} will be output raw as {nameof(ProcessorType)} is not marked valid.", logCat);
+                    WarnOutput($"{nameof(CPUVersion)} will be output raw as {nameof(ProcessorType)} is not marked valid.", SectionType.Name);
                 }
 
                 CPUBrandString = new byte[CPUBrandStringSize];
-                Marshal.Copy(sectionAddr + 24, CPUBrandString, 0, CPUBrandString.Length);
+
+                Marshal.Copy(sectionAddr, CPUBrandString, 24, CPUBrandString.Length);
                 if (ShouldSerializeCPUBrandString()) {
-                    WarnOutput($"{nameof(CPUBrandString)} will be output raw as {nameof(ProcessorType)} is not marked valid.", logCat);
+                    WarnOutput($"{nameof(CPUBrandString)} will be output raw as {nameof(ProcessorType)} is not marked valid.", SectionType.Name);
                 }
 
                 ProcessorId = (ulong)Marshal.ReadInt64(sectionAddr, 24 + (int)CPUBrandStringSize);
+
                 if (ShouldSerializeProcessorId()) {
-                    WarnOutput($"{nameof(ProcessorId)} will be output raw as {nameof(ProcessorType)} is not marked valid.", logCat);
+                    WarnOutput($"{nameof(ProcessorId)} will be output raw as {nameof(ProcessorType)} is not marked valid.", SectionType.Name);
                 }
             }
 
@@ -312,10 +336,17 @@ namespace DecodeWheaRecord.Errors {
         private bool ShouldSerializeNativeModelId() => (_ValidBits & WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS.NativeModelId) != 0;
     }
 
-    internal sealed class WHEA_PROCESSOR_FAMILY_INFO : WheaErrorRecord {
+    internal sealed class WHEA_PROCESSOR_FAMILY_INFO : WheaRecord {
         private const uint StructSize = 8;
         public override uint GetNativeSize() => StructSize;
 
+        /*
+         * Validity of the NativeModelId field is determined by the ValidBits
+         * field in the parent WHEA_PROCESSOR_GENERIC_ERROR_SECTION structure.
+         *
+         * We pass the value of the corresponding bit to the constructor and
+         * store it so we know whether this field should be serialized.
+         */
         private bool _serializeNativeModelId;
 
         private uint _ProcInfo;
@@ -351,17 +382,16 @@ namespace DecodeWheaRecord.Errors {
 
         public WHEA_PROCESSOR_FAMILY_INFO(IntPtr recordAddr, uint structOffset, uint bytesRemaining, bool serializeNativeModelId) :
             base(typeof(WHEA_PROCESSOR_FAMILY_INFO), structOffset, StructSize, bytesRemaining) {
-            var logCat = SectionType.Name;
             var structAddr = recordAddr + (int)structOffset;
 
             _ProcInfo = (uint)Marshal.ReadInt32(structAddr);
 
             if (Reserved1 != 0) {
-                WarnOutput($"{nameof(Reserved1)} is non-zero.", logCat);
+                WarnOutput($"{nameof(Reserved1)} is non-zero.", SectionType.Name);
             }
 
             if (Reserved2 != 0) {
-                WarnOutput($"{nameof(Reserved2)} is non-zero.", logCat);
+                WarnOutput($"{nameof(Reserved2)} is non-zero.", SectionType.Name);
             }
 
             NativeModelId = (uint)Marshal.ReadInt32(structAddr, 4);

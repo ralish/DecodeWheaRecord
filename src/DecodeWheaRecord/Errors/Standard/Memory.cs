@@ -1,5 +1,3 @@
-#pragma warning disable IDE0044 // Make field readonly
-
 // ReSharper disable InconsistentNaming
 
 using System;
@@ -15,8 +13,8 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_MEMORY_ERROR_SECTION : WheaErrorRecord {
+namespace DecodeWheaRecord.Errors.Standard {
+    internal sealed class WHEA_MEMORY_ERROR_SECTION : WheaRecord {
         private uint _StructSize;
         public override uint GetNativeSize() => _StructSize;
 
@@ -90,6 +88,7 @@ namespace DecodeWheaRecord.Errors {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong TargetId;
 
+        // Switched to an enumeration
         private WHEA_MEMORY_ERROR_TYPE _ErrorType;
 
         [JsonProperty(Order = 17)]
@@ -161,6 +160,7 @@ namespace DecodeWheaRecord.Errors {
             }
 
             _ValidBits = (WHEA_MEMORY_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(sectionAddr);
+
             if (HasWin1803Fields()) {
                 if (ShouldSerializeRow() && ShouldSerializeExtendedRow()) {
                     throw new InvalidDataException($"The {nameof(Row)} and {nameof(ExtendedRow)} flags in {nameof(ValidBits)} cannot both be set.");

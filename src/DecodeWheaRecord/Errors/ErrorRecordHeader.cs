@@ -19,7 +19,7 @@ using Newtonsoft.Json;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_ERROR_RECORD_HEADER : WheaErrorRecord {
+    internal sealed class WHEA_ERROR_RECORD_HEADER : WheaRecord {
         internal const uint StructSize = 128;
         public override uint GetNativeSize() => StructSize;
 
@@ -94,12 +94,12 @@ namespace DecodeWheaRecord.Errors {
         private Guid _CreatorId;
 
         [JsonProperty(Order = 11)]
-        public string CreatorId => WheaGuids.CreatorIds.TryGetValue(_CreatorId, out var CreatorIdValue) ? CreatorIdValue : _CreatorId.ToString();
+        public string CreatorId => WheaGuids.CreatorIds.TryGetValue(_CreatorId, out var creatorIdValue) ? creatorIdValue : _CreatorId.ToString();
 
         private Guid _NotifyType;
 
         [JsonProperty(Order = 12)]
-        public string NotifyType => WheaGuids.NotifyTypes.TryGetValue(_NotifyType, out var NotifyTypeValue) ? NotifyTypeValue : _NotifyType.ToString();
+        public string NotifyType => WheaGuids.NotifyTypes.TryGetValue(_NotifyType, out var notifyTypeValue) ? notifyTypeValue : _NotifyType.ToString();
 
         [JsonProperty(Order = 13)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -128,25 +128,27 @@ namespace DecodeWheaRecord.Errors {
 
         public WHEA_ERROR_RECORD_HEADER(IntPtr recordAddr, uint recordSize) :
             base(typeof(WHEA_ERROR_RECORD_HEADER), 0, StructSize, recordSize) {
-            const string logCat = nameof(WHEA_ERROR_RECORD_HEADER);
-
             _Signature = (uint)Marshal.ReadInt32(recordAddr);
+
             if (Signature != WHEA_ERROR_RECORD_SIGNATURE) {
                 throw new InvalidDataException($"Expected {nameof(Signature)} to be \"{WHEA_ERROR_RECORD_SIGNATURE}\" but found: {Signature}");
             }
 
             _Revision = Marshal.PtrToStructure<WHEA_REVISION>(recordAddr + 4);
+
             var hdrRevision = new Version(_Revision.MajorRevision, _Revision.MinorRevision);
             var supRevision = new Version(WHEA_ERROR_RECORD_REVISION >> 8, WHEA_ERROR_RECORD_REVISION & 0xFF);
             if (hdrRevision.MajorRevision > supRevision.MajorRevision) {
                 var msg = $"{nameof(Revision)} major version is greater than latest supported: {hdrRevision.ToString(1)} > {supRevision.ToString(1)}";
                 throw new InvalidDataException(msg);
             }
+
             if (hdrRevision > supRevision) {
                 WarnOutput($"{nameof(Revision)} minor version is greater than latest supported: {hdrRevision.ToString(2)} > {supRevision.ToString(2)}");
             }
 
             SignatureEnd = (uint)Marshal.ReadInt32(recordAddr, 6);
+
             if (SignatureEnd != WHEA_ERROR_RECORD_SIGNATURE_END) {
                 var hdrSigEnd = Convert.ToString(SignatureEnd, 16);
                 var expSigEnd = Convert.ToString(WHEA_ERROR_RECORD_SIGNATURE_END, 16);
@@ -154,25 +156,25 @@ namespace DecodeWheaRecord.Errors {
             }
 
             SectionCount = (ushort)Marshal.ReadInt16(recordAddr, 10);
+
             if (SectionCount == 0) {
                 throw new InvalidDataException($"{nameof(SectionCount)} is zero (expected at least one error section).");
             }
 
             _Severity = (WHEA_ERROR_SEVERITY)Marshal.ReadInt32(recordAddr, 12);
             _ValidBits = (WHEA_ERROR_RECORD_HEADER_VALIDBITS)Marshal.ReadInt32(recordAddr, 16);
-
             Length = (uint)Marshal.ReadInt32(recordAddr, 20);
-            if (Length != recordSize) {
-                var diffStr = Length > recordSize ? "greater" : "less";
-                var diffSym = Length > recordSize ? ">" : "<";
-                var msg = $"{nameof(Length)} in header is {diffStr} than record size: {Length} {diffSym} {recordSize}";
 
-                if (Length > recordSize) {
+            if (Length != recordSize) {
+                var isMore = Length > recordSize;
+                var msg = $"{nameof(Length)} in header is {(isMore ? "more" : "less")} than record size: {Length} {(isMore ? ">" : "<")} {recordSize}";
+
+                if (isMore) {
                     throw new InvalidDataException(msg);
                 }
 
-                WarnOutput(msg, logCat);
-                WarnOutput("Error record may be incorrectly and/or partially decoded.", logCat);
+                WarnOutput(msg, SectionType.Name);
+                WarnOutput("Error record may be incorrectly and/or partially decoded.", SectionType.Name);
             }
 
             _Timestamp = Marshal.PtrToStructure<WHEA_TIMESTAMP>(recordAddr + 24);
@@ -184,7 +186,7 @@ namespace DecodeWheaRecord.Errors {
             _Flags = (WHEA_ERROR_RECORD_HEADER_FLAGS)Marshal.ReadInt32(recordAddr, 104);
             PersistenceInfo = new WHEA_PERSISTENCE_INFO(recordAddr, 108, recordSize - 108);
             OsBuildNumber = (uint)Marshal.ReadInt32(recordAddr, 112);
-            Marshal.Copy(recordAddr + 116, Reserved, 0, 8);
+            Marshal.Copy(recordAddr, Reserved, 116, 8);
 
             FinalizeRecord(recordAddr, StructSize);
         }
@@ -208,7 +210,7 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeReserved() => Reserved.Any(element => element != 0);
     }
 
-    internal sealed class WHEA_PERSISTENCE_INFO : WheaErrorRecord {
+    internal sealed class WHEA_PERSISTENCE_INFO : WheaRecord {
         private const uint StructSize = 8;
         public override uint GetNativeSize() => StructSize;
 
@@ -217,7 +219,7 @@ namespace DecodeWheaRecord.Errors {
          * documentation states it is "RE". It is reversed as validation is
          * performed against the field as a string instead of an integer.
          */
-        private const string WHEA_PERSISTENCE_INFO_SIGNATURE = "ER";
+        private const string ExpectedSignature = "ER";
 
         private ulong _RawBits;
 
@@ -248,7 +250,6 @@ namespace DecodeWheaRecord.Errors {
 
         public WHEA_PERSISTENCE_INFO(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
             base(typeof(WHEA_PERSISTENCE_INFO), structOffset, StructSize, bytesRemaining) {
-            var logCat = SectionType.Name;
             var structAddr = recordAddr + (int)structOffset;
 
             _RawBits = (ulong)Marshal.ReadInt64(structAddr);
@@ -259,10 +260,10 @@ namespace DecodeWheaRecord.Errors {
              */
             if (string.IsNullOrEmpty(Signature)) {
                 if (HasNonZeroBytes()) {
-                    WarnOutput($"{nameof(Signature)} not present but structure has non-zero bytes.", logCat);
+                    WarnOutput($"{nameof(Signature)} not present but structure has non-zero bytes.", SectionType.Name);
                 }
-            } else if (Signature != WHEA_PERSISTENCE_INFO_SIGNATURE) {
-                throw new InvalidDataException($"Expected {nameof(Signature)} to be \"{WHEA_PERSISTENCE_INFO_SIGNATURE}\" but found: {Signature}");
+            } else if (Signature != ExpectedSignature) {
+                throw new InvalidDataException($"Expected {nameof(Signature)} to be \"{ExpectedSignature}\" but found: {Signature}");
             }
 
             FinalizeRecord(recordAddr, StructSize);
@@ -287,15 +288,17 @@ namespace DecodeWheaRecord.Errors {
     // Subset in WHEA_ERROR_RECORD_FLAGS preprocessor definitions
     [Flags]
     internal enum WHEA_ERROR_RECORD_HEADER_FLAGS : uint {
-        Recovered          = 0x1,
-        PreviousError      = 0x2,
-        Simulated          = 0x4,
-        DeviceDriver       = 0x8,  // Not in UEFI Specification
-        CriticalEvent      = 0x10, // Not in UEFI Specification
-        PersistPfn         = 0x20, // Not in UEFI Specification
-        SectionsTruncated  = 0x40, // Not in UEFI Specification
-        RecoveryInProgress = 0x80, // Not in UEFI Specification
-        Throttle           = 0x100 // Not in UEFI Specification
+        Recovered     = 0x1,
+        PreviousError = 0x2,
+        Simulated     = 0x4,
+
+        // Remaining bits are not in the UEFI Specification
+        DeviceDriver       = 0x8,
+        CriticalEvent      = 0x10,
+        PersistPfn         = 0x20,
+        SectionsTruncated  = 0x40,
+        RecoveryInProgress = 0x80,
+        Throttle           = 0x100
     }
 
     // @formatter:int_align_fields false

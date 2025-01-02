@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 
 using Newtonsoft.Json;
 
-namespace DecodeWheaRecord.Errors {
+namespace DecodeWheaRecord.Errors.Microsoft {
     // Structure size: 39 bytes
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
     internal sealed class WHEA_ERROR_RECOVERY_INFO_SECTION : IWheaRecord {

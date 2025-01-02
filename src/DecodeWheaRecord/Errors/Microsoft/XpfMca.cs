@@ -3,7 +3,6 @@
 
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable InconsistentNaming
-// ReSharper disable MemberCanBePrivate.Global
 
 using System;
 using System.IO;
@@ -18,26 +17,29 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_XPF_MCA_SECTION : WheaErrorRecord {
-        private uint _NativeSize;
-        public override uint GetNativeSize() => _NativeSize;
-
-        // Maximum count of extended registers in ExtendedRegisters array
-        internal const int WHEA_XPF_MCA_EXTREG_MAX_COUNT = 24;
-
-        // Number of AMD extended registers in WHEA_AMD_EXTENDED_REGISTERS
-        internal const int WHEA_AMD_EXT_REG_NUM = 10;
-
-        // Count of MCA banks in each "Ex" array in the Version 4 structure
-        internal const int WHEA_XPF_MCA_EXBANK_COUNT = 32;
+namespace DecodeWheaRecord.Errors.Microsoft {
+    internal sealed class WHEA_XPF_MCA_SECTION : WheaRecord {
+        private uint _StructSize;
+        public override uint GetNativeSize() => _StructSize;
 
         // Size up to and including the GlobalCapability field
-        private const uint BaseStructSize = 272;
+        private const uint StructSizeV2 = 272;
+
+        // Size up to and including the RecoveryInfo field
+        private const uint StructSizeV3 = 292;
+
+        // Size up to and including the MiscEx field
+        private const uint StructSizeV4 = 1192;
 
         // For validating the VersionNumber field
         private const uint MinSupportedVersion = 2;
         private const uint MaxSupportedVersion = 4;
+
+        // Maximum count of extended registers in ExtendedRegisters array
+        internal const int WHEA_XPF_MCA_EXTREG_MAX_COUNT = 24;
+
+        // Count of MCA banks in each "Ex" array in the Version 4 structure
+        private const int WHEA_XPF_MCA_EXBANK_COUNT = 32;
 
         [JsonProperty(Order = 1)]
         public uint VersionNumber;
@@ -99,7 +101,7 @@ namespace DecodeWheaRecord.Errors {
         public uint ApicId;
 
         /*
-         * The next two fields comprise what was originally an embedded union
+         * The next two fields were originally part of a union in the structure
          * which contains either a vendor-agnostic array of extended register
          * values or an AMD-specific variant. As per the earlier comment, we
          * directly embed the the different types and marshal the correct one.
@@ -153,15 +155,17 @@ namespace DecodeWheaRecord.Errors {
         public ulong[] MiscEx;
 
         public WHEA_XPF_MCA_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
-            base(sectionDsc, typeof(WHEA_XPF_MCA_SECTION), BaseStructSize, bytesRemaining) {
+            base(sectionDsc, typeof(WHEA_XPF_MCA_SECTION), StructSizeV2, bytesRemaining) {
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
             VersionNumber = (uint)Marshal.ReadInt32(sectionAddr);
+
             if (VersionNumber < MinSupportedVersion || VersionNumber > MaxSupportedVersion) {
                 throw new InvalidDataException($"{nameof(VersionNumber)} is unknown or invalid: {VersionNumber}");
             }
 
             _CpuVendor = (WHEA_CPU_VENDOR)Marshal.ReadInt32(sectionAddr, 4);
+
             if (string.IsNullOrEmpty(CpuVendor)) {
                 throw new InvalidDataException($"{nameof(CpuVendor)} is unknown or invalid: {_CpuVendor}");
             }
@@ -193,16 +197,28 @@ namespace DecodeWheaRecord.Errors {
             // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
             switch (_CpuVendor) {
                 case WHEA_CPU_VENDOR.Amd:
+                    if (ExtendedRegisterCount > WHEA_AMD_EXTENDED_REGISTERS.WHEA_AMD_EXT_REG_NUM) {
+                        var msg = $"{nameof(ExtendedRegisterCount)} is greater than maximum allowed for AMD CPU: " +
+                                  $"{ExtendedRegisterCount} > {WHEA_AMD_EXTENDED_REGISTERS.WHEA_AMD_EXT_REG_NUM}";
+                        throw new InvalidDataException(msg);
+                    }
+
                     AMDExtendedRegisters = Marshal.PtrToStructure<WHEA_AMD_EXTENDED_REGISTERS>(sectionAddr + 72);
                     break;
                 case WHEA_CPU_VENDOR.Intel:
-                    var numExtRegs = ExtendedRegisterCount <= WHEA_XPF_MCA_EXTREG_MAX_COUNT ? ExtendedRegisterCount : WHEA_XPF_MCA_EXTREG_MAX_COUNT;
-                    var extRegsTmp = new long[WHEA_XPF_MCA_EXTREG_MAX_COUNT];
-                    ExtendedRegisters = new ulong[WHEA_XPF_MCA_EXTREG_MAX_COUNT];
+                    if (ExtendedRegisterCount > WHEA_XPF_MCA_EXTREG_MAX_COUNT) {
+                        var msg = $"{nameof(ExtendedRegisterCount)} is greater than maximum allowed: " +
+                                  $"{ExtendedRegisterCount} > {WHEA_XPF_MCA_EXTREG_MAX_COUNT}";
+                        throw new InvalidDataException(msg);
+                    }
 
-                    Marshal.Copy(sectionAddr + 72, extRegsTmp, 0, (int)numExtRegs);
-                    for (var i = 0; i < numExtRegs; i++) {
-                        ExtendedRegisters[i] = (ulong)extRegsTmp[i];
+                    var extendedRegistersSigned = new long[WHEA_XPF_MCA_EXTREG_MAX_COUNT];
+                    Marshal.Copy(sectionAddr + 72, extendedRegistersSigned, 0, (int)ExtendedRegisterCount);
+
+                    // Convert the signed array to its unsigned equivalent
+                    ExtendedRegisters = new ulong[WHEA_XPF_MCA_EXTREG_MAX_COUNT];
+                    for (var i = 0; i < ExtendedRegisterCount; i++) {
+                        ExtendedRegisters[i] = (ulong)extendedRegistersSigned[i];
                     }
 
                     break;
@@ -212,25 +228,26 @@ namespace DecodeWheaRecord.Errors {
             }
 
             GlobalCapability = Marshal.PtrToStructure<MCG_CAP>(sectionAddr + 264);
-            var offset = 272;
+
+            _StructSize = StructSizeV2;
 
             if (VersionNumber >= 3) {
-                RecoveryInfo = Marshal.PtrToStructure<XPF_RECOVERY_INFO>(sectionAddr + offset);
-                offset += Marshal.SizeOf<XPF_RECOVERY_INFO>(); // 292 bytes
+                RecoveryInfo = Marshal.PtrToStructure<XPF_RECOVERY_INFO>(sectionAddr + 272);
+
+                _StructSize = StructSizeV3;
             }
 
             if (VersionNumber >= 4) {
-                ExBankCount = (uint)Marshal.ReadInt32(sectionAddr, offset);
-                offset += 4;
+                ExBankCount = (uint)Marshal.ReadInt32(sectionAddr, 292);
 
-                var bankNumberExTmp = new int[WHEA_XPF_MCA_EXBANK_COUNT];
+                var bankNumberExSigned = new int[WHEA_XPF_MCA_EXBANK_COUNT];
+                Marshal.Copy(sectionAddr + 296, bankNumberExSigned, 0, WHEA_XPF_MCA_EXBANK_COUNT);
+
+                // Convert the signed array to its unsigned equivalent
                 BankNumberEx = new uint[WHEA_XPF_MCA_EXBANK_COUNT];
-
-                Marshal.Copy(sectionAddr + offset, bankNumberExTmp, 0, WHEA_XPF_MCA_EXBANK_COUNT);
                 for (var i = 0; i < WHEA_XPF_MCA_EXBANK_COUNT; i++) {
-                    BankNumberEx[i] = (uint)bankNumberExTmp[i];
+                    BankNumberEx[i] = (uint)bankNumberExSigned[i];
                 }
-                offset += 4 * WHEA_XPF_MCA_EXBANK_COUNT;
 
                 // AMD & Intel structures have the same size
                 var elementSize = Marshal.SizeOf<MCI_STATUS_BITS_COMMON>();
@@ -239,49 +256,48 @@ namespace DecodeWheaRecord.Errors {
                     case WHEA_CPU_VENDOR.Amd:
                         StatusExAmd = new MCI_STATUS_AMD_BITS[WHEA_XPF_MCA_EXBANK_COUNT];
                         for (var i = 0; i < WHEA_XPF_MCA_EXBANK_COUNT; i++) {
-                            StatusExAmd[i] = Marshal.PtrToStructure<MCI_STATUS_AMD_BITS>(sectionAddr + offset + i * elementSize);
+                            StatusExAmd[i] = Marshal.PtrToStructure<MCI_STATUS_AMD_BITS>(sectionAddr + 424 + i * elementSize);
                         }
 
                         break;
                     case WHEA_CPU_VENDOR.Intel:
                         StatusExIntel = new MCI_STATUS_INTEL_BITS[WHEA_XPF_MCA_EXBANK_COUNT];
                         for (var i = 0; i < WHEA_XPF_MCA_EXBANK_COUNT; i++) {
-                            StatusExIntel[i] = Marshal.PtrToStructure<MCI_STATUS_INTEL_BITS>(sectionAddr + offset + i * elementSize);
+                            StatusExIntel[i] = Marshal.PtrToStructure<MCI_STATUS_INTEL_BITS>(sectionAddr + 424 + i * elementSize);
                         }
 
                         break;
                     case WHEA_CPU_VENDOR.Other:
                         StatusExCommon = new MCI_STATUS_BITS_COMMON[WHEA_XPF_MCA_EXBANK_COUNT];
                         for (var i = 0; i < WHEA_XPF_MCA_EXBANK_COUNT; i++) {
-                            StatusExCommon[i] = Marshal.PtrToStructure<MCI_STATUS_BITS_COMMON>(sectionAddr + offset + i * elementSize);
+                            StatusExCommon[i] = Marshal.PtrToStructure<MCI_STATUS_BITS_COMMON>(sectionAddr + 424 + i * elementSize);
                         }
 
                         break;
                 }
 
-                offset += elementSize * WHEA_XPF_MCA_EXBANK_COUNT;
+                var addressExSigned = new long[WHEA_XPF_MCA_EXBANK_COUNT];
+                Marshal.Copy(sectionAddr + 680, addressExSigned, 0, WHEA_XPF_MCA_EXBANK_COUNT);
 
-                var addressExTmp = new long[WHEA_XPF_MCA_EXBANK_COUNT];
+                // Convert the signed array to its unsigned equivalent
                 AddressEx = new ulong[WHEA_XPF_MCA_EXBANK_COUNT];
-
-                Marshal.Copy(sectionAddr + offset, addressExTmp, 0, WHEA_XPF_MCA_EXBANK_COUNT);
                 for (var i = 0; i < WHEA_XPF_MCA_EXBANK_COUNT; i++) {
-                    AddressEx[i] = (ulong)addressExTmp[i];
+                    AddressEx[i] = (ulong)addressExSigned[i];
                 }
-                offset += 8 * WHEA_XPF_MCA_EXBANK_COUNT;
 
-                var miscExTmp = new long[WHEA_XPF_MCA_EXBANK_COUNT];
+                var miscExSigned = new long[WHEA_XPF_MCA_EXBANK_COUNT];
+                Marshal.Copy(sectionAddr + 936, miscExSigned, 0, WHEA_XPF_MCA_EXBANK_COUNT);
+
+                // Convert the signed array to its unsigned equivalent
                 MiscEx = new ulong[WHEA_XPF_MCA_EXBANK_COUNT];
-
-                Marshal.Copy(sectionAddr + offset, miscExTmp, 0, WHEA_XPF_MCA_EXBANK_COUNT);
                 for (var i = 0; i < WHEA_XPF_MCA_EXBANK_COUNT; i++) {
-                    MiscEx[i] = (ulong)miscExTmp[i];
+                    MiscEx[i] = (ulong)miscExSigned[i];
                 }
-                offset += 8 * WHEA_XPF_MCA_EXBANK_COUNT; // 1192 bytes
+
+                _StructSize = StructSizeV4;
             }
 
-            _NativeSize = (uint)offset;
-            FinalizeRecord(recordAddr, _NativeSize);
+            FinalizeRecord(recordAddr, _StructSize);
         }
 
         [UsedImplicitly]
@@ -509,6 +525,9 @@ namespace DecodeWheaRecord.Errors {
     // Structure size: 192 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_AMD_EXTENDED_REGISTERS {
+        // Number of AMD extended registers in WHEA_AMD_EXTENDED_REGISTERS
+        internal const int WHEA_AMD_EXT_REG_NUM = 10;
+
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong IPID;
 
@@ -540,7 +559,7 @@ namespace DecodeWheaRecord.Errors {
         public ulong RasCap;
 
         [JsonProperty(ItemConverterType = typeof(HexStringJsonConverter))]
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = WHEA_XPF_MCA_SECTION.WHEA_XPF_MCA_EXTREG_MAX_COUNT - WHEA_XPF_MCA_SECTION.WHEA_AMD_EXT_REG_NUM)]
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = WHEA_XPF_MCA_SECTION.WHEA_XPF_MCA_EXTREG_MAX_COUNT - WHEA_AMD_EXT_REG_NUM)]
         public ulong[] Reserved;
 
         [UsedImplicitly]

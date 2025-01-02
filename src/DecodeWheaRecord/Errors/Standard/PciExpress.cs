@@ -17,12 +17,15 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors {
-    internal sealed class WHEA_PCIEXPRESS_ERROR_SECTION : WheaErrorRecord {
+namespace DecodeWheaRecord.Errors.Standard {
+    internal sealed class WHEA_PCIEXPRESS_ERROR_SECTION : WheaRecord {
         private const uint StructSize = 208;
         public override uint GetNativeSize() => StructSize;
 
-        private const uint ExpCapBufferSize = 60;
+        // ExpressCapability is really a statically sized buffer
+        private const uint ExpressCapabilityBufferSize = 60;
+
+        // AerInfo is really a statically sized buffer
         private const uint AerInfoBufferSize = 96;
 
         private WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS _ValidBits;
@@ -55,15 +58,38 @@ namespace DecodeWheaRecord.Errors {
         [JsonProperty(Order = 8)]
         public WHEA_PCIEXPRESS_BRIDGE_CONTROL_STATUS BridgeControlStatus;
 
+        /*
+         * ExpressCapability is defined as a statically sized buffer in the
+         * UEFI Specification and the Windows headers, however, we want to
+         * deserialize the underlying structure. Instead we define the type
+         * here and an additional field to store any remaining leftover bytes.
+         */
+
         [JsonProperty(Order = 9)]
         public PCI_EXPRESS_CAPABILITY ExpressCapability;
 
         [JsonProperty(Order = 10)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public byte[] ExpCapUnusedBytes;
+        public byte[] ExpressCapabilityUnusedBytes;
+
+        /*
+         * Like with the ExpressCapability field, AerInfo is defined as a
+         * statically sized buffer and so we adopt the same approach here.
+         *
+         * One additional complication is there are different AER capability
+         * structures subject to the device type: endpoint, bridge, or root
+         * port. While the endpoint and bridge structures are identical, the
+         * root port structure differs. The documentation is ambiguous on if
+         * the error record embeds the root port structure for root ports or
+         * always uses the standard AER capability structure. We'll assume the
+         * former until proven otherwise as it's the more sensible behaviour.
+         */
 
         [JsonProperty(Order = 11)]
         public PCI_EXPRESS_AER_CAPABILITY AerInfo;
+
+        [JsonProperty(Order = 11)]
+        public PCI_EXPRESS_ROOTPORT_AER_CAPABILITY AerInfoRootPort;
 
         [JsonProperty(Order = 12)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -80,7 +106,6 @@ namespace DecodeWheaRecord.Errors {
         }
 
         private void WheaPciExpressErrorSection(IntPtr recordAddr, uint sectionOffset) {
-            var logCat = SectionType.Name;
             var sectionAddr = recordAddr + (int)sectionOffset;
 
             _ValidBits = (WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(sectionAddr);
@@ -91,29 +116,39 @@ namespace DecodeWheaRecord.Errors {
             DeviceId = Marshal.PtrToStructure<WHEA_PCIEXPRESS_DEVICE_ID>(sectionAddr + 24);
             DeviceSerialNumber = (ulong)Marshal.ReadInt64(sectionAddr, 40);
             BridgeControlStatus = Marshal.PtrToStructure<WHEA_PCIEXPRESS_BRIDGE_CONTROL_STATUS>(sectionAddr + 48);
-
             ExpressCapability = Marshal.PtrToStructure<PCI_EXPRESS_CAPABILITY>(sectionAddr + 52);
-            var ExpCapStructSize = Marshal.SizeOf<PCI_EXPRESS_CAPABILITY>();
-            var ExpCapBytesRemaining = ExpCapBufferSize - (uint)ExpCapStructSize;
-            if (ExpCapBytesRemaining != 0) {
-                ExpCapUnusedBytes = new byte[ExpCapBytesRemaining];
-                Marshal.Copy(sectionAddr + 52, ExpCapUnusedBytes, ExpCapStructSize, (int)ExpCapBytesRemaining);
 
-                if (ExpCapUnusedBytes.Any(element => element != 0)) {
-                    WarnOutput($"{nameof(ExpCapUnusedBytes)} has non-zero bytes.", logCat);
+            var expressCapabilityStructSize = Marshal.SizeOf<PCI_EXPRESS_CAPABILITY>();
+            var expressCapabilityBytesRemaining = ExpressCapabilityBufferSize - (uint)expressCapabilityStructSize;
+            if (expressCapabilityBytesRemaining != 0) {
+                ExpressCapabilityUnusedBytes = new byte[expressCapabilityBytesRemaining];
+                Marshal.Copy(sectionAddr, ExpressCapabilityUnusedBytes, 52 + expressCapabilityStructSize, (int)expressCapabilityBytesRemaining);
+
+                if (ExpressCapabilityUnusedBytes.Any(element => element != 0)) {
+                    WarnOutput($"{nameof(ExpressCapabilityUnusedBytes)} has non-zero bytes.", SectionType.Name);
                 }
             }
 
-            // TODO: PCI_EXPRESS_ROOTPORT_AER_CAPABILITY? Others?
-            AerInfo = Marshal.PtrToStructure<PCI_EXPRESS_AER_CAPABILITY>(sectionAddr + 112);
-            var AerInfoStructSize = Marshal.SizeOf<PCI_EXPRESS_AER_CAPABILITY>();
-            var AerInfoBytesRemaining = AerInfoBufferSize - (uint)AerInfoStructSize;
-            if (AerInfoBytesRemaining != 0) {
-                AerInfoUnusedBytes = new byte[AerInfoBytesRemaining];
-                Marshal.Copy(sectionAddr + 112, AerInfoUnusedBytes, AerInfoStructSize, (int)AerInfoBytesRemaining);
+            int aerInfoStructSize;
+            // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
+            switch (_PortType) {
+                case WHEA_PCIEXPRESS_DEVICE_TYPE.RootPort:
+                    AerInfoRootPort = Marshal.PtrToStructure<PCI_EXPRESS_ROOTPORT_AER_CAPABILITY>(sectionAddr + 112);
+                    aerInfoStructSize = Marshal.SizeOf<PCI_EXPRESS_ROOTPORT_AER_CAPABILITY>();
+                    break;
+                default:
+                    AerInfo = Marshal.PtrToStructure<PCI_EXPRESS_AER_CAPABILITY>(sectionAddr + 112);
+                    aerInfoStructSize = Marshal.SizeOf<PCI_EXPRESS_AER_CAPABILITY>();
+                    break;
+            }
+
+            var aerInfoBytesRemaining = AerInfoBufferSize - (uint)aerInfoStructSize;
+            if (aerInfoBytesRemaining != 0) {
+                AerInfoUnusedBytes = new byte[aerInfoBytesRemaining];
+                Marshal.Copy(sectionAddr, AerInfoUnusedBytes, 112 + aerInfoStructSize, (int)aerInfoBytesRemaining);
 
                 if (AerInfoUnusedBytes.Any(element => element != 0)) {
-                    WarnOutput($"{nameof(AerInfoUnusedBytes)} has non-zero bytes.", logCat);
+                    WarnOutput($"{nameof(AerInfoUnusedBytes)} has non-zero bytes.", SectionType.Name);
                 }
             }
 
@@ -122,6 +157,8 @@ namespace DecodeWheaRecord.Errors {
 
         [UsedImplicitly]
         public bool ShouldSerializePortType() => (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.PortType) != 0;
+
+        private bool IsRootPort() => ShouldSerializePortType() && _PortType == WHEA_PCIEXPRESS_DEVICE_TYPE.RootPort;
 
         [UsedImplicitly]
         public bool ShouldSerializeVersion() => (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.Version) != 0;
@@ -145,15 +182,19 @@ namespace DecodeWheaRecord.Errors {
         public bool ShouldSerializeExpressCapability() => (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.ExpressCapability) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeExpCapUnusedBytes() =>
-            ShouldSerializeExpressCapability() && ExpCapUnusedBytes != null && ExpCapUnusedBytes.Any(element => element != 0);
+        public bool ShouldSerializeExpressCapabilityUnusedBytes() =>
+            ShouldSerializeExpressCapability() && ExpressCapabilityUnusedBytes != null && ExpressCapabilityUnusedBytes.Any(element => element != 0);
+
+        private bool IsAerInfoValid() => (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.AerInfo) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeAerInfo() => (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.AerInfo) != 0;
+        public bool ShouldSerializeAerInfo() => IsAerInfoValid() && !IsRootPort();
 
         [UsedImplicitly]
-        public bool ShouldSerializeAerInfoUnusedBytes() =>
-            ShouldSerializeAerInfo() && AerInfoUnusedBytes != null && AerInfoUnusedBytes.Any(element => element != 0);
+        public bool ShouldSerializeAerInfoRootPort() => IsAerInfoValid() && IsRootPort();
+
+        [UsedImplicitly]
+        public bool ShouldSerializeAerInfoUnusedBytes() => IsAerInfoValid() && AerInfoUnusedBytes != null && AerInfoUnusedBytes.Any(element => element != 0);
     }
 
     // Structure size: 4 bytes

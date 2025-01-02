@@ -12,11 +12,16 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Errors {
+namespace DecodeWheaRecord.Errors.Microsoft {
+    // Structure size: 12 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_NMI_ERROR_SECTION : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_NMI_ERROR_SECTION>();
 
+        /*
+         * On x86 and AMD64 only the first byte is set and the data it contains
+         * is near useless. Other architectures may return more useful data.
+         */
         [JsonProperty(Order = 1)]
         [JsonConverter(typeof(HexStringJsonConverter))]
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
