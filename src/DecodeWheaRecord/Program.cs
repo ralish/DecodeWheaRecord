@@ -1,11 +1,14 @@
 using System;
 using System.Diagnostics;
+using System.Numerics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 
 using DecodeWheaRecord.Errors;
 using DecodeWheaRecord.Events;
+using DecodeWheaRecord.Hardware;
+using DecodeWheaRecord.Internal;
 
 using Newtonsoft.Json;
 

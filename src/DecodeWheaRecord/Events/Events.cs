@@ -5,21 +5,59 @@
 // ReSharper disable InconsistentNaming
 
 using System;
-using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 
 using DecodeWheaRecord.Errors;
 using DecodeWheaRecord.Internal;
 using DecodeWheaRecord.Shared;
 
-using JetBrains.Annotations;
-
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.NativeMethods;
 using static DecodeWheaRecord.Utilities;
 
 namespace DecodeWheaRecord.Events {
+    /*
+     * HalpCmciHandler -> CmcSwitchToPolling (0 bytes)
+     * KiBugCheckProgressCpusFrozen -> CpusFrozen (0 bytes)
+     * WheaRemoveErrorSourceDeviceDriver -> DrvHandleBusy (32 bytes)
+     * WheaReportHwError -> EarlyError (0 bytes)
+     * WheapTrackPendingPage -> PageOfflinePendMax (0 bytes)
+     *
+     * TODO -> hal (now krnl)
+     * HalpCmcLogPollingTimeoutEvent -> CmcPollingTimeout (24 bytes)
+     * HalpCmcWorkerRoutine
+     *
+     * TODO -> krnl
+     * PspVsmLogBugCheckCallback -> SELBugCheckStackDump (256 bytes)
+     * WheapCreateRecordFromGenericErrorData -> CreateGenericRecord
+     * WheaPersistentBadPageToRegistry -> BadPageLimitReached
+     * WheapExecuteRowFailureCheck -> SrasTableEntries
+     * WheapInitErrorReportDeviceDriver -> DrvErrSrcInvalid, DrvHandleBusy
+     * WheapLogInitEvent -> WheaInit
+     *
+     * AzPshedPi.sys
+     * PshedPiHsxFindRootBusNumbers -> AzccRootBusSearchErr
+     * PshedPipReportAllPcieErrorSummary -> PcieSummaryFailed (25 bytes)
+     * PshedPipWriteSelEvent -> ??? (16 bytes)
+     * WheapLogSRASTableBadDataEvent -> SrasTableBadData (0 bytes)
+     */
+
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    internal sealed class WHEAP_FOUND_ERROR_IN_BANK_EVENT : WheaStruct {
+        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_FOUND_ERROR_IN_BANK_EVENT>();
+
+        public uint EpIndex;
+        public uint Bank;
+
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong MciStatus;
+
+        public uint ErrorType;
+    }
+
+
+
     #region WHEA Event Log Entry: Constants
 
     internal static class Shared {
@@ -33,23 +71,6 @@ namespace DecodeWheaRecord.Events {
 
     // @formatter:int_align_fields true
 
-    internal enum PSHED_PI_ERR_READING_PCIE_OVERRIDES : uint {
-        NoErr        = 0,
-        NoMemory     = 1,
-        QueryErr     = 2,
-        BadSize      = 3,
-        BadSignature = 4,
-        NoCapOffset  = 5,
-        NotBinary    = 6
-    }
-
-    internal enum WHEA_GAS_ERRORS : uint {
-        None                     = 0,
-        UnexpectedAddressSpaceId = 1,
-        InvalidStructFields      = 2,
-        InvalidAccessSize        = 3
-    }
-
     internal enum WHEA_REGISTRY_ERRORS : uint {
         None                    = 0,
         FailedToCreateWheaKey   = 1,
@@ -60,15 +81,6 @@ namespace DecodeWheaRecord.Events {
     internal enum WHEA_THROTTLE_TYPE : uint {
         Pcie   = 0,
         Memory = 1
-    }
-
-    internal enum WHEAP_DPC_ERROR_EVENT_TYPE : uint {
-        NoErr        = 0,
-        BusNotFound  = 1,
-        DpcedSubtree = 2,
-        DeviceIdBad  = 3,
-        ResetFailed  = 4,
-        NoChildren   = 5
     }
 
     // @formatter:int_align_fields false
@@ -88,114 +100,14 @@ namespace DecodeWheaRecord.Events {
         public bool InvalidBusMSR;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_AZCC_ROOT_BUS_LIST_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_AZCC_ROOT_BUS_LIST_EVENT>();
-
-        public uint RootBusCount;
-
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
-        public uint[] RootBuses;
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_AZCC_SET_POISON_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_AZCC_SET_POISON_EVENT>();
-
-        public uint Bus;
-
-        [MarshalAs(UnmanagedType.U1)]
-        public bool ReadSuccess;
-
-        [MarshalAs(UnmanagedType.U1)]
-        public bool WriteSuccess;
-
-        [MarshalAs(UnmanagedType.U1)]
-        public bool IsEnable;
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_ETW_OVERFLOW_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_ETW_OVERFLOW_EVENT>();
-
-        public ulong RecordId;
-    }
-
-    // Deliberately empty (no payload)
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_FAILED_ADD_DEFECT_LIST_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_FAILED_ADD_DEFECT_LIST_EVENT>();
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_GAS_ERROR_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_GAS_ERROR_EVENT>();
-
-        private WHEA_GAS_ERRORS _Error;
-
-        [JsonProperty(Order = 1)]
-        public string Error => Enum.GetName(typeof(WHEA_GAS_ERRORS), _Error);
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_MEMORY_THROTTLE_SUMMARY_FAILED_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_MEMORY_THROTTLE_SUMMARY_FAILED_EVENT>();
-
-        private NtStatus _Status;
-
-        [JsonProperty(Order = 1)]
-        public string Status => Enum.GetName(typeof(NtStatus), _Status);
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_OFFLINE_DONE_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_OFFLINE_DONE_EVENT>();
-
-        [JsonConverter(typeof(HexStringJsonConverter))]
-        public ulong Address;
-    }
-
-    // Deliberately empty (no payload)
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_REGISTER_KEY_NOTIFICATION_FAILED_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_REGISTER_KEY_NOTIFICATION_FAILED_EVENT>();
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_REGISTRY_ERROR_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_REGISTRY_ERROR_EVENT>();
-
-        private WHEA_REGISTRY_ERRORS _RegErr;
-
-        [JsonProperty(Order = 1)]
-        public string RegErr => Enum.GetName(typeof(WHEA_REGISTRY_ERRORS), _RegErr);
-
-        [JsonProperty(Order = 2)]
-        public uint Status;
-    }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    internal sealed class WHEA_REGNOTIFY_POLICY_CHANGE_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_REGNOTIFY_POLICY_CHANGE_EVENT>();
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
-        public string PolicyName;
-
-        public uint PolicyIndex;
-        public uint PolicyValue;
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_SEL_BUGCHECK_PROGRESS : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_SEL_BUGCHECK_PROGRESS>();
-
-        public uint BugCheckCode;
-        public uint BugCheckProgressSummary;
-    }
-
+    /*
+     * Module:          ntoskrnl.exe
+     * Version:         10.0.26100.2314
+     * Function(s):     KiMcheckAlternateReturn
+     */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_SRAR_DETAIL_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_SRAR_DETAIL_EVENT>();
+        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_SRAR_DETAIL_EVENT>(); // 17 bytes
 
         [JsonProperty(Order = 1)]
         public uint RecoveryContextFlags;
@@ -279,6 +191,10 @@ namespace DecodeWheaRecord.Events {
     }
 
     /*
+     * Module:          AzPshedPi.sys
+     * Version:         11.0.2404.15001
+     * Function(s):     WheapLogSRASTable
+     *
      * Cannot be directly marshalled as a structure due to non-static size
      * resulting from the variable length array member.
      */
@@ -312,98 +228,44 @@ namespace DecodeWheaRecord.Events {
         }
     }
 
-    // Deliberately empty (no payload)
+    /*
+     * Module:          AzPshedPi.sys
+     * Version:         11.0.2404.15001
+     * Function(s):     WheapLogSRASTableErrorEvent
+     */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_SRAS_TABLE_ERROR : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_SRAS_TABLE_ERROR>();
+        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_SRAS_TABLE_ERROR>(); // 0 bytes
     }
 
-    // Deliberately empty (no payload)
+    /*
+     * Module:          AzPshedPi.sys
+     * Version:         11.0.2404.15001
+     * Function(s):     WheapLogSRASTableNotFound
+     */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_SRAS_TABLE_NOT_FOUND : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_SRAS_TABLE_NOT_FOUND>();
+        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_SRAS_TABLE_NOT_FOUND>(); // 0 bytes
     }
 
-    // Deliberately empty (no payload)
+    /*
+     * Module:          AzPshedPi.sys
+     * Version:         11.0.2404.15001
+     * Function(s):     PshedPipLogAddErrorSourceFailedEvent
+     */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_THROTTLE_ADD_ERR_SRC_FAILED_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_THROTTLE_ADD_ERR_SRC_FAILED_EVENT>();
+        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_THROTTLE_ADD_ERR_SRC_FAILED_EVENT>(); // 0 bytes
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_THROTTLE_MEMORY_ADD_OR_REMOVE_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_THROTTLE_MEMORY_ADD_OR_REMOVE_EVENT>();
-
-        public uint SocketId;
-        public uint ChannelId;
-        public uint DimmSlot;
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_THROTTLE_PCIE_ADD_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_THROTTLE_PCIE_ADD_EVENT>();
-
-        [JsonProperty(Order = 1)]
-        public WHEA_PCIE_ADDRESS Address;
-
-        [JsonProperty(Order = 2)]
-        [JsonConverter(typeof(HexStringJsonConverter))]
-        public uint Mask;
-
-        [JsonProperty(Order = 3)]
-        [MarshalAs(UnmanagedType.U1)]
-        public bool Updated;
-
-        private NtStatus _Status;
-
-        [JsonProperty(Order = 4)]
-        public string Status => Enum.GetName(typeof(NtStatus), _Status);
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_THROTTLE_PCIE_REMOVE_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_THROTTLE_PCIE_REMOVE_EVENT>();
-
-        public WHEA_PCIE_ADDRESS Address;
-
-        [JsonConverter(typeof(HexStringJsonConverter))]
-        public uint Mask;
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_THROTTLE_REG_DATA_IGNORED_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_THROTTLE_REG_DATA_IGNORED_EVENT>();
-
-        private WHEA_THROTTLE_TYPE _ThrottleType;
-
-        [JsonProperty(Order = 1)]
-        public string ThrottleType => Enum.GetName(typeof(WHEA_THROTTLE_TYPE), _ThrottleType);
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_THROTTLE_REGISTRY_CORRUPT_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_THROTTLE_REGISTRY_CORRUPT_EVENT>();
-
-        private WHEA_THROTTLE_TYPE _ThrottleType;
-
-        [JsonProperty(Order = 1)]
-        public string ThrottleType => Enum.GetName(typeof(WHEA_THROTTLE_TYPE), _ThrottleType);
-    }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    internal sealed class WHEAP_ACPI_TIMEOUT_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_ACPI_TIMEOUT_EVENT>();
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
-        public string TableType;
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
-        public string TableRequest;
-    }
-
+    /*
+     * Module:          ntoskrnl.exe
+     * Version:         10.0.26100.2314
+     * Function(s):     WheaAddErrorSource
+     *                  WheaRemoveErrorSource
+     */
     internal sealed class WHEAP_ADD_REMOVE_ERROR_SOURCE_EVENT : WheaStruct {
-        private int _NativeSize;
-        internal override int GetNativeSize() => _NativeSize;
+        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_ADD_REMOVE_ERROR_SOURCE_EVENT>(); // 977 bytes
 
         [JsonProperty(Order = 1)]
         public WHEA_ERROR_SOURCE_DESCRIPTOR Descriptor;
@@ -426,14 +288,13 @@ namespace DecodeWheaRecord.Events {
             IsRemove = Marshal.ReadByte(recordAddr, offset + 4) != 0;
             offset += 5;
 
-            _NativeSize = offset;
-            DebugAfterDecode(typeof(WHEAP_ADD_REMOVE_ERROR_SOURCE_EVENT), offset, _NativeSize);
+            //DebugAfterDecode(typeof(WHEAP_ADD_REMOVE_ERROR_SOURCE_EVENT), offset, _NativeSize);
         }
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_ATTEMPT_RECOVERY_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_BAD_HEST_NOTIFY_DATA_EVENT>();
+        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_ATTEMPT_RECOVERY_EVENT>();
 
         [JsonProperty(Order = 1)]
         public WHEA_ERROR_RECORD_HEADER ErrorHeader; // TODO: Verify
@@ -450,26 +311,6 @@ namespace DecodeWheaRecord.Events {
 
         [JsonProperty(Order = 4)]
         public string Status => Enum.GetName(typeof(NtStatus), _Status);
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_BAD_HEST_NOTIFY_DATA_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_BAD_HEST_NOTIFY_DATA_EVENT>();
-
-        public ushort SourceId;
-        public ushort Reserved;
-        public WHEA_NOTIFICATION_DESCRIPTOR NotifyDesc; // TODO: Verify
-
-        [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_CLEARED_POISON_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_CLEARED_POISON_EVENT>();
-
-        [JsonConverter(typeof(HexStringJsonConverter))]
-        public ulong PhysicalAddress;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -519,6 +360,12 @@ namespace DecodeWheaRecord.Events {
         public string Status => Enum.GetName(typeof(NtStatus), _Status);
     }
 
+    /*
+     * Module:          AzPshedPi.sys
+     * Version:         11.0.2404.15001
+     * Function(s):     PshedPipWriteDeviceDriverSelEntry
+     */
+    // TODO: Missing 4 bytes?
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
     internal sealed class WHEAP_DEVICE_DRV_EVENT : WheaStruct {
         internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_DEVICE_DRV_EVENT>();
@@ -527,34 +374,14 @@ namespace DecodeWheaRecord.Events {
         public string Function;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_DPC_ERROR_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_DPC_ERROR_EVENT>();
-
-        private WHEAP_DPC_ERROR_EVENT_TYPE _ErrType;
-
-        [JsonProperty(Order = 1)]
-        public string ErrType => Enum.GetName(typeof(WHEAP_DPC_ERROR_EVENT_TYPE), _ErrType);
-
-        [JsonProperty(Order = 2)]
-        public uint Bus;
-
-        [JsonProperty(Order = 3)]
-        public uint Device;
-
-        [JsonProperty(Order = 4)]
-        public uint Function;
-
-        [JsonProperty(Order = 5)]
-        public ushort DeviceId;
-
-        [JsonProperty(Order = 6)]
-        public ushort VendorId;
-    }
-
+    /*
+     * Module:          ntoskrnl.exe
+     * Version:         10.0.26100.2314
+     * Function(s):     WheaReportHwError
+     */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_DROPPED_CORRECTED_ERROR_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_DROPPED_CORRECTED_ERROR_EVENT>();
+        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_DROPPED_CORRECTED_ERROR_EVENT>(); // 8bytes
 
         private WHEA_ERROR_SOURCE_TYPE _ErrorSourceType;
 
@@ -563,51 +390,6 @@ namespace DecodeWheaRecord.Events {
 
         [JsonProperty(Order = 2)]
         public uint ErrorSourceId;
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_EDPC_ENABLED_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_EDPC_ENABLED_EVENT>();
-
-        [MarshalAs(UnmanagedType.U1)]
-        public bool eDPCEnabled;
-
-        [MarshalAs(UnmanagedType.U1)]
-        public bool eDPCRecovEnabled;
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_ERR_SRC_ARRAY_INVALID_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_ERR_SRC_ARRAY_INVALID_EVENT>();
-
-        public uint ErrorSourceCount;
-        public uint ReportedLength;
-        public uint ExpectedLength;
-    }
-
-    internal sealed class WHEAP_ERR_SRC_INVALID_EVENT : WheaStruct {
-        private int _NativeSize;
-        internal override int GetNativeSize() => _NativeSize;
-
-        [JsonProperty(Order = 1)]
-        public WHEA_ERROR_SOURCE_DESCRIPTOR ErrDescriptor;
-
-        [JsonProperty(Order = 2)]
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
-        public string Error;
-
-        public WHEAP_ERR_SRC_INVALID_EVENT(IntPtr recordAddr, int initialOffset) {
-            DebugBeforeDecode(typeof(WHEAP_ERR_SRC_INVALID_EVENT), initialOffset);
-
-            ErrDescriptor = new WHEA_ERROR_SOURCE_DESCRIPTOR(recordAddr, 0);
-            var offset = ErrDescriptor.GetNativeSize();
-
-            Error = Marshal.PtrToStringAnsi(recordAddr + offset, Shared.WHEA_ERROR_TEXT_LEN);
-            offset += Shared.WHEA_ERROR_TEXT_LEN;
-
-            _NativeSize = offset;
-            DebugAfterDecode(typeof(WHEAP_ERR_SRC_INVALID_EVENT), offset, _NativeSize);
-        }
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -630,19 +412,16 @@ namespace DecodeWheaRecord.Events {
         //PWHEA_ERROR_RECORD Record;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_FOUND_ERROR_IN_BANK_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_FOUND_ERROR_IN_BANK_EVENT>();
-
-        public uint EpIndex;
-        public uint Bank;
-        public ulong MciStatus;
-        public uint ErrorType;
-    }
-
+    /*
+     * Module:          ntoskrnl.exe
+     * Version:         10.0.26100.2314
+     * Function(s):     HalpInitGenericErrorSourceEntry
+     *                  HalpInitGenericErrorSourceEntryV2
+     */
+    // TODO: Alongside MCE, CMC, and NMI (processor?)
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
     internal sealed class WHEAP_GENERIC_ERR_MEM_MAP_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_GENERIC_ERR_MEM_MAP_EVENT>();
+        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_GENERIC_ERR_MEM_MAP_EVENT>(); // 48 bytes
 
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
         public string MapReason;
@@ -651,218 +430,6 @@ namespace DecodeWheaRecord.Events {
         public ulong PhysicalAddress;
 
         public ulong Length;
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_OSC_IMPLEMENTED : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_OSC_IMPLEMENTED>();
-
-        [MarshalAs(UnmanagedType.U1)]
-        public bool OscImplemented;
-
-        [MarshalAs(UnmanagedType.U1)]
-        public bool DebugChecked;
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_PCIE_CONFIG_INFO : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_PCIE_CONFIG_INFO>();
-
-        public uint Segment;
-        public uint Bus;
-        public uint Device;
-        public uint Function;
-        public uint Offset;
-        public uint Length;
-
-        [JsonConverter(typeof(HexStringJsonConverter))]
-        public ulong Value;
-
-        public byte Succeeded; // TODO: Possibly should be a boolean?
-
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-        public byte[] Reserved;
-
-        [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_PCIE_OVERRIDE_INFO : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_PCIE_OVERRIDE_INFO>();
-
-        public uint Segment;
-        public uint Bus;
-        public uint Device;
-        public uint Function;
-        public byte ValidBits; // TODO: Where are these defined?
-
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-        public byte[] Reserved;
-
-        [JsonConverter(typeof(HexStringJsonConverter))]
-        public uint UncorrectableErrorMask;
-
-        public uint UncorrectableErrorSeverity;
-
-        [JsonConverter(typeof(HexStringJsonConverter))]
-        public uint CorrectableErrorMask;
-
-        public uint CapAndControl;
-
-        [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_PCIE_READ_OVERRIDES_ERR : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_PCIE_READ_OVERRIDES_ERR>();
-
-        private PSHED_PI_ERR_READING_PCIE_OVERRIDES _FailureReason;
-
-        [JsonProperty(Order = 1)]
-        public string FailureReason => Enum.GetName(typeof(PSHED_PI_ERR_READING_PCIE_OVERRIDES), _FailureReason);
-
-        private NtStatus _FailureStatus;
-
-        [JsonProperty(Order = 2)]
-        public string FailureStatus => Enum.GetName(typeof(NtStatus), _FailureStatus);
-    }
-
-    // Deliberately empty (no payload)
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_PLUGIN_DEFECT_LIST_CORRUPT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_PLUGIN_DEFECT_LIST_CORRUPT>();
-    }
-
-    // Deliberately empty (no payload)
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_PLUGIN_DEFECT_LIST_FULL_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_PLUGIN_DEFECT_LIST_FULL_EVENT>();
-    }
-
-    // Deliberately empty (no payload)
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_PLUGIN_DEFECT_LIST_UEFI_VAR_FAILED : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_PLUGIN_DEFECT_LIST_UEFI_VAR_FAILED>();
-    }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    internal sealed class WHEAP_PROCESS_EINJ_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_PROCESS_EINJ_EVENT>();
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
-        public string Error;
-
-        [MarshalAs(UnmanagedType.U1)]
-        public bool InjectionActionTableValid;
-
-        public uint BeginInjectionInstructionCount;
-        public uint GetTriggerErrorActionTableInstructionCount;
-        public uint SetErrorTypeInstructionCount;
-        public uint GetErrorTypeInstructionCount;
-        public uint EndOperationInstructionCount;
-        public uint ExecuteOperationInstructionCount;
-        public uint CheckBusyStatusInstructionCount;
-        public uint GetCommandStatusInstructionCount;
-        public uint SetErrorTypeWithAddressInstructionCount;
-        public uint GetExecuteOperationTimingsInstructionCount;
-    }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    internal sealed class WHEAP_PROCESS_HEST_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_PROCESS_HEST_EVENT>();
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
-        public string Error;
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
-        public string EntryType;
-
-        public uint EntryIndex;
-
-        [MarshalAs(UnmanagedType.U1)]
-        public bool HestValid;
-
-        public uint CmcCount;
-        public uint MceCount;
-        public uint NmiCount;
-        public uint AerRootCount;
-        public uint AerBridgeCount;
-        public uint AerEndPointCount;
-        public uint GenericV1Count;
-        public uint GenericV2Count;
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_PROMOTED_AER_ERROR_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_PROMOTED_AER_ERROR_EVENT>();
-
-        private WHEA_ERROR_SEVERITY _ErrorSeverity;
-
-        [JsonProperty(Order = 1)]
-        public string ErrorSeverity => Enum.GetName(typeof(WHEA_ERROR_SEVERITY), _ErrorSeverity);
-
-        [JsonProperty(Order = 2)]
-        public uint ErrorHandlerType;
-
-        [JsonProperty(Order = 3)]
-        public uint ErrorSourceId;
-
-        [JsonProperty(Order = 4)]
-        public uint RootErrorCommand;
-
-        [JsonProperty(Order = 5)]
-        public uint RootErrorStatus;
-
-        [JsonProperty(Order = 6)]
-        [JsonConverter(typeof(HexStringJsonConverter))]
-        public uint DeviceAssociationBitmap;
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_ROW_FAILURE_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_ROW_FAILURE_EVENT>();
-
-        public uint LowOrderPage;  // TODO: PFN_NUMBER
-        public uint HighOrderPage; // TODO: PFN_NUMBER
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_SPURIOUS_AER_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_SPURIOUS_AER_EVENT>();
-
-        private WHEA_ERROR_SEVERITY _ErrorSeverity;
-
-        [JsonProperty(Order = 1)]
-        public string ErrorSeverity => Enum.GetName(typeof(WHEA_ERROR_SEVERITY), _ErrorSeverity);
-
-        private WHEA_PCIEXPRESS_DEVICE_TYPE _ErrorHandlerType;
-
-        [JsonProperty(Order = 2)]
-        public string ErrorHandlerType => Enum.GetName(typeof(WHEA_PCIEXPRESS_DEVICE_TYPE), _ErrorHandlerType);
-
-        [JsonProperty(Order = 3)]
-        public uint SpuriousErrorSourceId;
-
-        [JsonProperty(Order = 4)]
-        public uint RootErrorCommand;
-
-        [JsonProperty(Order = 5)]
-        public uint RootErrorStatus;
-
-        [JsonProperty(Order = 6)]
-        [JsonConverter(typeof(HexStringJsonConverter))]
-        public uint DeviceAssociationBitmap;
-
-        public override void Validate() {
-            if (_ErrorHandlerType != WHEA_PCIEXPRESS_DEVICE_TYPE.RootPort &&
-                _ErrorHandlerType != WHEA_PCIEXPRESS_DEVICE_TYPE.DownstreamSwitchPort &&
-                _ErrorHandlerType != WHEA_PCIEXPRESS_DEVICE_TYPE.RootComplexEventCollector) {
-                var cat = $"{nameof(WHEAP_SPURIOUS_AER_EVENT)}.{nameof(ErrorHandlerType)}";
-                DebugOutput("Not RootPort, DownstreamSwitchPort, or RootComplexEventCollector.", cat);
-            }
-        }
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]

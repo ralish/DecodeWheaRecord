@@ -1,9 +1,6 @@
-// ReSharper disable InconsistentNaming
-
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Numerics;
 
 using Newtonsoft.Json;
@@ -53,41 +50,7 @@ namespace DecodeWheaRecord.Internal {
                         throw new InvalidDataException($"BigInteger type has a negative value: {bigInt}");
                     }
 
-                    var bigIntBytesRaw = bigInt.ToByteArray(); // Little-endian
-
-                    // Check integer is not larger than a UInt128 (16 bytes)
-                    if (bigIntBytesRaw.Length > 16) {
-                        /*
-                         * Check for the edge case where BigInteger outputs an
-                         * additional zero byte to disambiguate the sign bit.
-                         */
-                        if (bigIntBytesRaw.Length != 17 || bigIntBytesRaw[16] != 0) {
-                            throw new InvalidDataException($"BigInteger type exceeds 128-bit integer size: {bigIntBytesRaw.Length} bytes");
-                        }
-                    }
-
-                    // Ensure we have exactly 16 bytes (128-bits)
-                    byte[] bigIntBytesLE;
-                    switch (bigIntBytesRaw.Length) {
-                        case 16: // Already 16 bytes!
-                            bigIntBytesLE = bigIntBytesRaw;
-                            break;
-                        case 17: // Truncate the last byte (see above comment)
-                            bigIntBytesLE = new byte[16];
-                            Buffer.BlockCopy(bigIntBytesRaw, 0, bigIntBytesLE, 0, 16);
-                            break;
-                        default: // Zero-extend to 16 bytes
-                            bigIntBytesLE = new byte[16];
-                            Buffer.BlockCopy(bigIntBytesRaw, 0, bigIntBytesLE, 0, bigIntBytesRaw.Length);
-                            for (var i = bigIntBytesRaw.Length; i < bigIntBytesLE.Length; i++) bigIntBytesLE[i] = 0;
-                            break;
-                    }
-
-                    // Reverse the array so bytes are in big-endian order
-                    var bigIntBytesBE = bigIntBytesLE.Reverse().ToArray();
-
-                    // Finally, convert the bytes to hex-encoded format
-                    writer.WriteValue(BitConverter.ToString(bigIntBytesBE).Replace("-", null).Insert(0, "0x"));
+                    writer.WriteValue(bigInt.ToString("X32"));
                     break;
                 default:
                     throw new NotImplementedException();

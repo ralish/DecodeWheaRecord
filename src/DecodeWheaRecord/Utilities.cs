@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
 using DecodeWheaRecord.Errors;
@@ -48,18 +49,6 @@ namespace DecodeWheaRecord {
             throw new ArgumentException($"{msg} [rc={code}]");
         }
 
-        internal static string GetEnabledFlagsAsString(Enum flags) {
-            var enabledFlags = new List<string>();
-
-            foreach (Enum flag in Enum.GetValues(flags.GetType())) {
-                if (flags.HasFlag(flag)) {
-                    enabledFlags.Add(flag.ToString());
-                }
-            }
-
-            return string.Join(", ", enabledFlags);
-        }
-
         internal static bool IsDebugBuild() {
 #if DEBUG
             return false;
@@ -68,7 +57,63 @@ namespace DecodeWheaRecord {
 #endif
         }
 
-        #region Logging helpers
+        #region Enumerations
+
+        internal static string GetEnabledFlagsAsString(Enum flags) {
+            //var enabledFlags = (from Enum flag in Enum.GetValues(flags.GetType()) where flags.HasFlag(flag) select flag.ToString()).ToList();
+
+            var enumType = flags.GetType();
+            var enumSizeBits = Marshal.SizeOf(Enum.GetUnderlyingType(enumType)) * 8;
+
+            var flagsAsUInt64 = Convert.ToUInt64(flags);
+            var flagsEnabled = new List<string>();
+
+            for (var bitNum = 0; bitNum < enumSizeBits; bitNum++) {
+                if ((flagsAsUInt64 & 1) != 0) {
+                    string flagName;
+                    var flagValue = (ulong)Math.Pow(2, bitNum);
+
+                    switch (enumSizeBits) {
+                        case 8:
+                            flagName = Enum.GetName(enumType, (byte)flagValue);
+                            break;
+                        case 16:
+                            flagName = Enum.GetName(enumType, (ushort)flagValue);
+                            break;
+                        case 32:
+                            flagName = Enum.GetName(enumType, (uint)flagValue);
+                            break;
+                        case 64:
+                            flagName = Enum.GetName(enumType, flagValue);
+                            break;
+                        default:
+                            throw new ArgumentOutOfRangeException(nameof(flags), $"Unexpected enumeration size: {enumSizeBits}");
+                    }
+
+                    if (flagName == null) {
+                        flagName = $"Bit {bitNum} (Unknown)";
+                    }
+
+                    flagsEnabled.Add(flagName);
+                }
+
+                flagsAsUInt64 >>= 1;
+            }
+
+            /*
+            foreach (Enum flag in Enum.GetValues(flags.GetType())) {
+                if (flags.HasFlag(flag)) {
+                    enabledFlags.Add(flag.ToString());
+                }
+            }
+            */
+
+            return string.Join(", ", flagsEnabled);
+        }
+
+        #endregion
+
+        #region Logging
 
         private static string FormatMessage(string level, string cat, string msg, uint depth = 0) {
             if (depth != 0 && !string.IsNullOrWhiteSpace(cat)) {
@@ -144,14 +189,6 @@ namespace DecodeWheaRecord {
 
         internal static void DebugBeforeDecode(Type sectionType, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
             DebugOutput($"Start offset: {sectionDsc.SectionOffset} | Expected length: {sectionDsc.SectionLength}", sectionType.Name);
-        }
-
-        // TODO: Custom exception
-        internal static void ValidateSufficientRecordBytes(Type sectionType, uint requiredBytes, uint remainingBytes) {
-            if (remainingBytes < requiredBytes) {
-                var msg = $"{sectionType.Name} section is {requiredBytes} bytes but only {remainingBytes} bytes remaining in record.";
-                throw new ArgumentOutOfRangeException(msg);
-            }
         }
     }
 }

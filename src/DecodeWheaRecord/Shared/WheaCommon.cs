@@ -1,59 +1,121 @@
 #pragma warning disable CS0649  // Field is never assigned to
 #pragma warning disable IDE0044 // Make field readonly
+#pragma warning disable IDE1006 // Naming rule violation
 
 // ReSharper disable ClassNeverInstantiated.Global
 // ReSharper disable InconsistentNaming
 
 using System;
+using System.Globalization;
 using System.Runtime.InteropServices;
 
+using DecodeWheaRecord.Errors.Microsoft;
 using DecodeWheaRecord.Internal;
 
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.Utilities;
-
 namespace DecodeWheaRecord.Shared {
-    /*
-     * Originally defined as a ULONGLONG bitfield. This structure has the same
-     * in memory format but is simpler to interact with.
-     */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ERROR_STATUS {
+        private ulong _RawBits;
+
         [JsonProperty(Order = 1)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public byte Reserved1;
+        public byte Reserved1 => (byte)_RawBits; // Bits 0-7
 
-        private WHEA_ERROR_STATUS_TYPE _ErrorType;
+        private WHEA_ERROR_STATUS_TYPE _ErrorType => (WHEA_ERROR_STATUS_TYPE)(_RawBits >> 8); // Bits 8-15
 
         [JsonProperty(Order = 2)]
         public string ErrorType => Enum.GetName(typeof(WHEA_ERROR_STATUS_TYPE), _ErrorType);
 
-        private WHEA_ERROR_STATUS_FLAGS _Flags;
-
         [JsonProperty(Order = 3)]
-        public string Flags => GetEnabledFlagsAsString(_Flags);
+        public bool Address => ((_RawBits >> 16) & 0x1) == 1; // Bit 16
 
-        // Add five padding bytes to match the original 64-bit structure
-        [JsonConverter(typeof(HexStringJsonConverter))]
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
-        public byte[] Reserved2;
+        [JsonProperty(Order = 4)]
+        public bool Control => ((_RawBits >> 17) & 0x1) == 1; // Bit 17
+
+        [JsonProperty(Order = 5)]
+        public bool Data => ((_RawBits >> 18) & 0x1) == 1; // Bit 18
+
+        [JsonProperty(Order = 6)]
+        public bool Responder => ((_RawBits >> 19) & 0x1) == 1; // Bit 19
+
+        [JsonProperty(Order = 7)]
+        public bool Requester => ((_RawBits >> 20) & 0x1) == 1; // Bit 20
+
+        [JsonProperty(Order = 8)]
+        public bool FirstError => ((_RawBits >> 21) & 0x1) == 1; // Bit 21
+
+        [JsonProperty(Order = 9)]
+        public bool Overflow => ((_RawBits >> 22) & 0x1) == 1; // Bit 22
+
+        [JsonProperty(Order = 10)]
+        public ulong Reserved2 => _RawBits >> 23; // Bits 23-63
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved1() => IsDebugBuild();
+        public bool ShouldSerializeReserved1() => Reserved1 != 0;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved2() => IsDebugBuild();
+        public bool ShouldSerializeReserved2() => Reserved2 != 0;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_PCIE_ADDRESS {
+    // TODO
+    internal sealed class WHEA_PCIE_ADDRESS : WheaRecord {
+        private const uint StructSize = 16;
+        public override uint GetNativeSize() => StructSize;
+
+        private readonly WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS _ValidBits;
+        private readonly bool _HasValidBits;
+
+        [JsonProperty(Order = 1)]
         public uint Segment;
+
+        [JsonProperty(Order = 2)]
         public uint Bus;
+
+        [JsonProperty(Order = 3)]
         public uint Device;
+
+        [JsonProperty(Order = 4)]
         public uint Function;
+
+        public WHEA_PCIE_ADDRESS(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEA_PCIE_ADDRESS), structOffset, StructSize, bytesRemaining) {
+            WheaPcieAddress(recordAddr, structOffset);
+        }
+
+        public WHEA_PCIE_ADDRESS(IntPtr recordAddr, uint structOffset, uint bytesRemaining, WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS validBits) :
+            base(typeof(WHEA_PCIE_ADDRESS), structOffset, StructSize, bytesRemaining) {
+            WheaPcieAddress(recordAddr, structOffset);
+
+            _ValidBits = validBits;
+            _HasValidBits = true;
+        }
+
+        private void WheaPcieAddress(IntPtr recordAddr, uint structOffset) {
+            var structAddr = recordAddr + (int)structOffset;
+
+            Segment = (uint)Marshal.ReadInt32(structAddr);
+            Bus = (uint)Marshal.ReadInt32(structAddr, 4);
+            Device = (uint)Marshal.ReadInt32(structAddr, 8);
+            Function = (uint)Marshal.ReadInt32(structAddr, 16);
+
+            FinalizeRecord(recordAddr, StructSize);
+        }
+
+        [UsedImplicitly]
+        public bool ShouldSerializeSegment => _HasValidBits && (_ValidBits & WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS.Segment) != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeBus => _HasValidBits && (_ValidBits & WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS.Bus) != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeDevice => _HasValidBits && (_ValidBits & WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS.Device) != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeFunction => _HasValidBits && (_ValidBits & WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS.Function) != 0;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -64,6 +126,47 @@ namespace DecodeWheaRecord.Shared {
         public override string ToString() {
             return $"{MajorRevision}.{MinorRevision}";
         }
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    internal sealed class WHEA_TIMESTAMP {
+        private ulong _RawBits;
+
+        [JsonProperty(Order = 1)]
+        public byte Seconds => (byte)_RawBits; // Bits 0-7
+
+        [JsonProperty(Order = 2)]
+        public byte Minutes => (byte)(_RawBits >> 8); // Bits 8-15
+
+        [JsonProperty(Order = 3)]
+        public byte Hours => (byte)(_RawBits >> 16); // Bits 16-23
+
+        [JsonProperty(Order = 4)]
+        public bool Precise => ((_RawBits >> 24) & 0x1) == 1; // Bit 24
+
+        [JsonProperty(Order = 5)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public byte Reserved => (byte)((_RawBits >> 25) & 0x7F); // Bits 25-31
+
+        [JsonProperty(Order = 6)]
+        public byte Day => (byte)(_RawBits >> 32); // Bits 32-39
+
+        [JsonProperty(Order = 7)]
+        public byte Month => (byte)(_RawBits >> 40); // Bits 40-47
+
+        [JsonProperty(Order = 8)]
+        public byte Year => (byte)(_RawBits >> 48); // Bits 48-55
+
+        [JsonProperty(Order = 9)]
+        public byte Century => (byte)(_RawBits >> 56); // Bits 56-63
+
+        public override string ToString() {
+            var dt = new DateTime(Century * 100 + Year, Month, Day, Hours, Minutes, Seconds);
+            return $"{dt.ToString(CultureInfo.CurrentCulture)} ({(Precise ? "Precise" : "Imprecise")})";
+        }
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
     // @formatter:int_align_fields true
@@ -97,28 +200,20 @@ namespace DecodeWheaRecord.Shared {
         SEI          = 18  // ARMv8 SError Interrupt
     }
 
-    // Originally defined directly in the WHEA_ERROR_STATUS structure
-    [Flags]
-    internal enum WHEA_ERROR_STATUS_FLAGS : byte {
-        Address    = 0x1,
-        Control    = 0x2,
-        Data       = 0x4,
-        Responder  = 0x8,
-        Requester  = 0x10,
-        FirstError = 0x20,
-        Overflow   = 0x40
-    }
-
-    // From preprocessor definitions (ERRTYP_*)
+    // From ERRTYP preprocessor definitions
     internal enum WHEA_ERROR_STATUS_TYPE : byte {
-        Internal       = 1,  // Internal error
-        Memory         = 4,  // Memory error
-        TLB            = 5,  // Translation Lookaside Buffer error
-        Cache          = 6,  // Cache error
-        Function       = 7,  // Error in one or more functional units
-        SelfTest       = 8,  // Self-test error
-        Flow           = 9,  // Overflow or underflow of an internal queue
-        Bus            = 16, // Bus error
+        Internal = 1,  // Internal error
+        Bus      = 16, // Bus error
+
+        // Detailed internal errors
+        Memory   = 4, // Memory error
+        TLB      = 5, // Translation Lookaside Buffer error
+        Cache    = 6, // Cache error
+        Function = 7, // Error in one or more functional units
+        SelfTest = 8, // Self-test error
+        Flow     = 9, // Overflow or underflow of an internal queue
+
+        // Detailed bus errors
         Map            = 17, // Virtual address not found on IO-TLB or IO-PDIR
         Improper       = 18, // Improper access error
         Unimplemented  = 19, // Access to an unmapped memory address
@@ -131,6 +226,8 @@ namespace DecodeWheaRecord.Shared {
         Poisoned       = 26  // Read of corrupted data
     }
 
+    // TODO
+    // Same values as PCI_EXPRESS_DEVICE_TYPE but 32-bits
     internal enum WHEA_PCIEXPRESS_DEVICE_TYPE : uint {
         Endpoint                      = 0,
         LegacyEndpoint                = 1,
@@ -138,7 +235,7 @@ namespace DecodeWheaRecord.Shared {
         UpstreamSwitchPort            = 5,
         DownstreamSwitchPort          = 6,
         PciExpressToPciXBridge        = 7,
-        PciXToExpressBridge           = 8,
+        PciXToPciExpressBridge        = 8,
         RootComplexIntegratedEndpoint = 9,
         RootComplexEventCollector     = 10
     }

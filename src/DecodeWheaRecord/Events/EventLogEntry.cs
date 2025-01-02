@@ -7,6 +7,8 @@ using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
+using DecodeWheaRecord.Events.Hardware;
+
 using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
@@ -124,7 +126,7 @@ namespace DecodeWheaRecord.Events {
                     ExitUnsupportedEvent(Header.Id);
                     break;
                 case "AerNotGrantedToOs":
-                    // No payload
+                    // No payload (verified)
                     break;
                 case "ErrSrcArrayInvalid":
                     entry = Marshal.PtrToStructure<WHEAP_ERR_SRC_ARRAY_INVALID_EVENT>(entryAddr);
@@ -332,13 +334,13 @@ namespace DecodeWheaRecord.Events {
                     entry = Marshal.PtrToStructure<WHEA_GAS_ERROR_EVENT>(entryAddr);
                     break;
                 case "CrashDumpError":
-                    // TODO
+                    entry = Marshal.PtrToStructure<WHEA_CRASHDUMP_EVENT_LOG_ENTRY_WITH_STATUS>(entryAddr);
                     break;
                 case "CrashDumpCheckpoint":
                     // TODO
                     break;
                 case "CrashDumpProgressPercent":
-                    // TODO
+                    entry = Marshal.PtrToStructure<WHEA_CRASHDUMP_EVENT_LOG_ENTRY_ULONG1>(entryAddr);
                     break;
                 case "PreviousCrashBugCheckProgress":
                     // TODO
@@ -448,18 +450,115 @@ namespace DecodeWheaRecord.Events {
 
     // @formatter:int_align_fields true
 
-    [Flags]
-    internal enum WHEA_EVENT_LOG_ENTRY_FLAGS : uint {
-        Reserved       = 0x1,
-        LogInternalEtw = 0x2,
-        LogBlackbox    = 0x4,
-        LogSel         = 0x8,
-        RawSel         = 0x10,
-        NoFormat       = 0x20,
-        Driver         = 0x40
+    internal enum WHEA_EVENT_LOG_ENTRY_TYPE : uint {
+        Informational = 0,
+        Warning       = 1,
+        Error         = 2
     }
 
     internal enum WHEA_EVENT_LOG_ENTRY_ID : uint {
+        CmcPollingTimeout             = 0x80000001,
+        WheaInit                      = 0x80000002,
+        CmcSwitchToPolling            = 0x80000003,
+        DroppedCorrectedError         = 0x80000004,
+        StartedReportHwError          = 0x80000005,
+        PFAMemoryOfflined             = 0x80000006,
+        PFAMemoryRemoveMonitor        = 0x80000007,
+        PFAMemoryPolicy               = 0x80000008,
+        PshedInjectError              = 0x80000009,
+        OscCapabilities               = 0x8000000a,
+        PshedPluginRegister           = 0x8000000b,
+        AddRemoveErrorSource          = 0x8000000c,
+        WorkQueueItem                 = 0x8000000d,
+        AttemptErrorRecovery          = 0x8000000e,
+        McaFoundErrorInBank           = 0x8000000f,
+        McaStuckErrorCheck            = 0x80000010,
+        McaErrorCleared               = 0x80000011,
+        ClearedPoison                 = 0x80000012,
+        ProcessEINJ                   = 0x80000013,
+        ProcessHEST                   = 0x80000014,
+        CreateGenericRecord           = 0x80000015,
+        ErrorRecord                   = 0x80000016,
+        ErrorRecordLimit              = 0x80000017,
+        AerNotGrantedToOs             = 0x80000018,
+        ErrSrcArrayInvalid            = 0x80000019,
+        AcpiTimeOut                   = 0x8000001a,
+        CmciRestart                   = 0x8000001b,
+        CmciFinalRestart              = 0x8000001c,
+        EtwOverFlow                   = 0x8000001d,
+        AzccRootBusSearchErr          = 0x8000001e,
+        AzccRootBusList               = 0x8000001f,
+        ErrSrcInvalid                 = 0x80000020,
+        GenericErrMemMap              = 0x80000021,
+        PshedCallbackCollision        = 0x80000022,
+        SELBugCheckProgress           = 0x80000023,
+        PshedPluginLoad               = 0x80000024,
+        PshedPluginUnload             = 0x80000025,
+        PshedPluginSupported          = 0x80000026,
+        DeviceDriver                  = 0x80000027,
+        CmciImplPresent               = 0x80000028,
+        CmciInitError                 = 0x80000029,
+        SELBugCheckRecovery           = 0x8000002a,
+        DrvErrSrcInvalid              = 0x8000002b,
+        DrvHandleBusy                 = 0x8000002c,
+        WheaHeartbeat                 = 0x8000002d,
+        AzccRootBusPoisonSet          = 0x8000002e,
+        SELBugCheckInfo               = 0x8000002f,
+        ErrDimmInfoMismatch           = 0x80000030,
+        eDpcEnabled                   = 0x80000031,
+        PageOfflineDone               = 0x80000032,
+        PageOfflinePendMax            = 0x80000033,
+        BadPageLimitReached           = 0x80000034,
+        SrarDetail                    = 0x80000035,
+        EarlyError                    = 0x80000036,
+        PcieOverrideInfo              = 0x80000037,
+        ReadPcieOverridesErr          = 0x80000038,
+        PcieConfigInfo                = 0x80000039,
+        PcieSummaryFailed             = 0x80000040,
+        ThrottleRegCorrupt            = 0x80000041,
+        ThrottleAddErrSrcFailed       = 0x80000042,
+        ThrottleRegDataIgnored        = 0x80000043,
+        EnableKeyNotifFailed          = 0x80000044,
+        KeyNotificationFailed         = 0x80000045,
+        PcieRemoveDevice              = 0x80000046,
+        PcieAddDevice                 = 0x80000047,
+        PcieSpuriousErrSource         = 0x80000048,
+        MemoryAddDevice               = 0x80000049,
+        MemoryRemoveDevice            = 0x8000004a,
+        MemorySummaryFailed           = 0x8000004b,
+        PcieDpcError                  = 0x8000004c,
+        CpuBusesInitFailed            = 0x8000004d,
+        PshedPluginInitFailed         = 0x8000004e,
+        FailedAddToDefectList         = 0x8000004f,
+        DefectListFull                = 0x80000050,
+        DefectListUEFIVarFailed       = 0x80000051,
+        DefectListCorrupt             = 0x80000052,
+        BadHestNotifyData             = 0x80000053,
+        RowFailure                    = 0x80000054,
+        SrasTableNotFound             = 0x80000055,
+        SrasTableError                = 0x80000056,
+        SrasTableEntries              = 0x80000057,
+        PFANotifyCallbackAction       = 0x80000058,
+        SELBugCheckCpusQuiesced       = 0x80000059,
+        PshedPiCpuid                  = 0x8000005a,
+        SrasTableBadData              = 0x8000005b,
+        DriFsStatus                   = 0x8000005c,
+        CpusFrozen                    = 0x80000060,
+        CpusFrozenNoCrashDump         = 0x80000061,
+        RegNotifyPolicyChange         = 0x80000062,
+        RegError                      = 0x80000063,
+        RowOfflineEvent               = 0x80000064,
+        BitOfflineEvent               = 0x80000065,
+        BadGasFields                  = 0x80000066,
+        CrashDumpError                = 0x80000067,
+        CrashDumpCheckpoint           = 0x80000068,
+        CrashDumpProgressPercent      = 0x80000069,
+        PreviousCrashBugCheckProgress = 0x8000006a,
+        SELBugCheckStackDump          = 0x8000006b,
+        PciePromotedAerErr            = 0x8000006c,
+        PshedPiTraceLog               = 0x80040010
+
+        /*
         CmcPollingTimeout             = 0x80000001, // TODO
         WheaInit                      = 0x80000002, // TODO
         CmcSwitchToPolling            = 0x80000003, // TODO
@@ -560,12 +659,18 @@ namespace DecodeWheaRecord.Events {
         SELBugCheckStackDump          = 0x8000006b, // TODO (new)
         PciePromotedAerErr            = 0x8000006c, // WHEAP_PROMOTED_AER_ERROR_EVENT
         PshedPiTraceLog               = 0x80040010  // WHEA_PSHED_PI_TRACE_EVENT
+        */
     }
 
-    internal enum WHEA_EVENT_LOG_ENTRY_TYPE : uint {
-        Informational = 0,
-        Warning       = 1,
-        Error         = 2
+    [Flags]
+    internal enum WHEA_EVENT_LOG_ENTRY_FLAGS : uint {
+        Reserved       = 0x1,
+        LogInternalEtw = 0x2,
+        LogBlackbox    = 0x4,
+        LogSel         = 0x8,
+        RawSel         = 0x10,
+        NoFormat       = 0x20,
+        Driver         = 0x40
     }
 
     // @formatter:int_align_fields false
