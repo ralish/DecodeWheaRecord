@@ -94,12 +94,12 @@ namespace DecodeWheaRecord.Errors {
         private Guid _CreatorId;
 
         [JsonProperty(Order = 11)]
-        public string CreatorId => WheaGuids.CreatorIds.TryGetValue(_CreatorId, out var creatorIdValue) ? creatorIdValue : _CreatorId.ToString();
+        public string CreatorId => WheaGuids.CreatorIds.TryGetValue(_CreatorId, out var creatorId) ? creatorId : _CreatorId.ToString();
 
         private Guid _NotifyType;
 
         [JsonProperty(Order = 12)]
-        public string NotifyType => WheaGuids.NotifyTypes.TryGetValue(_NotifyType, out var notifyTypeValue) ? notifyTypeValue : _NotifyType.ToString();
+        public string NotifyType => WheaGuids.NotifyTypes.TryGetValue(_NotifyType, out var notifyType) ? notifyType : _NotifyType.ToString();
 
         [JsonProperty(Order = 13)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -138,6 +138,7 @@ namespace DecodeWheaRecord.Errors {
 
             var hdrRevision = new Version(_Revision.MajorRevision, _Revision.MinorRevision);
             var supRevision = new Version(WHEA_ERROR_RECORD_REVISION >> 8, WHEA_ERROR_RECORD_REVISION & 0xFF);
+
             if (hdrRevision.MajorRevision > supRevision.MajorRevision) {
                 var msg = $"{nameof(Revision)} major version is greater than latest supported: {hdrRevision.ToString(1)} > {supRevision.ToString(1)}";
                 throw new InvalidDataException(msg);

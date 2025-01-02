@@ -67,8 +67,7 @@ namespace DecodeWheaRecord.Errors {
         internal Guid SectionTypeGuid => _SectionType;
 
         [JsonProperty(Order = 7)]
-        public new string SectionType =>
-            WheaGuids.SectionTypes.TryGetValue(_SectionType, out var sectionTypeValue) ? sectionTypeValue : _SectionType.ToString();
+        public new string SectionType => WheaGuids.SectionTypes.TryGetValue(_SectionType, out var sectionType) ? sectionType : _SectionType.ToString();
 
         [JsonProperty(Order = 8)]
         public Guid FRUId;
@@ -104,6 +103,7 @@ namespace DecodeWheaRecord.Errors {
 
             var hdrRevision = new Version(_Revision.MajorRevision, _Revision.MinorRevision);
             var supRevision = new Version(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION >> 8, WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION & 0xFF);
+
             if (hdrRevision.MajorRevision > supRevision.MajorRevision) {
                 var msg = $"{nameof(Revision)} major version is greater than latest supported: {hdrRevision.ToString(1)} > {supRevision.ToString(1)}";
                 throw new InvalidDataException(msg);
