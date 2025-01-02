@@ -10,13 +10,13 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
+/*
+ * On Windows Server 2025 the reporting of this error is performed by the inbox
+ * IPMI driver (IPMIDrv.sys). Dumping out of the MSRs is handled by a bugcheck
+ * callback which writes them to the SEL. When the system has rebooted they're
+ * read out of the SEL and the error submitted to WHEA.
+ */
 namespace DecodeWheaRecord.Errors.Microsoft {
-    /*
-     * On Windows Server 2025 the reporting of this error is performed by the
-     * inbox IPMI driver (IPMIDrv.sys). Dumping out of the MSRs is handled by
-     * a bugcheck callback which writes them to the SEL. When the system has
-     * rebooted they're read out of the SEL and the error submitted to WHEA.
-     */
     internal sealed class WHEA_MSR_DUMP_SECTION : WheaRecord {
         public override uint GetNativeSize() => MsrDumpLength;
 

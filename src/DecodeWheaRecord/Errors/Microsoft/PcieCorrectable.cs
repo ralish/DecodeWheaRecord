@@ -1,4 +1,3 @@
-#pragma warning disable CS0649  // Field is never assigned to
 #pragma warning disable IDE0044 // Make field readonly
 
 // ReSharper disable FieldCanBeMadeReadOnly.Local
@@ -17,11 +16,11 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
+/*
+ * Vanilla Windows doesn't appear to have any functionality to report this
+ * error. The only implementation I've found is in the Azure PSHED plugin.
+ */
 namespace DecodeWheaRecord.Errors.Microsoft {
-    /*
-     * Vanilla Windows doesn't appear to have any functionality to report this
-     * error. The only implementation I've found is in the Azure PSHED plugin.
-     */
     internal sealed class WHEA_PCIE_CORRECTABLE_ERROR_SECTION : WheaRecord {
         private uint _StructSize;
         public override uint GetNativeSize() => _StructSize;
@@ -70,7 +69,7 @@ namespace DecodeWheaRecord.Errors.Microsoft {
         public override uint GetNativeSize() => StructSize;
 
         /*
-         * Verified via the Azure PSHED plugin implementation
+         * Verified from the Azure PSHED plugin implementation
          * Function: PshedPiReportPcieCorrectableErrorSummary
          */
         private const ushort ExpectedVersion = 1;
@@ -95,7 +94,7 @@ namespace DecodeWheaRecord.Errors.Microsoft {
             Count = (ushort)Marshal.ReadInt16(structAddr, 2);
 
             if (Count == 0) {
-                var msg = $"{nameof(Count)} Expected at least one device entry.";
+                var msg = $"{nameof(Count)} Expected at least one correctable PCIe error entry.";
                 WarnOutput(msg, SectionType.Name);
             }
 

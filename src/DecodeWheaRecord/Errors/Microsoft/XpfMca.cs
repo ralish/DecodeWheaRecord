@@ -35,7 +35,7 @@ namespace DecodeWheaRecord.Errors.Microsoft {
         private const uint MinSupportedVersion = 2;
         private const uint MaxSupportedVersion = 4;
 
-        // Maximum count of extended registers in ExtendedRegisters array
+        // Maximum count of extended registers in the ExtendedRegisters array
         internal const int WHEA_XPF_MCA_EXTREG_MAX_COUNT = 24;
 
         // Count of MCA banks in each "Ex" array in the Version 4 structure
@@ -207,7 +207,7 @@ namespace DecodeWheaRecord.Errors.Microsoft {
                     break;
                 case WHEA_CPU_VENDOR.Intel:
                     if (ExtendedRegisterCount > WHEA_XPF_MCA_EXTREG_MAX_COUNT) {
-                        var msg = $"{nameof(ExtendedRegisterCount)} is greater than maximum allowed: " +
+                        var msg = $"{nameof(ExtendedRegisterCount)} is greater than maximum allowed for Intel CPU: " +
                                   $"{ExtendedRegisterCount} > {WHEA_XPF_MCA_EXTREG_MAX_COUNT}";
                         throw new InvalidDataException(msg);
                     }
@@ -525,7 +525,7 @@ namespace DecodeWheaRecord.Errors.Microsoft {
     // Structure size: 192 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_AMD_EXTENDED_REGISTERS {
-        // Number of AMD extended registers in WHEA_AMD_EXTENDED_REGISTERS
+        // Number of AMD extended registers
         internal const int WHEA_AMD_EXT_REG_NUM = 10;
 
         [JsonConverter(typeof(HexStringJsonConverter))]

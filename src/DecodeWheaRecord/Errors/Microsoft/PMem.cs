@@ -1,4 +1,4 @@
-#pragma warning disable CS0649  // Field is never assigned to
+#pragma warning disable CS0649 // Field is never assigned to
 
 // ReSharper disable InconsistentNaming
 
@@ -26,7 +26,7 @@ namespace DecodeWheaRecord.Errors.Microsoft {
         // Size of the LocationInfo array
         private const int WHEA_PMEM_ERROR_SECTION_LOCATION_INFO_SIZE = 64;
 
-        // Maximum count of pages in PageRange array
+        // Maximum count of pages in the PageRange array
         private const int WHEA_PMEM_ERROR_SECTION_MAX_PAGES = 50;
 
         private WHEA_PMEM_ERROR_SECTION_VALIDBITS _ValidBits;
@@ -70,12 +70,12 @@ namespace DecodeWheaRecord.Errors.Microsoft {
             NFITHandle = (uint)Marshal.ReadInt32(sectionAddr, 80);
             PageRangeCount = (uint)Marshal.ReadInt32(sectionAddr, 84);
 
-            var offset = MinStructSize;
-
             if (PageRangeCount > WHEA_PMEM_ERROR_SECTION_MAX_PAGES) {
                 var msg = $"{nameof(PageRangeCount)} is greater than maximum allowed: {PageRangeCount} > {WHEA_PMEM_ERROR_SECTION_MAX_PAGES}";
                 throw new InvalidDataException(msg);
             }
+
+            var offset = MinStructSize;
 
             if (PageRangeCount > 0) {
                 var elementSize = (uint)Marshal.SizeOf<WHEA_PMEM_PAGE_RANGE>();

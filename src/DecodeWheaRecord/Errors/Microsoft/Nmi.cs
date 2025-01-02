@@ -20,7 +20,8 @@ namespace DecodeWheaRecord.Errors.Microsoft {
 
         /*
          * On x86 and AMD64 only the first byte is set and the data it contains
-         * is near useless. Other architectures may return more useful data.
+         * is close to useless. Other architectures may return more useful data
+         * in both quantity and quality.
          */
         [JsonProperty(Order = 1)]
         [JsonConverter(typeof(HexStringJsonConverter))]

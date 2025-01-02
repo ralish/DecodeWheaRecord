@@ -1,4 +1,4 @@
-#pragma warning disable CS0649  // Field is never assigned to
+#pragma warning disable CS0649 // Field is never assigned to
 
 // ReSharper disable InconsistentNaming
 

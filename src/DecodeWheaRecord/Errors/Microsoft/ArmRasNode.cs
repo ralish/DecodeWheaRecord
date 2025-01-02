@@ -1,4 +1,3 @@
-#pragma warning disable CS0649  // Field is never assigned to
 #pragma warning disable IDE0044 // Make field readonly
 
 // ReSharper disable FieldCanBeMadeReadOnly.Local
@@ -22,11 +21,7 @@ namespace DecodeWheaRecord.Errors.Microsoft {
         private const uint StructSize = 80;
         public override uint GetNativeSize() => StructSize;
 
-        /*
-         * The number of node fields (registers) in the structure is set in
-         * NodeFieldCount, allowing additional fields to be added without
-         * breaking backwards compatibility with existing parsers.
-         */
+        // Number of node fields in the structure
         private const uint WHEA_ARM_RAS_NODE_FIELD_COUNT = 8;
 
         [JsonProperty(Order = 1)]
@@ -98,7 +93,7 @@ namespace DecodeWheaRecord.Errors.Microsoft {
                 }
 
                 WarnOutput(msg, SectionType.Name);
-                WarnOutput($"The additional {NodeFieldCount - WHEA_ARM_RAS_NODE_FIELD_COUNT} field(s) will not be output.", SectionType.Name);
+                WarnOutput($"The additional {NodeFieldCount - WHEA_ARM_RAS_NODE_FIELD_COUNT} node field(s) will not be output.", SectionType.Name);
             }
 
             NodeIndex = (uint)Marshal.ReadInt32(sectionAddr, 4);
@@ -134,10 +129,10 @@ namespace DecodeWheaRecord.Errors.Microsoft {
     }
 
     /*
+     * Not in the Windows headers.
+     *
      * ACPI for the Armv8-A RAS Extension and RAS System Architecture 2.0 BET1
      * Document number: DEN0085
-     *
-     * Not in the Windows headers.
      */
     internal enum WHEA_ARM_RAS_NODE_AEST_NODES : byte {
         Processor     = 0,
