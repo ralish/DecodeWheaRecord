@@ -21,6 +21,23 @@ namespace DecodeWheaRecord.Shared {
 
 
         /*
+         * Processor check info types
+         */
+
+        internal static readonly Guid WHEA_BUSCHECK_GUID = Guid.Parse("1cf3f8b3-c5b1-49a2-aa59-5eef92ffa63c");
+        internal static readonly Guid WHEA_CACHECHECK_GUID = Guid.Parse("a55701f5-e3ef-43de-ac72-249b573fad2c");
+        internal static readonly Guid WHEA_MSCHECK_GUID = Guid.Parse("48ab7f57-dc34-4f6c-a7d3-b0b5b0a74314");
+        internal static readonly Guid WHEA_TLBCHECK_GUID = Guid.Parse("fc06b535-5e1f-4562-9f25-0a3b9adb63c3");
+
+        internal static readonly Dictionary<Guid, string> ProcCheckInfoTypes = new Dictionary<Guid, string> {
+            { WHEA_BUSCHECK_GUID, "Bus" },
+            { WHEA_CACHECHECK_GUID, "Cache" },
+            { WHEA_MSCHECK_GUID, "Microarchitecture-specific" },
+            { WHEA_TLBCHECK_GUID, "Translation Lookaside Buffer" }
+        };
+
+
+        /*
          * Notification types
          */
 

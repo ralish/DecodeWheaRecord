@@ -327,7 +327,7 @@ namespace DecodeWheaRecord.Errors.Microsoft {
         private Guid _NotifyType;
 
         [JsonProperty(Order = 9)]
-        public string NotifyType => WheaGuids.NotifyTypes.TryGetValue(_NotifyType, out var notifyTypeValue) ? notifyTypeValue : _NotifyType.ToString();
+        public string NotifyType => WheaGuids.NotifyTypes.TryGetValue(_NotifyType, out var notifyType) ? notifyType : _NotifyType.ToString();
 
         [JsonProperty(Order = 10)]
         [JsonConverter(typeof(HexStringJsonConverter))]

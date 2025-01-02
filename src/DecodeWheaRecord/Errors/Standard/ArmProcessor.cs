@@ -103,8 +103,7 @@ namespace DecodeWheaRecord.Errors.Standard {
             if (ErrorInformationStructures == 0) {
                 WarnOutput($"{nameof(ErrorInformationStructures)} is zero (expected at least one structure).", SectionType.Name);
             } else if (ErrorInformationStructures > MaxErrorInformationStructures) {
-                var msg =
-                    $"{nameof(ErrorInformationStructures)} is greater than maximum allowed: {ErrorInformationStructures} > {MaxErrorInformationStructures}.";
+                var msg = $"{nameof(ErrorInformationStructures)} is above maximum allowed: {ErrorInformationStructures} > {MaxErrorInformationStructures}.";
                 WarnOutput(msg, SectionType.Name);
             }
 
@@ -606,7 +605,7 @@ namespace DecodeWheaRecord.Errors.Standard {
         public WHEA_ARMV8_AARCH64_EL3_CSR AArch64EL3;
 
         [JsonProperty(Order = 4)]
-        public WHEA_ARM_MISR_CSR AArchMisc;
+        public WHEA_ARM_MISC_CSR AArchMisc;
 
         [JsonProperty(Order = 4)]
         public WHEA_ARMV8_AARCH64_TT128 AArch64TT128; // Added
@@ -661,8 +660,8 @@ namespace DecodeWheaRecord.Errors.Standard {
                     ctxInfoStructSize = Marshal.SizeOf<WHEA_ARMV8_AARCH64_EL3_CSR>();
                     break;
                 case WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArchMisc:
-                    AArchMisc = Marshal.PtrToStructure<WHEA_ARM_MISR_CSR>(ctxInfoStructAddr);
-                    ctxInfoStructSize = Marshal.SizeOf<WHEA_ARM_MISR_CSR>();
+                    AArchMisc = Marshal.PtrToStructure<WHEA_ARM_MISC_CSR>(ctxInfoStructAddr);
+                    ctxInfoStructSize = Marshal.SizeOf<WHEA_ARM_MISC_CSR>();
                     break;
                 case WHEA_ARM_PROCESSOR_REGISTER_CONTEXT_TYPE.AArch64TT128:
                     AArch64TT128 = new WHEA_ARMV8_AARCH64_TT128(recordAddr, structOffset + MinStructSize, bytesRemaining - MinStructSize);
@@ -1141,9 +1140,9 @@ namespace DecodeWheaRecord.Errors.Standard {
 
     // Structure size: 10 bytes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_ARM_MISR_CSR {
+    internal sealed class WHEA_ARM_MISC_CSR {
         // Switched to a bitfield
-        public WHEA_ARM_MISR_CSR_MRS_ENCODING MRSEncoding;
+        public WHEA_ARM_MISC_CSR_MRS_ENCODING MRSEncoding;
 
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Value;
@@ -1151,7 +1150,7 @@ namespace DecodeWheaRecord.Errors.Standard {
 
     // Not in the Windows headers and derived from UEFI Specification 2.11
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_ARM_MISR_CSR_MRS_ENCODING {
+    internal sealed class WHEA_ARM_MISC_CSR_MRS_ENCODING {
         public ushort _RawBits;
 
         [JsonProperty(Order = 1)]

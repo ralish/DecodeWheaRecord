@@ -7,11 +7,12 @@
 // ReSharper disable InconsistentNaming
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
 
 using DecodeWheaRecord.Internal;
+using DecodeWheaRecord.Shared;
 
 using JetBrains.Annotations;
 
@@ -108,25 +109,10 @@ namespace DecodeWheaRecord.Errors.Standard {
         private const uint StructSize = 64;
         public override uint GetNativeSize() => StructSize;
 
-        /*
-         * Processor check info types
-         */
-        private static readonly Guid WHEA_BUSCHECK_GUID = Guid.Parse("1cf3f8b3-c5b1-49a2-aa59-5eef92ffa63c");
-        private static readonly Guid WHEA_CACHECHECK_GUID = Guid.Parse("a55701f5-e3ef-43de-ac72-249b573fad2c");
-        private static readonly Guid WHEA_MSCHECK_GUID = Guid.Parse("48ab7f57-dc34-4f6c-a7d3-b0b5b0a74314");
-        private static readonly Guid WHEA_TLBCHECK_GUID = Guid.Parse("fc06b535-5e1f-4562-9f25-0a3b9adb63c3");
-
-        private static readonly Dictionary<Guid, string> CheckInfoTypes = new Dictionary<Guid, string> {
-            { WHEA_BUSCHECK_GUID, "Bus" },
-            { WHEA_CACHECHECK_GUID, "Cache" },
-            { WHEA_MSCHECK_GUID, "Microarchitecture-specific" },
-            { WHEA_TLBCHECK_GUID, "Translation Lookaside Buffer" }
-        };
-
         private Guid _CheckInfoId;
 
         [JsonProperty(Order = 1)]
-        public string CheckInfoId => CheckInfoTypes.TryGetValue(_CheckInfoId, out var checkInfoTypeValue) ? checkInfoTypeValue : _CheckInfoId.ToString();
+        public string CheckInfoId => WheaGuids.ProcCheckInfoTypes.TryGetValue(_CheckInfoId, out var checkInfoType) ? checkInfoType : _CheckInfoId.ToString();
 
         private WHEA_XPF_PROCINFO_VALIDBITS _ValidBits;
 
@@ -176,13 +162,13 @@ namespace DecodeWheaRecord.Errors.Standard {
             _ValidBits = (WHEA_XPF_PROCINFO_VALIDBITS)Marshal.ReadInt64(structAddr, 16);
 
             if (IsCheckInfoValid()) {
-                if (_CheckInfoId == WHEA_CACHECHECK_GUID) {
+                if (_CheckInfoId == WheaGuids.WHEA_CACHECHECK_GUID) {
                     CacheCheck = Marshal.PtrToStructure<WHEA_XPF_CACHE_CHECK>(structAddr + 24);
-                } else if (_CheckInfoId == WHEA_TLBCHECK_GUID) {
+                } else if (_CheckInfoId == WheaGuids.WHEA_TLBCHECK_GUID) {
                     TlbCheck = Marshal.PtrToStructure<WHEA_XPF_TLB_CHECK>(structAddr + 24);
-                } else if (_CheckInfoId == WHEA_BUSCHECK_GUID) {
+                } else if (_CheckInfoId == WheaGuids.WHEA_BUSCHECK_GUID) {
                     BusCheck = Marshal.PtrToStructure<WHEA_XPF_BUS_CHECK>(structAddr + 24);
-                } else if (_CheckInfoId == WHEA_MSCHECK_GUID) {
+                } else if (_CheckInfoId == WheaGuids.WHEA_MSCHECK_GUID) {
                     MsCheck = Marshal.PtrToStructure<WHEA_XPF_MS_CHECK>(structAddr + 24);
                 } else {
                     throw new InvalidDataException($"{nameof(CheckInfoId)} is unknown or invalid: {_CheckInfoId}");
@@ -200,16 +186,16 @@ namespace DecodeWheaRecord.Errors.Standard {
         private bool IsCheckInfoValid() => (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.CheckInfo) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeCacheCheck() => IsCheckInfoValid() && _CheckInfoId == WHEA_CACHECHECK_GUID;
+        public bool ShouldSerializeCacheCheck() => IsCheckInfoValid() && _CheckInfoId == WheaGuids.WHEA_CACHECHECK_GUID;
 
         [UsedImplicitly]
-        public bool ShouldSerializeTlbCheck() => IsCheckInfoValid() && _CheckInfoId == WHEA_TLBCHECK_GUID;
+        public bool ShouldSerializeTlbCheck() => IsCheckInfoValid() && _CheckInfoId == WheaGuids.WHEA_TLBCHECK_GUID;
 
         [UsedImplicitly]
-        public bool ShouldSerializeBusCheck() => IsCheckInfoValid() && _CheckInfoId == WHEA_BUSCHECK_GUID;
+        public bool ShouldSerializeBusCheck() => IsCheckInfoValid() && _CheckInfoId == WheaGuids.WHEA_BUSCHECK_GUID;
 
         [UsedImplicitly]
-        public bool ShouldSerializeMsCheck() => IsCheckInfoValid() && _CheckInfoId == WHEA_MSCHECK_GUID;
+        public bool ShouldSerializeMsCheck() => IsCheckInfoValid() && _CheckInfoId == WheaGuids.WHEA_MSCHECK_GUID;
 
         [UsedImplicitly]
         public bool ShouldSerializeTargetId() => (_ValidBits & WHEA_XPF_PROCINFO_VALIDBITS.TargetId) != 0;
@@ -556,12 +542,16 @@ namespace DecodeWheaRecord.Errors.Standard {
 
             int numRegisters;
             var ctxInfoStructAddr = structAddr + 16;
+            int ctxInfoStructSize = RegisterDataSize;
+
             switch (_RegisterContextType) {
                 case WHEA_XPF_CONTEXT_INFO_TYPE.ContextX32:
                     RegisterDataContext32 = Marshal.PtrToStructure<WHEA_X86_REGISTER_STATE>(ctxInfoStructAddr);
+                    ctxInfoStructSize = Marshal.SizeOf<WHEA_X86_REGISTER_STATE>();
                     break;
                 case WHEA_XPF_CONTEXT_INFO_TYPE.ContextX64:
                     RegisterDataContext64 = Marshal.PtrToStructure<WHEA_X64_REGISTER_STATE>(ctxInfoStructAddr);
+                    ctxInfoStructSize = Marshal.SizeOf<WHEA_X64_REGISTER_STATE>();
                     break;
                 case WHEA_XPF_CONTEXT_INFO_TYPE.DebugRegistersX32:
                     numRegisters = RegisterDataSize / sizeof(long);
@@ -570,6 +560,7 @@ namespace DecodeWheaRecord.Errors.Standard {
                     var registerDataDebug32 = new long[numRegisters];
                     Marshal.Copy(ctxInfoStructAddr, registerDataDebug32, 0, numRegisters);
 
+                    // Convert the registers from 64-bits to 32-bits
                     RegisterData32 = new uint[numRegisters];
                     for (var i = 0; i < numRegisters; i++) {
                         RegisterData32[i] = (uint)registerDataDebug32[i];
@@ -584,6 +575,7 @@ namespace DecodeWheaRecord.Errors.Standard {
                     var registerData64 = new long[numRegisters];
                     Marshal.Copy(ctxInfoStructAddr, registerData64, 0, numRegisters);
 
+                    // Convert the signed array to its unsigned equivalent
                     RegisterData64 = new ulong[numRegisters];
                     for (var i = 0; i < numRegisters; i++) {
                         RegisterData64[i] = (ulong)registerData64[i];
@@ -599,6 +591,10 @@ namespace DecodeWheaRecord.Errors.Standard {
                     break;
                 default:
                     throw new InvalidDataException($"{nameof(RegisterContextType)} is unknown or invalid: {RegisterContextType}");
+            }
+
+            if (RegisterDataSize != ctxInfoStructSize) {
+                throw new InvalidDataContractException($"Register context size does not equal expected size: {ctxInfoStructSize} != {RegisterDataSize}");
             }
 
             _StructSize = MinStructSize + RegisterDataSize;
