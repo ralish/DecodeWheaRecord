@@ -1,11 +1,14 @@
 // ReSharper disable InconsistentNaming
-// ReSharper disable UnusedMember.Global
 
 namespace DecodeWheaRecord.Shared {
     // @formatter:int_align_fields true
 
     /*
      * Extracted from Windows SDK 10.0.26100.0 (shared\ntstatus.h)
+     *
+     * Removed due to conflicts with existing values:
+     * - STATUS_ABANDONED_WAIT_0                    0x00000080
+     * - STATUS_FLT_DISALLOW_FSFILTER_IO            0xC01C0004
      */
     internal enum NtStatus : uint {
         STATUS_SUCCESS                                                     = 0x00000000,
@@ -14,7 +17,6 @@ namespace DecodeWheaRecord.Shared {
         STATUS_WAIT_3                                                      = 0x00000003,
         STATUS_WAIT_63                                                     = 0x0000003F,
         STATUS_ABANDONED                                                   = 0x00000080,
-        //STATUS_ABANDONED_WAIT_0                                          = 0x00000080,
         STATUS_ABANDONED_WAIT_63                                           = 0x000000BF,
         STATUS_USER_APC                                                    = 0x000000C0,
         STATUS_ALREADY_COMPLETE                                            = 0x000000FF,
@@ -1589,7 +1591,6 @@ namespace DecodeWheaRecord.Shared {
         STATUS_FLT_CONTEXT_ALREADY_DEFINED                                 = 0xC01C0002,
         STATUS_FLT_INVALID_ASYNCHRONOUS_REQUEST                            = 0xC01C0003,
         STATUS_FLT_DISALLOW_FAST_IO                                        = 0xC01C0004,
-        //STATUS_FLT_DISALLOW_FSFILTER_IO                                  = 0xC01C0004,
         STATUS_FLT_INVALID_NAME_REQUEST                                    = 0xC01C0005,
         STATUS_FLT_NOT_SAFE_TO_POST_OPERATION                              = 0xC01C0006,
         STATUS_FLT_NOT_INITIALIZED                                         = 0xC01C0007,
