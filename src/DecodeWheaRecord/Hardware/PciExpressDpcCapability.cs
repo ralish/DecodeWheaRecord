@@ -1,6 +1,9 @@
 #pragma warning disable CS0649  // Field is never assigned to
 #pragma warning disable IDE0044 // Make field readonly
 
+// ReSharper disable ClassNeverInstantiated.Global
+// ReSharper disable InconsistentNaming
+
 using System.Runtime.InteropServices;
 
 using DecodeWheaRecord.Internal;
@@ -8,9 +11,6 @@ using DecodeWheaRecord.Internal;
 using JetBrains.Annotations;
 
 using Newtonsoft.Json;
-
-// ReSharper disable ClassNeverInstantiated.Global
-// ReSharper disable InconsistentNaming
 
 namespace DecodeWheaRecord.Hardware {
     // Structure size: 68 bytes

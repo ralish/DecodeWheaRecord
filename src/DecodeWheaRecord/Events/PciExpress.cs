@@ -6,6 +6,7 @@
 using System;
 using System.Runtime.InteropServices;
 
+using DecodeWheaRecord.Hardware;
 using DecodeWheaRecord.Internal;
 using DecodeWheaRecord.Shared;
 
@@ -229,10 +230,10 @@ namespace DecodeWheaRecord.Events {
         [JsonProperty(Order = 1)]
         public string ErrorSeverity => Enum.GetName(typeof(WHEA_ERROR_SEVERITY), _ErrorSeverity);
 
-        private WHEA_PCIEXPRESS_DEVICE_TYPE _ErrorHandlerType;
+        private PCI_EXPRESS_DEVICE_TYPE _ErrorHandlerType; // WHEA_PCIEXPRESS_DEVICE_TYPE
 
         [JsonProperty(Order = 2)]
-        public string ErrorHandlerType => Enum.GetName(typeof(WHEA_PCIEXPRESS_DEVICE_TYPE), _ErrorHandlerType);
+        public string ErrorHandlerType => Enum.GetName(typeof(PCI_EXPRESS_DEVICE_TYPE), _ErrorHandlerType);
 
         [JsonProperty(Order = 3)]
         public uint SpuriousErrorSourceId;
@@ -249,9 +250,9 @@ namespace DecodeWheaRecord.Events {
 
         // TODO: Do this in a constructor?
         public override void Validate() {
-            if (_ErrorHandlerType != WHEA_PCIEXPRESS_DEVICE_TYPE.RootPort &&
-                _ErrorHandlerType != WHEA_PCIEXPRESS_DEVICE_TYPE.DownstreamSwitchPort &&
-                _ErrorHandlerType != WHEA_PCIEXPRESS_DEVICE_TYPE.RootComplexEventCollector) {
+            if (_ErrorHandlerType != PCI_EXPRESS_DEVICE_TYPE.RootPort &&
+                _ErrorHandlerType != PCI_EXPRESS_DEVICE_TYPE.DownstreamSwitchPort &&
+                _ErrorHandlerType != PCI_EXPRESS_DEVICE_TYPE.RootComplexEventCollector) {
                 var cat = $"{nameof(WHEAP_SPURIOUS_AER_EVENT)}.{nameof(ErrorHandlerType)}";
                 DebugOutput("Not RootPort, DownstreamSwitchPort, or RootComplexEventCollector.", cat);
             }

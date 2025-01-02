@@ -33,10 +33,10 @@ namespace DecodeWheaRecord.Errors.Standard {
         [JsonProperty(Order = 1)]
         public string ValidBits => GetEnabledFlagsAsString(_ValidBits);
 
-        private WHEA_PCIEXPRESS_DEVICE_TYPE _PortType;
+        private PCI_EXPRESS_DEVICE_TYPE _PortType; // WHEA_PCIEXPRESS_DEVICE_TYPE
 
         [JsonProperty(Order = 2)]
-        public string PortType => Enum.GetName(typeof(WHEA_PCIEXPRESS_DEVICE_TYPE), _PortType);
+        public string PortType => Enum.GetName(typeof(PCI_EXPRESS_DEVICE_TYPE), _PortType);
 
         // Supported version of the PCIe specification
         [JsonProperty(Order = 3)]
@@ -109,7 +109,7 @@ namespace DecodeWheaRecord.Errors.Standard {
             var sectionAddr = recordAddr + (int)sectionOffset;
 
             _ValidBits = (WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(sectionAddr);
-            _PortType = (WHEA_PCIEXPRESS_DEVICE_TYPE)Marshal.ReadInt32(sectionAddr, 8);
+            _PortType = (PCI_EXPRESS_DEVICE_TYPE)Marshal.ReadInt32(sectionAddr, 8);
             Version = Marshal.PtrToStructure<WHEA_PCIEXPRESS_VERSION>(sectionAddr + 12);
             CommandStatus = Marshal.PtrToStructure<WHEA_PCIEXPRESS_COMMAND_STATUS>(sectionAddr + 16);
             Reserved = (uint)Marshal.ReadInt32(sectionAddr, 20);
@@ -132,7 +132,7 @@ namespace DecodeWheaRecord.Errors.Standard {
             int aerInfoStructSize;
             // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
             switch (_PortType) {
-                case WHEA_PCIEXPRESS_DEVICE_TYPE.RootPort:
+                case PCI_EXPRESS_DEVICE_TYPE.RootPort:
                     AerInfoRootPort = Marshal.PtrToStructure<PCI_EXPRESS_ROOTPORT_AER_CAPABILITY>(sectionAddr + 112);
                     aerInfoStructSize = Marshal.SizeOf<PCI_EXPRESS_ROOTPORT_AER_CAPABILITY>();
                     break;
@@ -158,7 +158,7 @@ namespace DecodeWheaRecord.Errors.Standard {
         [UsedImplicitly]
         public bool ShouldSerializePortType() => (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.PortType) != 0;
 
-        private bool IsRootPort() => ShouldSerializePortType() && _PortType == WHEA_PCIEXPRESS_DEVICE_TYPE.RootPort;
+        private bool IsRootPort() => ShouldSerializePortType() && _PortType == PCI_EXPRESS_DEVICE_TYPE.RootPort;
 
         [UsedImplicitly]
         public bool ShouldSerializeVersion() => (_ValidBits & WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS.Version) != 0;

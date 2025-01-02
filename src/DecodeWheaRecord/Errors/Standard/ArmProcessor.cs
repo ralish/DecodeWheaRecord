@@ -337,10 +337,10 @@ namespace DecodeWheaRecord.Errors.Standard {
     internal sealed class WHEA_ARM_CACHE_ERROR {
         private ulong _RawBits;
 
-        private WHEA_ARM_CACHE_ERROR_VALID_BITS _ValidationBit => (WHEA_ARM_CACHE_ERROR_VALID_BITS)_RawBits; // Bits 0-15
+        private WHEA_ARM_CACHE_ERROR_VALID_BITS _ValidationBits => (WHEA_ARM_CACHE_ERROR_VALID_BITS)_RawBits; // Bits 0-15
 
         [JsonProperty(Order = 1)]
-        public string ValidationBit => GetEnabledFlagsAsString(_ValidationBit);
+        public string ValidationBits => GetEnabledFlagsAsString(_ValidationBits);
 
         // Switched to an enumeration
         [JsonProperty(Order = 2)]
@@ -370,25 +370,25 @@ namespace DecodeWheaRecord.Errors.Standard {
         public ulong Reserved => _RawBits >> 29; // Bits 29-63
 
         [UsedImplicitly]
-        public bool ShouldSerializeTransactionType() => (_ValidationBit & WHEA_ARM_CACHE_ERROR_VALID_BITS.TransactionType) != 0;
+        public bool ShouldSerializeTransactionType() => (_ValidationBits & WHEA_ARM_CACHE_ERROR_VALID_BITS.TransactionType) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeOperation() => (_ValidationBit & WHEA_ARM_CACHE_ERROR_VALID_BITS.Operation) != 0;
+        public bool ShouldSerializeOperation() => (_ValidationBits & WHEA_ARM_CACHE_ERROR_VALID_BITS.Operation) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeLevel() => (_ValidationBit & WHEA_ARM_CACHE_ERROR_VALID_BITS.Level) != 0;
+        public bool ShouldSerializeLevel() => (_ValidationBits & WHEA_ARM_CACHE_ERROR_VALID_BITS.Level) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeProcessorContextCorrupt() => (_ValidationBit & WHEA_ARM_CACHE_ERROR_VALID_BITS.ProcessorContextCorrupt) != 0;
+        public bool ShouldSerializeProcessorContextCorrupt() => (_ValidationBits & WHEA_ARM_CACHE_ERROR_VALID_BITS.ProcessorContextCorrupt) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeCorrected() => (_ValidationBit & WHEA_ARM_CACHE_ERROR_VALID_BITS.Corrected) != 0;
+        public bool ShouldSerializeCorrected() => (_ValidationBits & WHEA_ARM_CACHE_ERROR_VALID_BITS.Corrected) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializePrecisePC() => (_ValidationBit & WHEA_ARM_CACHE_ERROR_VALID_BITS.PrecisePC) != 0;
+        public bool ShouldSerializePrecisePC() => (_ValidationBits & WHEA_ARM_CACHE_ERROR_VALID_BITS.PrecisePC) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeRestartablePC() => (_ValidationBit & WHEA_ARM_CACHE_ERROR_VALID_BITS.RestartablePC) != 0;
+        public bool ShouldSerializeRestartablePC() => (_ValidationBits & WHEA_ARM_CACHE_ERROR_VALID_BITS.RestartablePC) != 0;
 
         [UsedImplicitly]
         public bool ShouldSerializeReserved() => Reserved != 0;
@@ -398,10 +398,10 @@ namespace DecodeWheaRecord.Errors.Standard {
     internal sealed class WHEA_ARM_TLB_ERROR {
         private ulong _RawBits;
 
-        private WHEA_ARM_TLB_ERROR_VALID_BITS _ValidationBit => (WHEA_ARM_TLB_ERROR_VALID_BITS)_RawBits; // Bits 0-15
+        private WHEA_ARM_TLB_ERROR_VALID_BITS _ValidationBits => (WHEA_ARM_TLB_ERROR_VALID_BITS)_RawBits; // Bits 0-15
 
         [JsonProperty(Order = 1)]
-        public string ValidationBit => GetEnabledFlagsAsString(_ValidationBit);
+        public string ValidationBit => GetEnabledFlagsAsString(_ValidationBits);
 
         // Switched to an enumeration
         [JsonProperty(Order = 2)]
@@ -431,25 +431,25 @@ namespace DecodeWheaRecord.Errors.Standard {
         public ulong Reserved => _RawBits >> 29; // Bits 29-63
 
         [UsedImplicitly]
-        public bool ShouldSerializeTransactionType() => (_ValidationBit & WHEA_ARM_TLB_ERROR_VALID_BITS.TransactionType) != 0;
+        public bool ShouldSerializeTransactionType() => (_ValidationBits & WHEA_ARM_TLB_ERROR_VALID_BITS.TransactionType) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeOperation() => (_ValidationBit & WHEA_ARM_TLB_ERROR_VALID_BITS.Operation) != 0;
+        public bool ShouldSerializeOperation() => (_ValidationBits & WHEA_ARM_TLB_ERROR_VALID_BITS.Operation) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeLevel() => (_ValidationBit & WHEA_ARM_TLB_ERROR_VALID_BITS.Level) != 0;
+        public bool ShouldSerializeLevel() => (_ValidationBits & WHEA_ARM_TLB_ERROR_VALID_BITS.Level) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeProcessorContextCorrupt() => (_ValidationBit & WHEA_ARM_TLB_ERROR_VALID_BITS.ProcessorContextCorrupt) != 0;
+        public bool ShouldSerializeProcessorContextCorrupt() => (_ValidationBits & WHEA_ARM_TLB_ERROR_VALID_BITS.ProcessorContextCorrupt) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeCorrected() => (_ValidationBit & WHEA_ARM_TLB_ERROR_VALID_BITS.Corrected) != 0;
+        public bool ShouldSerializeCorrected() => (_ValidationBits & WHEA_ARM_TLB_ERROR_VALID_BITS.Corrected) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializePrecisePC() => (_ValidationBit & WHEA_ARM_TLB_ERROR_VALID_BITS.PrecisePC) != 0;
+        public bool ShouldSerializePrecisePC() => (_ValidationBits & WHEA_ARM_TLB_ERROR_VALID_BITS.PrecisePC) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeRestartablePC() => (_ValidationBit & WHEA_ARM_TLB_ERROR_VALID_BITS.RestartablePC) != 0;
+        public bool ShouldSerializeRestartablePC() => (_ValidationBits & WHEA_ARM_TLB_ERROR_VALID_BITS.RestartablePC) != 0;
 
         [UsedImplicitly]
         public bool ShouldSerializeReserved() => Reserved != 0;
@@ -459,10 +459,10 @@ namespace DecodeWheaRecord.Errors.Standard {
     internal sealed class WHEA_ARM_BUS_ERROR {
         private ulong _RawBits;
 
-        private WHEA_ARM_BUS_ERROR_VALID_BITS _ValidationBit => (WHEA_ARM_BUS_ERROR_VALID_BITS)_RawBits; // Bits 0-15
+        private WHEA_ARM_BUS_ERROR_VALID_BITS _ValidationBits => (WHEA_ARM_BUS_ERROR_VALID_BITS)_RawBits; // Bits 0-15
 
         [JsonProperty(Order = 1)]
-        public string ValidationBit => GetEnabledFlagsAsString(_ValidationBit);
+        public string ValidationBit => GetEnabledFlagsAsString(_ValidationBits);
 
         // Switched to an enumeration
         [JsonProperty(Order = 2)]
@@ -512,45 +512,51 @@ namespace DecodeWheaRecord.Errors.Standard {
         public ulong Reserved => _RawBits >> 44; // Bits 44-63
 
         [UsedImplicitly]
-        public bool ShouldSerializeTransactionType() => (_ValidationBit & WHEA_ARM_BUS_ERROR_VALID_BITS.TransactionType) != 0;
+        public bool ShouldSerializeTransactionType() => (_ValidationBits & WHEA_ARM_BUS_ERROR_VALID_BITS.TransactionType) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeOperation() => (_ValidationBit & WHEA_ARM_BUS_ERROR_VALID_BITS.Operation) != 0;
+        public bool ShouldSerializeOperation() => (_ValidationBits & WHEA_ARM_BUS_ERROR_VALID_BITS.Operation) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeLevel() => (_ValidationBit & WHEA_ARM_BUS_ERROR_VALID_BITS.Level) != 0;
+        public bool ShouldSerializeLevel() => (_ValidationBits & WHEA_ARM_BUS_ERROR_VALID_BITS.Level) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeProcessorContextCorrupt() => (_ValidationBit & WHEA_ARM_BUS_ERROR_VALID_BITS.ProcessorContextCorrupt) != 0;
+        public bool ShouldSerializeProcessorContextCorrupt() => (_ValidationBits & WHEA_ARM_BUS_ERROR_VALID_BITS.ProcessorContextCorrupt) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeCorrected() => (_ValidationBit & WHEA_ARM_BUS_ERROR_VALID_BITS.Corrected) != 0;
+        public bool ShouldSerializeCorrected() => (_ValidationBits & WHEA_ARM_BUS_ERROR_VALID_BITS.Corrected) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializePrecisePC() => (_ValidationBit & WHEA_ARM_BUS_ERROR_VALID_BITS.PrecisePC) != 0;
+        public bool ShouldSerializePrecisePC() => (_ValidationBits & WHEA_ARM_BUS_ERROR_VALID_BITS.PrecisePC) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeRestartablePC() => (_ValidationBit & WHEA_ARM_BUS_ERROR_VALID_BITS.RestartablePC) != 0;
+        public bool ShouldSerializeRestartablePC() => (_ValidationBits & WHEA_ARM_BUS_ERROR_VALID_BITS.RestartablePC) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeParticipationType() => (_ValidationBit & WHEA_ARM_BUS_ERROR_VALID_BITS.ParticipationType) != 0;
+        public bool ShouldSerializeParticipationType() => (_ValidationBits & WHEA_ARM_BUS_ERROR_VALID_BITS.ParticipationType) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeTimeOut() => (_ValidationBit & WHEA_ARM_BUS_ERROR_VALID_BITS.Timeout) != 0;
+        public bool ShouldSerializeTimeOut() => (_ValidationBits & WHEA_ARM_BUS_ERROR_VALID_BITS.Timeout) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeAddressSpace() => (_ValidationBit & WHEA_ARM_BUS_ERROR_VALID_BITS.AddressSpace) != 0;
+        public bool ShouldSerializeAddressSpace() => (_ValidationBits & WHEA_ARM_BUS_ERROR_VALID_BITS.AddressSpace) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeMemoryAccessAttributes() => (_ValidationBit & WHEA_ARM_BUS_ERROR_VALID_BITS.MemoryAttributes) != 0;
+        public bool ShouldSerializeMemoryAccessAttributes() => (_ValidationBits & WHEA_ARM_BUS_ERROR_VALID_BITS.MemoryAttributes) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeAccessMode() => (_ValidationBit & WHEA_ARM_BUS_ERROR_VALID_BITS.AccessMode) != 0;
+        public bool ShouldSerializeAccessMode() => (_ValidationBits & WHEA_ARM_BUS_ERROR_VALID_BITS.AccessMode) != 0;
 
         [UsedImplicitly]
         public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
+    /*
+     * The Windows headers also define a flags bitfield in a separate structure
+     * but it's not clear if or where it's used.
+     *
+     * Type name: WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER_FLAGS
+     */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER : WheaRecord {
         private uint _StructSize;

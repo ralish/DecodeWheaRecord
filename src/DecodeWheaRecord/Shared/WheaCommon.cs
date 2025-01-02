@@ -1,8 +1,6 @@
 #pragma warning disable CS0649  // Field is never assigned to
 #pragma warning disable IDE0044 // Make field readonly
-#pragma warning disable IDE1006 // Naming rule violation
 
-// ReSharper disable ClassNeverInstantiated.Global
 // ReSharper disable InconsistentNaming
 
 using System;
@@ -25,10 +23,8 @@ namespace DecodeWheaRecord.Shared {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public byte Reserved1 => (byte)_RawBits; // Bits 0-7
 
-        private WHEA_ERROR_STATUS_TYPE _ErrorType => (WHEA_ERROR_STATUS_TYPE)(_RawBits >> 8); // Bits 8-15
-
         [JsonProperty(Order = 2)]
-        public string ErrorType => Enum.GetName(typeof(WHEA_ERROR_STATUS_TYPE), _ErrorType);
+        public string ErrorType => Enum.GetName(typeof(WHEA_ERROR_STATUS_TYPE), (WHEA_ERROR_STATUS_TYPE)(_RawBits >> 8)); // Bits 8-15
 
         [JsonProperty(Order = 3)]
         public bool Address => ((_RawBits >> 16) & 0x1) == 1; // Bit 16
@@ -52,6 +48,7 @@ namespace DecodeWheaRecord.Shared {
         public bool Overflow => ((_RawBits >> 22) & 0x1) == 1; // Bit 22
 
         [JsonProperty(Order = 10)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Reserved2 => _RawBits >> 23; // Bits 23-63
 
         [UsedImplicitly]
@@ -61,11 +58,18 @@ namespace DecodeWheaRecord.Shared {
         public bool ShouldSerializeReserved2() => Reserved2 != 0;
     }
 
-    // TODO
     internal sealed class WHEA_PCIE_ADDRESS : WheaRecord {
         private const uint StructSize = 16;
         public override uint GetNativeSize() => StructSize;
 
+        /*
+         * The WHEA_PCIE_CORRECTABLE_ERROR_DEVICES structure has a ValidBits
+         * field which informs which of the fields in this structure are valid.
+         *
+         * To facilitate serialising only the valid fields in this context, the
+         * ValidBits value is provided during creation of an instance of the
+         * structure, with the following two fields used to store the state.
+         */
         private readonly WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS _ValidBits;
         private readonly bool _HasValidBits;
 
@@ -224,20 +228,6 @@ namespace DecodeWheaRecord.Shared {
         PathError      = 24, // Bus path error
         Timeout        = 25, // Bus timeout error
         Poisoned       = 26  // Read of corrupted data
-    }
-
-    // TODO
-    // Same values as PCI_EXPRESS_DEVICE_TYPE but 32-bits
-    internal enum WHEA_PCIEXPRESS_DEVICE_TYPE : uint {
-        Endpoint                      = 0,
-        LegacyEndpoint                = 1,
-        RootPort                      = 4,
-        UpstreamSwitchPort            = 5,
-        DownstreamSwitchPort          = 6,
-        PciExpressToPciXBridge        = 7,
-        PciXToPciExpressBridge        = 8,
-        RootComplexIntegratedEndpoint = 9,
-        RootComplexEventCollector     = 10
     }
 
     // @formatter:int_align_fields false

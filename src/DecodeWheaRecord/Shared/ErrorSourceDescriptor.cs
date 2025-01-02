@@ -1,10 +1,8 @@
 #pragma warning disable CS0649  // Field is never assigned to
 #pragma warning disable IDE0044 // Make field readonly
 
-// ReSharper disable ClassNeverInstantiated.Global
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable InconsistentNaming
-// ReSharper disable MemberCanBePrivate.Global
 
 using System;
 using System.IO;
@@ -20,7 +18,6 @@ using static DecodeWheaRecord.Utilities;
 
 
 namespace DecodeWheaRecord.Shared {
-    // TODO: Check what uses this as may require custom marshalling
     internal sealed class WHEA_ERROR_SOURCE_DESCRIPTOR : WheaRecord {
         public override uint GetNativeSize() => Length;
 
@@ -32,7 +29,7 @@ namespace DecodeWheaRecord.Shared {
          * or where it's used. The Microsoft documentation state the version
          * field should be set to 10, so we'll stick with that.
          */
-        internal const int WHEA_ERROR_SOURCE_DESCRIPTOR_VERSION = 10;
+        private const int WHEA_ERROR_SOURCE_DESCRIPTOR_VERSION = 10;
 
         /*
          * For WHEA_XPF_MCE_DESCRIPTOR and WHEA_XPF_CMC_DESCRIPTOR structures,
@@ -526,7 +523,6 @@ namespace DecodeWheaRecord.Shared {
         public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
-    // TODO: Shunt into PCI .cs?
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PCI_SLOT_NUMBER {
         private uint _RawBits;
@@ -755,6 +751,7 @@ namespace DecodeWheaRecord.Shared {
         public uint AdvancedCapsAndControl;
 
         [JsonProperty(Order = 12)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint SecondaryUncorrectableErrorMask;
 
         [JsonProperty(Order = 13)]

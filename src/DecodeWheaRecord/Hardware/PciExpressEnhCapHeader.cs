@@ -1,12 +1,12 @@
 #pragma warning disable CS0649  // Field is never assigned to
 #pragma warning disable IDE0044 // Make field readonly
 
+// ReSharper disable InconsistentNaming
+
 using System;
 using System.Runtime.InteropServices;
 
 using Newtonsoft.Json;
-
-// ReSharper disable InconsistentNaming
 
 namespace DecodeWheaRecord.Hardware {
     // Structure size: 4 bytes

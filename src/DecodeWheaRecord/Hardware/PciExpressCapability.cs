@@ -683,45 +683,4 @@ namespace DecodeWheaRecord.Hardware {
         [UsedImplicitly]
         public bool ShouldSerializeReserved() => Reserved != 0;
     }
-
-    // @formatter:int_align_fields true
-
-    // From PCI_CAPABILITY_ID preprocessor definitions
-    internal enum PCI_CAPABILITY_ID : byte {
-        PowerManagement                  = 1,
-        AcceleratedGraphicsPort          = 2,
-        VitalProductData                 = 3,
-        SlotIdentification               = 4,
-        MessageSignaledInterrupts        = 5,
-        CompactPciHotSwap                = 6,
-        PciX                             = 7,
-        HyperTransport                   = 8,
-        VendorSpecific                   = 9,
-        DebugPort                        = 10,
-        CompactPciCentralResourceControl = 11,
-        PciHotPlug                       = 12,
-        PciBridgeSubsystemVendorId       = 13,
-        Agp8x                            = 14,
-        SecureDevice                     = 15,
-        PciExpress                       = 16,
-        MsiX                             = 17,
-        SataDataIndexConfig              = 18,
-        AdvancedFeatures                 = 19,
-        EnhancedAllocation               = 20, // Added
-        FlatteningPortalBridge           = 21
-    }
-
-    internal enum PCI_EXPRESS_DEVICE_TYPE : byte {
-        Endpoint                      = 0,
-        LegacyEndpoint                = 1,
-        RootPort                      = 4,
-        UpstreamSwitchPort            = 5,
-        DownstreamSwitchPort          = 6,
-        PciExpressToPciXBridge        = 7,
-        PciXToPciExpressBridge        = 8,
-        RootComplexIntegratedEndpoint = 9,
-        RootComplexEventCollector     = 10
-    }
-
-    // @formatter:int_align_fields false
 }
