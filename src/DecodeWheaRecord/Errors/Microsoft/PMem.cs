@@ -69,13 +69,12 @@ namespace DecodeWheaRecord.Errors.Microsoft {
             ErrorStatus = Marshal.PtrToStructure<WHEA_ERROR_STATUS>(sectionAddr + 72);
             NFITHandle = (uint)Marshal.ReadInt32(sectionAddr, 80);
             PageRangeCount = (uint)Marshal.ReadInt32(sectionAddr, 84);
+            var offset = MinStructSize;
 
             if (PageRangeCount > WHEA_PMEM_ERROR_SECTION_MAX_PAGES) {
                 var msg = $"{nameof(PageRangeCount)} is greater than maximum allowed: {PageRangeCount} > {WHEA_PMEM_ERROR_SECTION_MAX_PAGES}";
                 throw new InvalidDataException(msg);
             }
-
-            var offset = MinStructSize;
 
             if (PageRangeCount > 0) {
                 var elementSize = (uint)Marshal.SizeOf<WHEA_PMEM_PAGE_RANGE>();

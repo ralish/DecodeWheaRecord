@@ -65,7 +65,6 @@ namespace DecodeWheaRecord.Errors.Standard {
             _RawValidBits = (ulong)Marshal.ReadInt64(sectionAddr);
             LocalAPICId = (ulong)Marshal.ReadInt64(sectionAddr, 8);
             Marshal.Copy(sectionAddr, CpuId, 16, CpuId.Length);
-
             var offset = MinStructSize;
 
             ProcInfo = new WHEA_XPF_PROCINFO[ProcInfoCount];
@@ -822,9 +821,8 @@ namespace DecodeWheaRecord.Errors.Standard {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Low;
 
-        // Originally a signed 64-bit integer (LONG)
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public ulong High;
+        public ulong High; // LONG
     }
 
     // @formatter:int_align_fields true

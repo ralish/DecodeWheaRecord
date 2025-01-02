@@ -103,7 +103,8 @@ namespace DecodeWheaRecord.Errors.Standard {
             if (ErrorInformationStructures == 0) {
                 WarnOutput($"{nameof(ErrorInformationStructures)} is zero (expected at least one structure).", SectionType.Name);
             } else if (ErrorInformationStructures > MaxErrorInformationStructures) {
-                var msg = $"{nameof(ErrorInformationStructures)} is above maximum allowed: {ErrorInformationStructures} > {MaxErrorInformationStructures}.";
+                var msg =
+                    $"{nameof(ErrorInformationStructures)} is greater than maximum allowed: {ErrorInformationStructures} > {MaxErrorInformationStructures}.";
                 WarnOutput(msg, SectionType.Name);
             }
 
@@ -134,13 +135,12 @@ namespace DecodeWheaRecord.Errors.Standard {
             MIDR_EL1 = (ulong)Marshal.ReadInt64(sectionAddr, 24);
             RunningState = (uint)Marshal.ReadInt32(sectionAddr, 32);
             PSCIState = (uint)Marshal.ReadInt32(sectionAddr, 36);
+            var offset = MinStructSize;
 
             // PSCIState should be zero when bit 0 of RunningState is set
             if (ShouldSerializeRunningState() && (RunningState & 0x1) == 1 && PSCIState != 0) {
                 WarnOutput($"{nameof(PSCIState)} is non-zero but {nameof(RunningState)} indicates it should be zero.", SectionType.Name);
             }
-
-            var offset = MinStructSize;
 
             ErrorInformation = new WHEA_ARM_PROCESSOR_ERROR_INFORMATION[ErrorInformationStructures];
 
@@ -243,7 +243,7 @@ namespace DecodeWheaRecord.Errors.Standard {
          * The next four fields contain the error information for the type of
          * error as determined by the Type field. The Windows headers define
          * them in a union structure but we directly embed them and marshal
-         * only the correct one when marshalling this structure.
+         * only the correct one.
          *
          * Original type: WHEA_ARM_PROCESSOR_ERROR
          */

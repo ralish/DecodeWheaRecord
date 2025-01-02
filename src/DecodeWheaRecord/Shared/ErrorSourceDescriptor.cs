@@ -7,12 +7,9 @@
 // ReSharper disable MemberCanBePrivate.Global
 
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 
-using DecodeWheaRecord.Errors.Microsoft;
-using DecodeWheaRecord.Errors.Standard;
 using DecodeWheaRecord.Internal;
 
 using JetBrains.Annotations;
@@ -25,13 +22,40 @@ using static DecodeWheaRecord.Utilities;
 namespace DecodeWheaRecord.Shared {
     // TODO: Check what uses this as may require custom marshalling
     internal sealed class WHEA_ERROR_SOURCE_DESCRIPTOR : WheaRecord {
-        private const uint StructSize = 972;
-        public override uint GetNativeSize() => StructSize;
+        public override uint GetNativeSize() => Length;
 
+        // Structure size is static
+        private const byte ExpectedLength = 32;
+
+        /*
+         * The Windows headers also define a version 11 but it's not clear if
+         * or where it's used. The Microsoft documentation state the version
+         * field should be set to 10, so we'll stick with that.
+         */
         internal const int WHEA_ERROR_SOURCE_DESCRIPTOR_VERSION = 10;
 
-        // Switched to an enumeration
+        /*
+         * For WHEA_XPF_MCE_DESCRIPTOR and WHEA_XPF_CMC_DESCRIPTOR structures,
+         * the maximum machine check banks in their respective Banks array and
+         * the count of elements in the array as it is of static size.
+         */
+        internal const int WHEA_MAX_MC_BANKS = 32;
+
+        /*
+         * All error source descriptors start with a Type field which is an
+         * enumeration of possible error source descriptor types. This is not
+         * the same as the Type field in this structure, which represents the
+         * type of error source. The former is potentially more specific.
+         *
+         * We marshal the former field as part of this structure (but don't
+         * serialize it in JSON output) so we can determine the correct error
+         * source descriptor for the PCIe error source, which has different
+         * descriptors for endpoint, root port, and bridge device types.
+         *
+         * This field has also been switched to an enumeration.
+         */
         private WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE _DescriptorType;
+        private string DescriptorType => Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), _DescriptorType);
 
         [JsonProperty(Order = 1)]
         public uint Length;
@@ -70,48 +94,65 @@ namespace DecodeWheaRecord.Shared {
         [JsonProperty(Order = 10)]
         public string Flags => GetEnabledFlagsAsString(_Flags);
 
+        /*
+         * The next 12 fields contain the error source descriptor for the type
+         * of error source as determined by the Type field. The Windows headers
+         * define them in a union structure but we directly embed them and
+         * and marshal only the correct one.
+         */
+
         [JsonProperty(Order = 11)]
         public WHEA_XPF_MCE_DESCRIPTOR XpfMceDescriptor;
 
-        [JsonProperty(Order = 12)]
+        [JsonProperty(Order = 11)]
         public WHEA_XPF_CMC_DESCRIPTOR XpfCmcDescriptor;
 
-        [JsonProperty(Order = 13)]
+        [JsonProperty(Order = 11)]
         public WHEA_XPF_NMI_DESCRIPTOR XpfNmiDescriptor;
 
-        [JsonProperty(Order = 14)]
-        public WHEA_IPF_MCA_DESCRIPTOR IpfMcaDescriptor;
+        [JsonProperty(Order = 11)]
+        public WHEA_IPF_DESCRIPTOR IpfMcaDescriptor;
 
-        [JsonProperty(Order = 15)]
-        public WHEA_IPF_CMC_DESCRIPTOR IpfCmcDescriptor;
+        [JsonProperty(Order = 11)]
+        public WHEA_IPF_DESCRIPTOR IpfCmcDescriptor;
 
-        [JsonProperty(Order = 16)]
-        public WHEA_IPF_CPE_DESCRIPTOR IpfCpeDescriptor;
+        [JsonProperty(Order = 11)]
+        public WHEA_IPF_DESCRIPTOR IpfCpeDescriptor;
 
-        [JsonProperty(Order = 17)]
+        [JsonProperty(Order = 11)]
         public WHEA_AER_ROOTPORT_DESCRIPTOR AerRootportDescriptor;
 
-        [JsonProperty(Order = 18)]
+        [JsonProperty(Order = 11)]
         public WHEA_AER_ENDPOINT_DESCRIPTOR AerEndpointDescriptor;
 
-        [JsonProperty(Order = 19)]
+        [JsonProperty(Order = 11)]
         public WHEA_AER_BRIDGE_DESCRIPTOR AerBridgeDescriptor;
 
-        [JsonProperty(Order = 20)]
+        [JsonProperty(Order = 11)]
         public WHEA_GENERIC_ERROR_DESCRIPTOR GenErrDescriptor;
 
-        [JsonProperty(Order = 21)]
+        [JsonProperty(Order = 11)]
         public WHEA_GENERIC_ERROR_DESCRIPTOR_V2 GenErrDescriptorV2;
 
-        [JsonProperty(Order = 22)]
+        [JsonProperty(Order = 11)]
         public WHEA_DEVICE_DRIVER_DESCRIPTOR DeviceDriverDescriptor;
 
         public WHEA_ERROR_SOURCE_DESCRIPTOR(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
-            base(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR), structOffset, StructSize, bytesRemaining) {
+            base(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR), structOffset, ExpectedLength, bytesRemaining) {
             var structAddr = recordAddr + (int)structOffset;
 
             Length = (uint)Marshal.ReadInt32(structAddr);
+
+            if (Length != ExpectedLength) {
+                throw new InvalidDataException($"Expected {nameof(Length)} to be {ExpectedLength} but found: {Length}");
+            }
+
             Version = (uint)Marshal.ReadInt32(structAddr, 4);
+
+            if (Version != WHEA_ERROR_SOURCE_DESCRIPTOR_VERSION) {
+                throw new InvalidDataException($"Expected {nameof(Version)} to be {WHEA_ERROR_SOURCE_DESCRIPTOR_VERSION} but found: {Version}");
+            }
+
             _Type = (WHEA_ERROR_SOURCE_TYPE)Marshal.ReadInt32(structAddr, 8);
             _State = (WHEA_ERROR_SOURCE_STATE)Marshal.ReadInt32(structAddr, 12);
             MaxRawDataLength = (uint)Marshal.ReadInt32(structAddr, 16);
@@ -121,74 +162,62 @@ namespace DecodeWheaRecord.Shared {
             PlatformErrorSourceId = (uint)Marshal.ReadInt32(structAddr, 32);
             _Flags = (WHEA_ERROR_SOURCE_FLAGS)Marshal.ReadInt32(structAddr, 36);
 
-            var offset = 40;
+            bytesRemaining -= 40;
+            const uint descriptorStructOffset = 40;
 
-            // TODO: Explain
-            _DescriptorType = (WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE)Marshal.ReadInt16(recordAddr, offset);
-
-            string cat, msg;
+            // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
             switch (_Type) {
                 case WHEA_ERROR_SOURCE_TYPE.MCE:
-                    XpfMceDescriptor = new WHEA_XPF_MCE_DESCRIPTOR(recordAddr + offset, offset);
-                    offset += XpfMceDescriptor.GetNativeSize();
+                    XpfMceDescriptor = new WHEA_XPF_MCE_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.CMC:
-                    XpfCmcDescriptor = new WHEA_XPF_CMC_DESCRIPTOR(recordAddr + offset, offset);
-                    offset += XpfCmcDescriptor.GetNativeSize();
+                    XpfCmcDescriptor = new WHEA_XPF_CMC_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.NMI:
-                    XpfNmiDescriptor = Marshal.PtrToStructure<WHEA_XPF_NMI_DESCRIPTOR>(recordAddr + offset);
-                    offset += Marshal.SizeOf<WHEA_XPF_NMI_DESCRIPTOR>();
+                    XpfNmiDescriptor = new WHEA_XPF_NMI_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.IPFMCA:
-                    IpfMcaDescriptor = Marshal.PtrToStructure<WHEA_IPF_MCA_DESCRIPTOR>(recordAddr + offset);
-                    offset += Marshal.SizeOf<WHEA_IPF_MCA_DESCRIPTOR>();
+                    IpfMcaDescriptor = new WHEA_IPF_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.IPFCMC:
-                    IpfCmcDescriptor = Marshal.PtrToStructure<WHEA_IPF_CMC_DESCRIPTOR>(recordAddr + offset);
-                    offset += Marshal.SizeOf<WHEA_IPF_CMC_DESCRIPTOR>();
+                    IpfCmcDescriptor = new WHEA_IPF_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.IPFCPE:
-                    IpfCpeDescriptor = Marshal.PtrToStructure<WHEA_IPF_CPE_DESCRIPTOR>(recordAddr + offset);
-                    offset += Marshal.SizeOf<WHEA_IPF_CPE_DESCRIPTOR>();
+                    IpfCpeDescriptor = new WHEA_IPF_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.PCIe:
-                    if (_DescriptorType == WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerRootPort) {
-                        AerRootportDescriptor = Marshal.PtrToStructure<WHEA_AER_ROOTPORT_DESCRIPTOR>(recordAddr + offset);
-                        offset += Marshal.SizeOf<WHEA_AER_ROOTPORT_DESCRIPTOR>();
-                    } else if (_DescriptorType == WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerEndpoint) {
-                        AerEndpointDescriptor = Marshal.PtrToStructure<WHEA_AER_ENDPOINT_DESCRIPTOR>(recordAddr + offset);
-                        offset += Marshal.SizeOf<WHEA_AER_ENDPOINT_DESCRIPTOR>();
-                    } else if (_DescriptorType == WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerBridge) {
-                        AerBridgeDescriptor = Marshal.PtrToStructure<WHEA_AER_BRIDGE_DESCRIPTOR>(recordAddr + offset);
-                        offset += Marshal.SizeOf<WHEA_AER_BRIDGE_DESCRIPTOR>();
-                    } else {
-                        cat = $"{nameof(WHEA_ERROR_SOURCE_DESCRIPTOR)}.{nameof(Type)}";
-                        var descriptorType = Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), _DescriptorType);
-                        msg = $"Error source type is PCIe but descriptor type is invalid: {descriptorType}";
-                        ExitWithMessage(msg, cat, 2);
+                    _DescriptorType = (WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE)Marshal.ReadInt16(recordAddr, (int)descriptorStructOffset);
+
+                    // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
+                    switch (_DescriptorType) {
+                        case WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerRootPort:
+                            AerRootportDescriptor = new WHEA_AER_ROOTPORT_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
+                            break;
+                        case WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerEndpoint:
+                            AerEndpointDescriptor = new WHEA_AER_ENDPOINT_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
+                            break;
+                        case WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerBridge:
+                            AerBridgeDescriptor = new WHEA_AER_BRIDGE_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
+                            break;
+                        default:
+                            throw new InvalidDataException($"{Type} is PCIe but error source descriptor type is not a valid PCIe type: {DescriptorType}");
                     }
+
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.Generic:
-                    GenErrDescriptor = Marshal.PtrToStructure<WHEA_GENERIC_ERROR_DESCRIPTOR>(recordAddr + offset);
-                    offset += Marshal.SizeOf<WHEA_GENERIC_ERROR_DESCRIPTOR>();
+                    GenErrDescriptor = new WHEA_GENERIC_ERROR_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.GenericV2:
-                    GenErrDescriptorV2 = Marshal.PtrToStructure<WHEA_GENERIC_ERROR_DESCRIPTOR_V2>(recordAddr + offset);
-                    offset += Marshal.SizeOf<WHEA_GENERIC_ERROR_DESCRIPTOR_V2>();
+                    GenErrDescriptorV2 = new WHEA_GENERIC_ERROR_DESCRIPTOR_V2(recordAddr, descriptorStructOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.DeviceDriver:
-                    DeviceDriverDescriptor = Marshal.PtrToStructure<WHEA_DEVICE_DRIVER_DESCRIPTOR>(recordAddr + offset);
-                    offset += Marshal.SizeOf<WHEA_DEVICE_DRIVER_DESCRIPTOR>();
+                    DeviceDriverDescriptor = new WHEA_DEVICE_DRIVER_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
                     break;
                 default:
-                    cat = $"{nameof(WHEA_ERROR_SOURCE_DESCRIPTOR)}.{nameof(Type)}";
-                    msg = $"Error source type is invalid: {Type}";
-                    ExitWithMessage(msg, cat, 2);
-                    break;
+                    throw new InvalidDataException($"{nameof(Type)} is unknown or invalid: {Type}");
             }
 
-            FinalizeRecord(recordAddr, StructSize);
+            FinalizeRecord(recordAddr, Length);
         }
 
         [UsedImplicitly]
@@ -229,115 +258,6 @@ namespace DecodeWheaRecord.Shared {
 
         [UsedImplicitly]
         public bool ShouldSerializeDeviceDriverDescriptor() => _Type == WHEA_ERROR_SOURCE_TYPE.DeviceDriver;
-
-        public override void Validate() {
-            string msg;
-
-            var expectedLength = Marshal.SizeOf<WHEA_ERROR_SOURCE_DESCRIPTOR>();
-            if (Length != expectedLength) {
-                msg = $"[{nameof(WHEA_ERROR_SOURCE_DESCRIPTOR)}] Expected length of {expectedLength} bytes but Length member is: {Length}";
-                ExitWithMessage(msg, code: 2);
-            }
-
-            /*
-             * The WHEA header defines versions 10 and 11 but it's unclear
-             * how they differ. The Microsoft docs state the version should
-             * always be set to 10 so for now we just ignore version 11.
-             */
-            if (Version != WHEA_ERROR_SOURCE_DESCRIPTOR_VERSION) {
-                msg =
-                    $"[{nameof(WHEA_ERROR_SOURCE_DESCRIPTOR)}] Expected version {WHEA_ERROR_SOURCE_DESCRIPTOR_VERSION} but Version member is: {Version}";
-                ExitWithMessage(msg, code: 2);
-            }
-
-            if (ShouldSerializeXpfMceDescriptor()) {
-                if (XpfMceDescriptor.Validate()) {
-                    return;
-                }
-                msg = $"[{nameof(WHEA_ERROR_SOURCE_DESCRIPTOR)}] Type is \"{Type}\" but Type of XpfMceDescriptor is: {XpfMceDescriptor.Type}";
-                ExitWithMessage(msg, code: 2);
-            }
-
-            if (ShouldSerializeXpfCmcDescriptor()) {
-                if (XpfCmcDescriptor.Validate()) {
-                    return;
-                }
-                msg = $"[{nameof(WHEA_ERROR_SOURCE_DESCRIPTOR)}] Type is \"{Type}\" but Type of XpfCmcDescriptor is: {XpfCmcDescriptor.Type}";
-                ExitWithMessage(msg, code: 2);
-            }
-
-            if (ShouldSerializeXpfNmiDescriptor()) {
-                if (XpfNmiDescriptor.Validate()) {
-                    return;
-                }
-                msg = $"[{nameof(WHEA_ERROR_SOURCE_DESCRIPTOR)}] Type is \"{Type}\" but Type of XpfNmiDescriptor is: {XpfNmiDescriptor.Type}";
-                ExitWithMessage(msg, code: 2);
-            }
-
-            if (ShouldSerializeIpfMcaDescriptor()) {
-                if (IpfMcaDescriptor.Validate()) {
-                    return;
-                }
-                msg = $"[{nameof(WHEA_ERROR_SOURCE_DESCRIPTOR)}] Type is \"{Type}\" but Type of IpfMcaDescriptor is: {IpfMcaDescriptor.Type}";
-                ExitWithMessage(msg, code: 2);
-            }
-
-            if (ShouldSerializeIpfCmcDescriptor()) {
-                if (IpfCmcDescriptor.Validate()) {
-                    return;
-                }
-                msg = $"[{nameof(WHEA_ERROR_SOURCE_DESCRIPTOR)}] Type is \"{Type}\" but Type of IpfCmcDescriptor is: {IpfCmcDescriptor.Type}";
-                ExitWithMessage(msg, code: 2);
-            }
-
-            if (ShouldSerializeIpfCpeDescriptor()) {
-                if (IpfCpeDescriptor.Validate()) {
-                    return;
-                }
-                msg = $"[{nameof(WHEA_ERROR_SOURCE_DESCRIPTOR)}] Type is \"{Type}\" but Type of IpfCpeDescriptor is: {IpfCpeDescriptor.Type}";
-                ExitWithMessage(msg, code: 2);
-            }
-
-            if (_Type == WHEA_ERROR_SOURCE_TYPE.PCIe) {
-                if (ShouldSerializeAerRootportDescriptor() || ShouldSerializeAerEndpointDescriptor() || ShouldSerializeAerBridgeDescriptor()) {
-                    return;
-                }
-                /*
-                 * Using any PCIe AER structure is safe as the Type member
-                 * resides at the same offset for all the structures.
-                 */
-                msg =
-                    $"[{nameof(WHEA_ERROR_SOURCE_DESCRIPTOR)}] Type is \"{Type}\" but Type in all AER structures is invalid: {AerRootportDescriptor.Type}";
-                ExitWithMessage(msg, code: 2);
-            }
-
-            if (ShouldSerializeGenErrDescriptor()) {
-                if (GenErrDescriptor.Validate()) {
-                    return;
-                }
-                msg = $"[{nameof(WHEA_ERROR_SOURCE_DESCRIPTOR)}] Type is \"{Type}\" but Type of GenErrDescriptor is: {GenErrDescriptor.Type}";
-                ExitWithMessage(msg, code: 2);
-            }
-
-            if (ShouldSerializeGenErrDescriptorV2()) {
-                if (GenErrDescriptorV2.Validate()) {
-                    return;
-                }
-                msg = $"[{nameof(WHEA_ERROR_SOURCE_DESCRIPTOR)}] Type is \"{Type}\" but Type of GenErrDescriptorV2 is: {GenErrDescriptorV2.Type}";
-                ExitWithMessage(msg, code: 2);
-            }
-
-            if (ShouldSerializeDeviceDriverDescriptor()) {
-                if (DeviceDriverDescriptor.Validate()) {
-                    return;
-                }
-                msg = $"[{nameof(WHEA_ERROR_SOURCE_DESCRIPTOR)}] Type is \"{Type}\" but Type of DeviceDriverDescriptor is: {DeviceDriverDescriptor.Type}";
-                ExitWithMessage(msg, code: 2);
-            }
-
-            msg = $"[{nameof(WHEA_ERROR_SOURCE_DESCRIPTOR)}] Type does not match any known descriptor: {Type}";
-            ExitWithMessage(msg, code: 2);
-        }
     }
 
     // Structure size: 28 bytes
@@ -383,10 +303,8 @@ namespace DecodeWheaRecord.Shared {
     }
 
     internal sealed class WHEA_XPF_MCE_DESCRIPTOR : WheaRecord {
-        private const int StructSize = 920;
+        private const uint StructSize = 920;
         public override uint GetNativeSize() => StructSize;
-
-        internal const int WHEA_MAX_MC_BANKS = 32;
 
         // Switched to an enumeration
         private WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE _Type;
@@ -414,7 +332,7 @@ namespace DecodeWheaRecord.Shared {
         public ulong MCG_GlobalControl;
 
         [JsonProperty(Order = 7)]
-        public WHEA_XPF_MC_BANK_DESCRIPTOR[] Banks = new WHEA_XPF_MC_BANK_DESCRIPTOR[WHEA_MAX_MC_BANKS];
+        public WHEA_XPF_MC_BANK_DESCRIPTOR[] Banks = new WHEA_XPF_MC_BANK_DESCRIPTOR[WHEA_ERROR_SOURCE_DESCRIPTOR.WHEA_MAX_MC_BANKS];
 
         public WHEA_XPF_MCE_DESCRIPTOR(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
             base(typeof(WHEA_XPF_MCE_DESCRIPTOR), structOffset, StructSize, bytesRemaining) {
@@ -423,16 +341,16 @@ namespace DecodeWheaRecord.Shared {
             _Type = (WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE)Marshal.ReadInt16(structAddr);
 
             if (_Type != WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.XpfMce) {
-                var expectedErrorSourceType = Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.XpfMce);
-                var msg = $"{nameof(Type)} does not match the descriptor: {Type} != {expectedErrorSourceType}";
+                var expectedErrSrc = Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.XpfMce);
+                var msg = $"{nameof(Type)} does not match the descriptor: {Type} != {expectedErrSrc}";
                 throw new InvalidDataException(msg);
             }
 
             Enabled = Marshal.ReadByte(recordAddr, 2) != 0;
             NumberOfBanks = Marshal.ReadByte(recordAddr, 3);
 
-            if (NumberOfBanks > WHEA_MAX_MC_BANKS) {
-                var msg = $"{nameof(NumberOfBanks)} is greater than maximum allowed: {NumberOfBanks} > {WHEA_MAX_MC_BANKS}";
+            if (NumberOfBanks > WHEA_ERROR_SOURCE_DESCRIPTOR.WHEA_MAX_MC_BANKS) {
+                var msg = $"{nameof(NumberOfBanks)} is greater than maximum allowed: {NumberOfBanks} > {WHEA_ERROR_SOURCE_DESCRIPTOR.WHEA_MAX_MC_BANKS}";
                 throw new InvalidDataException(msg);
             }
 
@@ -441,8 +359,76 @@ namespace DecodeWheaRecord.Shared {
             MCG_GlobalControl = (ulong)Marshal.ReadInt64(recordAddr, 16);
 
             if (NumberOfBanks > 0) {
-                var offset = (uint)24;
                 var elementSize = (uint)Marshal.SizeOf<WHEA_XPF_MC_BANK_DESCRIPTOR>();
+                var offset = (uint)24;
+
+                for (var i = 0; i < NumberOfBanks; i++) {
+                    Banks[i] = Marshal.PtrToStructure<WHEA_XPF_MC_BANK_DESCRIPTOR>(recordAddr + (int)offset);
+                    offset += elementSize;
+                }
+            }
+
+            FinalizeRecord(recordAddr, StructSize);
+        }
+    }
+
+    internal sealed class WHEA_XPF_CMC_DESCRIPTOR : WheaRecord {
+        private const uint StructSize = 932;
+        public override uint GetNativeSize() => StructSize;
+
+        // Switched to an enumeration
+        private WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE _Type;
+
+        [JsonProperty(Order = 1)]
+        public string Type => Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), _Type);
+
+        [JsonProperty(Order = 2)]
+        public bool Enabled;
+
+        [JsonProperty(Order = 3)]
+        public byte NumberOfBanks;
+
+        [JsonProperty(Order = 4)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public uint Reserved;
+
+        [JsonProperty(Order = 5)]
+        public WHEA_NOTIFICATION_DESCRIPTOR Notify;
+
+        [JsonProperty(Order = 6)]
+        public WHEA_XPF_MC_BANK_DESCRIPTOR[] Banks = new WHEA_XPF_MC_BANK_DESCRIPTOR[WHEA_ERROR_SOURCE_DESCRIPTOR.WHEA_MAX_MC_BANKS];
+
+        public WHEA_XPF_CMC_DESCRIPTOR(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEA_XPF_CMC_DESCRIPTOR), structOffset, StructSize, bytesRemaining) {
+            var structAddr = recordAddr + (int)structOffset;
+
+            _Type = (WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE)Marshal.ReadInt16(structAddr);
+
+            if (_Type != WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.XpfCmc) {
+                var expectedErrSrc = Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.XpfCmc);
+                var msg = $"{nameof(Type)} does not match the descriptor: {Type} != {expectedErrSrc}";
+                throw new InvalidDataException(msg);
+            }
+
+            Enabled = Marshal.ReadByte(recordAddr, 2) != 0;
+            NumberOfBanks = Marshal.ReadByte(recordAddr, 3);
+
+            if (NumberOfBanks > WHEA_ERROR_SOURCE_DESCRIPTOR.WHEA_MAX_MC_BANKS) {
+                var msg = $"{nameof(NumberOfBanks)} is greater than maximum allowed: {NumberOfBanks} > {WHEA_ERROR_SOURCE_DESCRIPTOR.WHEA_MAX_MC_BANKS}";
+                throw new InvalidDataException(msg);
+            }
+
+            Reserved = (uint)Marshal.ReadInt32(recordAddr, 4);
+
+            if (Reserved != 0) {
+                WarnOutput($"{nameof(Reserved)} is non-zero.", SectionType.Name);
+            }
+
+            Notify = Marshal.PtrToStructure<WHEA_NOTIFICATION_DESCRIPTOR>(recordAddr + 8);
+
+            if (NumberOfBanks > 0) {
+                var elementSize = (uint)Marshal.SizeOf<WHEA_XPF_MC_BANK_DESCRIPTOR>();
+                var offset = (uint)24;
 
                 for (var i = 0; i < NumberOfBanks; i++) {
                     Banks[i] = Marshal.PtrToStructure<WHEA_XPF_MC_BANK_DESCRIPTOR>(recordAddr + (int)offset);
@@ -453,186 +439,127 @@ namespace DecodeWheaRecord.Shared {
             FinalizeRecord(recordAddr, StructSize);
         }
 
-        public bool Validate() {
-            return _Type == WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.XpfMce;
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
+    }
+
+    internal sealed class WHEA_XPF_NMI_DESCRIPTOR : WheaRecord {
+        private const uint StructSize = 3;
+        public override uint GetNativeSize() => StructSize;
+
+        // Switched to an enumeration
+        private WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE _Type;
+
+        [JsonProperty(Order = 1)]
+        public string Type => Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), _Type);
+
+        [JsonProperty(Order = 2)]
+        public bool Enabled;
+
+        public WHEA_XPF_NMI_DESCRIPTOR(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEA_XPF_NMI_DESCRIPTOR), structOffset, StructSize, bytesRemaining) {
+            var structAddr = recordAddr + (int)structOffset;
+
+            _Type = (WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE)Marshal.ReadInt16(structAddr);
+
+            if (_Type != WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.XpfNmi) {
+                var expectedErrSrc = Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.XpfNmi);
+                var msg = $"{nameof(Type)} does not match the descriptor: {Type} != {expectedErrSrc}";
+                throw new InvalidDataException(msg);
+            }
+
+            Enabled = Marshal.ReadByte(recordAddr, 2) != 0;
+
+            FinalizeRecord(recordAddr, StructSize);
         }
     }
 
     /*
-     * Cannot be directly marshalled as a structure due to the fixed-size array
-     * having a non-blittable type.
+     * The Windows headers define separate structures for the MCA, CMC, and CPE
+     * error source descriptors for the Itanium platform, but they are
+     * identical. Do the obvious thing and just reuse this structure.
      */
-    internal sealed class WHEA_XPF_CMC_DESCRIPTOR : WheaStruct {
-        // Structure size is static
-        private const int _NativeSize = 932;
-        internal override int GetNativeSize() => _NativeSize;
+    internal sealed class WHEA_IPF_DESCRIPTOR : WheaRecord {
+        private const uint StructSize = 4;
+        public override uint GetNativeSize() => StructSize;
 
-        internal const int WHEA_MAX_MC_BANKS = 32;
-
+        // Switched to an enumeration
         private WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE _Type;
 
         [JsonProperty(Order = 1)]
         public string Type => Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), _Type);
 
         [JsonProperty(Order = 2)]
-        [MarshalAs(UnmanagedType.U1)]
-        public bool Enabled;
+        public bool Enabled; // UCHAR
 
         [JsonProperty(Order = 3)]
-        public byte NumberOfBanks;
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public byte Reserved;
 
-        [JsonProperty(Order = 4)]
-        public uint Reserved;
+        public WHEA_IPF_DESCRIPTOR(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEA_IPF_DESCRIPTOR), structOffset, StructSize, bytesRemaining) {
+            var structAddr = recordAddr + (int)structOffset;
 
-        [JsonProperty(Order = 5)]
-        public WHEA_NOTIFICATION_DESCRIPTOR Notify;
+            _Type = (WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE)Marshal.ReadInt16(structAddr);
 
-        [JsonProperty(Order = 6)]
-        public WHEA_XPF_MC_BANK_DESCRIPTOR[] Banks;
-
-        public WHEA_XPF_CMC_DESCRIPTOR(IntPtr recordAddr, int initialOffset) {
-            DebugBeforeDecode(typeof(WHEA_XPF_CMC_DESCRIPTOR), initialOffset);
-
-            _Type = (WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE)Marshal.ReadInt16(recordAddr);
-            Enabled = Marshal.ReadByte(recordAddr, 2) != 0;
-            NumberOfBanks = Marshal.ReadByte(recordAddr, 3);
-            Reserved = (uint)Marshal.ReadInt32(recordAddr, 4);
-            var offset = 8;
-
-            Notify = Marshal.PtrToStructure<WHEA_NOTIFICATION_DESCRIPTOR>(recordAddr + offset);
-            offset += Marshal.SizeOf<WHEA_NOTIFICATION_DESCRIPTOR>();
-
-            Banks = new WHEA_XPF_MC_BANK_DESCRIPTOR[WHEA_MAX_MC_BANKS];
-            for (var i = 0; i < NumberOfBanks; i++) {
-                Banks[i] = Marshal.PtrToStructure<WHEA_XPF_MC_BANK_DESCRIPTOR>(recordAddr + offset);
-                offset += Marshal.SizeOf<WHEA_XPF_MC_BANK_DESCRIPTOR>();
+            if (_Type != WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.IpfMca &&
+                _Type != WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.IpfCmc &&
+                _Type != WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.IpfCpe) {
+                var errSrcIpfMca = Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.IpfMca);
+                var errSrcIpfCmc = Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.IpfCmc);
+                var errSrcIpfCpe = Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.IpfCpe);
+                var msg = $"{nameof(Type)} does not match the descriptor: {Type} != ({errSrcIpfMca} || {errSrcIpfCmc} || {errSrcIpfCpe})";
+                throw new InvalidDataException(msg);
             }
 
-            // Add any remaining bytes we can ignore
-            offset += Marshal.SizeOf<WHEA_XPF_MC_BANK_DESCRIPTOR>() * (WHEA_MAX_MC_BANKS - NumberOfBanks);
+            Enabled = Marshal.ReadByte(recordAddr, 2) != 0;
+            Reserved = Marshal.ReadByte(recordAddr, 3);
 
-            Debug.Assert(offset == _NativeSize, $"{nameof(offset)} != {nameof(_NativeSize)}");
-            DebugAfterDecode(typeof(WHEA_XPF_CMC_DESCRIPTOR), offset, _NativeSize);
+            if (Reserved != 0) {
+                WarnOutput($"{nameof(Reserved)} is non-zero.", SectionType.Name);
+            }
+
+            FinalizeRecord(recordAddr, StructSize);
         }
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
-
-        public bool Validate() {
-            return _Type == WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.XpfCmc;
-        }
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_XPF_NMI_DESCRIPTOR {
-        private WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE _Type;
-
-        [JsonProperty(Order = 1)]
-        public string Type => Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), _Type);
-
-        [JsonProperty(Order = 2)]
-        [MarshalAs(UnmanagedType.U1)]
-        public bool Enabled;
-
-        public bool Validate() {
-            return _Type == WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.XpfNmi;
-        }
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_IPF_MCA_DESCRIPTOR {
-        private WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE _Type;
-
-        [JsonProperty(Order = 1)]
-        public string Type => Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), _Type);
-
-        [JsonProperty(Order = 2)]
-        public byte Enabled;
-
-        [JsonProperty(Order = 3)]
-        public byte Reserved;
-
-        [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
-
-        public bool Validate() {
-            return _Type == WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.IpfMca;
-        }
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_IPF_CMC_DESCRIPTOR {
-        private WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE _Type;
-
-        [JsonProperty(Order = 1)]
-        public string Type => Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), _Type);
-
-        [JsonProperty(Order = 2)]
-        public byte Enabled;
-
-        [JsonProperty(Order = 3)]
-        public byte Reserved;
-
-        [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
-
-        public bool Validate() {
-            return _Type == WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.IpfCmc;
-        }
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_IPF_CPE_DESCRIPTOR {
-        private WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE _Type;
-
-        [JsonProperty(Order = 1)]
-        public string Type => Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), _Type);
-
-        [JsonProperty(Order = 2)]
-        public byte Enabled;
-
-        [JsonProperty(Order = 3)]
-        public byte Reserved;
-
-        [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
-
-        public bool Validate() {
-            return _Type == WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.IpfCpe;
-        }
-    }
-
-    // TODO: ULONG union -> maybe shunt into PCI .cs
+    // TODO: Shunt into PCI .cs?
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PCI_SLOT_NUMBER {
-        private byte _DevFuncNumber;
+        private uint _RawBits;
 
         [JsonProperty(Order = 1)]
-        public byte DeviceNumber => (byte)(_DevFuncNumber & 0x1F); // Bits 0-4
+        public byte DeviceNumber => (byte)(_RawBits & 0x1F); // Bits 0-4
 
         [JsonProperty(Order = 2)]
-        public byte FunctionNumber => (byte)(_DevFuncNumber >> 5); // Bits 5-7
+        public byte FunctionNumber => (byte)((_RawBits >> 5) & 0x7); // Bits 5-7
 
         [JsonProperty(Order = 3)]
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-        public byte[] Reserved;
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public uint Reserved => _RawBits >> 8; // Bits 8-31
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_AER_ROOTPORT_DESCRIPTOR {
+    internal sealed class WHEA_AER_ROOTPORT_DESCRIPTOR : WheaRecord {
+        private const uint StructSize = 36;
+        public override uint GetNativeSize() => StructSize;
+
+        // Switched to an enumeration
         private WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE _Type;
 
         [JsonProperty(Order = 1)]
         public string Type => Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), _Type);
 
         [JsonProperty(Order = 2)]
-        [MarshalAs(UnmanagedType.U1)]
         public bool Enabled;
 
         [JsonProperty(Order = 3)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte Reserved;
 
         [JsonProperty(Order = 4)]
@@ -666,26 +593,57 @@ namespace DecodeWheaRecord.Shared {
         [JsonProperty(Order = 12)]
         public uint RootErrorCommand;
 
-        [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public WHEA_AER_ROOTPORT_DESCRIPTOR(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEA_AER_ROOTPORT_DESCRIPTOR), structOffset, StructSize, bytesRemaining) {
+            var structAddr = recordAddr + (int)structOffset;
 
-        public bool Validate() {
-            return _Type == WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerRootPort;
+            _Type = (WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE)Marshal.ReadInt16(structAddr);
+
+            if (_Type != WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerRootPort) {
+                var expectedErrSrc = Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerRootPort);
+                var msg = $"{nameof(Type)} does not match the descriptor: {Type} != {expectedErrSrc}";
+                throw new InvalidDataException(msg);
+            }
+
+            Enabled = Marshal.ReadByte(recordAddr, 2) != 0;
+            Reserved = Marshal.ReadByte(recordAddr, 3);
+
+            if (Reserved != 0) {
+                WarnOutput($"{nameof(Reserved)} is non-zero.", SectionType.Name);
+            }
+
+            BusNumber = (uint)Marshal.ReadInt32(recordAddr, 4);
+            Slot = Marshal.PtrToStructure<WHEA_PCI_SLOT_NUMBER>(recordAddr + 8);
+            DeviceControl = (ushort)Marshal.ReadInt16(recordAddr, 12);
+            _Flags = (AER_ROOTPORT_DESCRIPTOR_FLAGS)Marshal.ReadInt16(recordAddr, 14);
+            UncorrectableErrorMask = (uint)Marshal.ReadInt32(recordAddr, 16);
+            UncorrectableErrorSeverity = (uint)Marshal.ReadInt32(recordAddr, 20);
+            CorrectableErrorMask = (uint)Marshal.ReadInt32(recordAddr, 24);
+            AdvancedCapsAndControl = (uint)Marshal.ReadInt32(recordAddr, 28);
+            RootErrorCommand = (uint)Marshal.ReadInt32(recordAddr, 32);
+
+            FinalizeRecord(recordAddr, StructSize);
         }
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_AER_ENDPOINT_DESCRIPTOR {
+    internal sealed class WHEA_AER_ENDPOINT_DESCRIPTOR : WheaRecord {
+        private const uint StructSize = 32;
+        public override uint GetNativeSize() => StructSize;
+
+        // Switched to an enumeration
         private WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE _Type;
 
         [JsonProperty(Order = 1)]
         public string Type => Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), _Type);
 
         [JsonProperty(Order = 2)]
-        [MarshalAs(UnmanagedType.U1)]
         public bool Enabled;
 
         [JsonProperty(Order = 3)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte Reserved;
 
         [JsonProperty(Order = 4)]
@@ -716,26 +674,56 @@ namespace DecodeWheaRecord.Shared {
         [JsonProperty(Order = 11)]
         public uint AdvancedCapsAndControl;
 
-        [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public WHEA_AER_ENDPOINT_DESCRIPTOR(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEA_AER_ENDPOINT_DESCRIPTOR), structOffset, StructSize, bytesRemaining) {
+            var structAddr = recordAddr + (int)structOffset;
 
-        public bool Validate() {
-            return _Type == WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerEndpoint;
+            _Type = (WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE)Marshal.ReadInt16(structAddr);
+
+            if (_Type != WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerEndpoint) {
+                var expectedErrSrc = Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerEndpoint);
+                var msg = $"{nameof(Type)} does not match the descriptor: {Type} != {expectedErrSrc}";
+                throw new InvalidDataException(msg);
+            }
+
+            Enabled = Marshal.ReadByte(recordAddr, 2) != 0;
+            Reserved = Marshal.ReadByte(recordAddr, 3);
+
+            if (Reserved != 0) {
+                WarnOutput($"{nameof(Reserved)} is non-zero.", SectionType.Name);
+            }
+
+            BusNumber = (uint)Marshal.ReadInt32(recordAddr, 4);
+            Slot = Marshal.PtrToStructure<WHEA_PCI_SLOT_NUMBER>(recordAddr + 8);
+            DeviceControl = (ushort)Marshal.ReadInt16(recordAddr, 12);
+            _Flags = (AER_ENDPOINT_DESCRIPTOR_FLAGS)Marshal.ReadInt16(recordAddr, 14);
+            UncorrectableErrorMask = (uint)Marshal.ReadInt32(recordAddr, 16);
+            UncorrectableErrorSeverity = (uint)Marshal.ReadInt32(recordAddr, 20);
+            CorrectableErrorMask = (uint)Marshal.ReadInt32(recordAddr, 24);
+            AdvancedCapsAndControl = (uint)Marshal.ReadInt32(recordAddr, 28);
+
+            FinalizeRecord(recordAddr, StructSize);
         }
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_AER_BRIDGE_DESCRIPTOR {
+    internal sealed class WHEA_AER_BRIDGE_DESCRIPTOR : WheaRecord {
+        private const uint StructSize = 44;
+        public override uint GetNativeSize() => StructSize;
+
+        // Switched to an enumeration
         private WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE _Type;
 
         [JsonProperty(Order = 1)]
         public string Type => Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), _Type);
 
         [JsonProperty(Order = 2)]
-        [MarshalAs(UnmanagedType.U1)]
         public bool Enabled;
 
         [JsonProperty(Order = 3)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte Reserved;
 
         [JsonProperty(Order = 4)]
@@ -767,7 +755,6 @@ namespace DecodeWheaRecord.Shared {
         public uint AdvancedCapsAndControl;
 
         [JsonProperty(Order = 12)]
-        [JsonConverter(typeof(HexStringJsonConverter))]
         public uint SecondaryUncorrectableErrorMask;
 
         [JsonProperty(Order = 13)]
@@ -776,26 +763,60 @@ namespace DecodeWheaRecord.Shared {
         [JsonProperty(Order = 14)]
         public uint SecondaryCapsAndControl;
 
-        [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public WHEA_AER_BRIDGE_DESCRIPTOR(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEA_AER_BRIDGE_DESCRIPTOR), structOffset, StructSize, bytesRemaining) {
+            var structAddr = recordAddr + (int)structOffset;
 
-        public bool Validate() {
-            return _Type == WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerBridge;
+            _Type = (WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE)Marshal.ReadInt16(structAddr);
+
+            if (_Type != WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerBridge) {
+                var expectedErrSrc = Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerBridge);
+                var msg = $"{nameof(Type)} does not match the descriptor: {Type} != {expectedErrSrc}";
+                throw new InvalidDataException(msg);
+            }
+
+            Enabled = Marshal.ReadByte(recordAddr, 2) != 0;
+            Reserved = Marshal.ReadByte(recordAddr, 3);
+
+            if (Reserved != 0) {
+                WarnOutput($"{nameof(Reserved)} is non-zero.", SectionType.Name);
+            }
+
+            BusNumber = (uint)Marshal.ReadInt32(recordAddr, 4);
+            Slot = Marshal.PtrToStructure<WHEA_PCI_SLOT_NUMBER>(recordAddr + 8);
+            DeviceControl = (ushort)Marshal.ReadInt16(recordAddr, 12);
+            _Flags = (AER_BRIDGE_DESCRIPTOR_FLAGS)Marshal.ReadInt16(recordAddr, 14);
+            UncorrectableErrorMask = (uint)Marshal.ReadInt32(recordAddr, 16);
+            UncorrectableErrorSeverity = (uint)Marshal.ReadInt32(recordAddr, 20);
+            CorrectableErrorMask = (uint)Marshal.ReadInt32(recordAddr, 24);
+            AdvancedCapsAndControl = (uint)Marshal.ReadInt32(recordAddr, 28);
+            SecondaryUncorrectableErrorMask = (uint)Marshal.ReadInt32(recordAddr, 32);
+            SecondaryUncorrectableErrorSev = (uint)Marshal.ReadInt32(recordAddr, 36);
+            SecondaryCapsAndControl = (uint)Marshal.ReadInt32(recordAddr, 40);
+
+            FinalizeRecord(recordAddr, StructSize);
         }
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_GENERIC_ERROR_DESCRIPTOR {
+    internal sealed class WHEA_GENERIC_ERROR_DESCRIPTOR : WheaRecord {
+        private const uint StructSize = 52;
+        public override uint GetNativeSize() => StructSize;
+
+        // Switched to an enumeration
         private WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE _Type;
 
         [JsonProperty(Order = 1)]
         public string Type => Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), _Type);
 
         [JsonProperty(Order = 2)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte Reserved;
 
         [JsonProperty(Order = 3)]
-        public byte Enabled;
+        public bool Enabled; // UCHAR
 
         [JsonProperty(Order = 4)]
         public uint ErrStatusBlockLength;
@@ -803,7 +824,7 @@ namespace DecodeWheaRecord.Shared {
         [JsonProperty(Order = 5)]
         public uint RelatedErrorSourceId;
 
-        // Next five members are equivalent to GEN_ADDR struct
+        // Next five fields are equivalent to a GEN_ADDR structure
         [JsonProperty(Order = 6)]
         public byte ErrStatusAddressSpaceID;
 
@@ -817,31 +838,63 @@ namespace DecodeWheaRecord.Shared {
         public byte ErrStatusAddressAccessSize;
 
         [JsonProperty(Order = 10)]
-        public long ErrStatusAddress; // TODO: WHEA_PHYSICAL_ADDRESS
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong ErrStatusAddress; // TODO: WHEA_PHYSICAL_ADDRESS
 
         [JsonProperty(Order = 11)]
         public WHEA_NOTIFICATION_DESCRIPTOR Notify;
 
-        [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public WHEA_GENERIC_ERROR_DESCRIPTOR(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEA_GENERIC_ERROR_DESCRIPTOR), structOffset, StructSize, bytesRemaining) {
+            var structAddr = recordAddr + (int)structOffset;
 
-        public bool Validate() {
-            return _Type == WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.Generic;
+            _Type = (WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE)Marshal.ReadInt16(structAddr);
+
+            if (_Type != WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.Generic) {
+                var expectedErrSrc = Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.Generic);
+                var msg = $"{nameof(Type)} does not match the descriptor: {Type} != {expectedErrSrc}";
+                throw new InvalidDataException(msg);
+            }
+
+            Enabled = Marshal.ReadByte(recordAddr, 2) != 0;
+            Reserved = Marshal.ReadByte(recordAddr, 3);
+
+            if (Reserved != 0) {
+                WarnOutput($"{nameof(Reserved)} is non-zero.", SectionType.Name);
+            }
+
+            ErrStatusBlockLength = (uint)Marshal.ReadInt32(recordAddr, 4);
+            RelatedErrorSourceId = (uint)Marshal.ReadInt32(recordAddr, 8);
+            ErrStatusAddressSpaceID = Marshal.ReadByte(recordAddr, 12);
+            ErrStatusAddressBitWidth = Marshal.ReadByte(recordAddr, 13);
+            ErrStatusAddressBitOffset = Marshal.ReadByte(recordAddr, 14);
+            ErrStatusAddressAccessSize = Marshal.ReadByte(recordAddr, 15);
+            ErrStatusAddress = (ulong)Marshal.ReadInt64(recordAddr, 16);
+            Notify = Marshal.PtrToStructure<WHEA_NOTIFICATION_DESCRIPTOR>(recordAddr + 24);
+
+            FinalizeRecord(recordAddr, StructSize);
         }
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_GENERIC_ERROR_DESCRIPTOR_V2 {
+    internal sealed class WHEA_GENERIC_ERROR_DESCRIPTOR_V2 : WheaRecord {
+        private const uint StructSize = 80;
+        public override uint GetNativeSize() => StructSize;
+
+        // Switched to an enumeration
         private WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE _Type;
 
         [JsonProperty(Order = 1)]
         public string Type => Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), _Type);
 
         [JsonProperty(Order = 2)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte Reserved;
 
         [JsonProperty(Order = 3)]
-        public byte Enabled;
+        public bool Enabled; // UCHAR
 
         [JsonProperty(Order = 4)]
         public uint ErrStatusBlockLength;
@@ -849,7 +902,7 @@ namespace DecodeWheaRecord.Shared {
         [JsonProperty(Order = 5)]
         public uint RelatedErrorSourceId;
 
-        // Next five members are equivalent to GEN_ADDR struct
+        // Next five fields are equivalent to a GEN_ADDR structure
         [JsonProperty(Order = 6)]
         public byte ErrStatusAddressSpaceID;
 
@@ -863,12 +916,13 @@ namespace DecodeWheaRecord.Shared {
         public byte ErrStatusAddressAccessSize;
 
         [JsonProperty(Order = 10)]
-        public long ErrStatusAddress; // TODO: WHEA_PHYSICAL_ADDRESS
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong ErrStatusAddress; // TODO: WHEA_PHYSICAL_ADDRESS
 
         [JsonProperty(Order = 11)]
         public WHEA_NOTIFICATION_DESCRIPTOR Notify;
 
-        // Next five members are equivalent to GEN_ADDR struct
+        // Next five fields are equivalent to a GEN_ADDR structure
         [JsonProperty(Order = 12)]
         public byte ReadAckAddressSpaceID;
 
@@ -882,7 +936,8 @@ namespace DecodeWheaRecord.Shared {
         public byte ReadAckAddressAccessSize;
 
         [JsonProperty(Order = 16)]
-        public long ReadAckAddress; // TODO: WHEA_PHYSICAL_ADDRESS
+        [JsonConverter(typeof(HexStringJsonConverter))]
+        public ulong ReadAckAddress; // TODO: WHEA_PHYSICAL_ADDRESS
 
         [JsonProperty(Order = 17)]
         [JsonConverter(typeof(HexStringJsonConverter))]
@@ -892,26 +947,69 @@ namespace DecodeWheaRecord.Shared {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong ReadAckWriteMask;
 
-        [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public WHEA_GENERIC_ERROR_DESCRIPTOR_V2(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEA_GENERIC_ERROR_DESCRIPTOR_V2), structOffset, StructSize, bytesRemaining) {
+            var structAddr = recordAddr + (int)structOffset;
 
-        public bool Validate() {
-            return _Type == WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.GenericV2;
+            _Type = (WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE)Marshal.ReadInt16(structAddr);
+
+            if (_Type != WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.GenericV2) {
+                var expectedErrSrc = Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.GenericV2);
+                var msg = $"{nameof(Type)} does not match the descriptor: {Type} != {expectedErrSrc}";
+                throw new InvalidDataException(msg);
+            }
+
+            Enabled = Marshal.ReadByte(recordAddr, 2) != 0;
+            Reserved = Marshal.ReadByte(recordAddr, 3);
+
+            if (Reserved != 0) {
+                WarnOutput($"{nameof(Reserved)} is non-zero.", SectionType.Name);
+            }
+
+            ErrStatusBlockLength = (uint)Marshal.ReadInt32(recordAddr, 4);
+            RelatedErrorSourceId = (uint)Marshal.ReadInt32(recordAddr, 8);
+            ErrStatusAddressSpaceID = Marshal.ReadByte(recordAddr, 12);
+            ErrStatusAddressBitWidth = Marshal.ReadByte(recordAddr, 13);
+            ErrStatusAddressBitOffset = Marshal.ReadByte(recordAddr, 14);
+            ErrStatusAddressAccessSize = Marshal.ReadByte(recordAddr, 15);
+            ErrStatusAddress = (ulong)Marshal.ReadInt64(recordAddr, 16);
+            Notify = Marshal.PtrToStructure<WHEA_NOTIFICATION_DESCRIPTOR>(recordAddr + 24);
+            ReadAckAddressSpaceID = Marshal.ReadByte(recordAddr, 52);
+            ReadAckAddressBitWidth = Marshal.ReadByte(recordAddr, 53);
+            ReadAckAddressBitOffset = Marshal.ReadByte(recordAddr, 54);
+            ReadAckAddressAccessSize = Marshal.ReadByte(recordAddr, 55);
+            ReadAckAddress = (ulong)Marshal.ReadInt64(recordAddr, 56);
+            ReadAckPreserveMask = (ulong)Marshal.ReadInt64(recordAddr, 64);
+            ReadAckWriteMask = (ulong)Marshal.ReadInt64(recordAddr, 72);
+
+            FinalizeRecord(recordAddr, StructSize);
         }
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_DEVICE_DRIVER_DESCRIPTOR {
+    internal sealed class WHEA_DEVICE_DRIVER_DESCRIPTOR : WheaRecord {
+        private uint _StructSize;
+        public override uint GetNativeSize() => _StructSize;
+
+        // Size of the entire structure assuming 32-bit pointer size
+        private const uint StructSizePtr32 = 92;
+
+        // Size of the entire structure assuming 64-bit pointer size
+        private const uint StructSizePtr64 = 112;
+
+        // Switched to an enumeration
         private WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE _Type;
 
         [JsonProperty(Order = 1)]
         public string Type => Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), _Type);
 
         [JsonProperty(Order = 2)]
-        [MarshalAs(UnmanagedType.U1)]
         public bool Enabled;
 
         [JsonProperty(Order = 3)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public byte Reserved;
 
         [JsonProperty(Order = 4)]
@@ -921,6 +1019,7 @@ namespace DecodeWheaRecord.Shared {
         public ushort LogTag;
 
         [JsonProperty(Order = 6)]
+        [JsonConverter(typeof(HexStringJsonConverter))]
         public ushort Reserved2;
 
         [JsonProperty(Order = 7)]
@@ -939,10 +1038,7 @@ namespace DecodeWheaRecord.Shared {
         private Guid _CreatorId;
 
         [JsonProperty(Order = 11)]
-        public string CreatorId =>
-            WheaGuids.CreatorIds.TryGetValue(_CreatorId, out var CreatorIdValue)
-                ? CreatorIdValue
-                : _CreatorId.ToString();
+        public string CreatorId => WheaGuids.CreatorIds.TryGetValue(_CreatorId, out var creatorId) ? creatorId : _CreatorId.ToString();
 
         [JsonProperty(Order = 12)]
         public Guid PartitionId;
@@ -960,30 +1056,72 @@ namespace DecodeWheaRecord.Shared {
         [JsonProperty(Order = 16)]
         public int OpenHandles;
 
-        [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public WHEA_DEVICE_DRIVER_DESCRIPTOR(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEA_DEVICE_DRIVER_DESCRIPTOR), structOffset, GetStructSize(), bytesRemaining) {
+            var structAddr = recordAddr + (int)structOffset;
+            var isPtrSize64 = IntPtr.Size == 8;
 
-        [UsedImplicitly]
-        public static bool ShouldSerializeReserved2() => IsDebugBuild();
+            _Type = (WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE)Marshal.ReadInt16(structAddr);
 
-        public bool Validate() {
-            return _Type == WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.DeviceDriver;
+            if (_Type != WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.DeviceDriver) {
+                var expectedErrSrc = Enum.GetName(typeof(WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE), WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.DeviceDriver);
+                var msg = $"{nameof(Type)} does not match the descriptor: {Type} != {expectedErrSrc}";
+                throw new InvalidDataException(msg);
+            }
+
+            Enabled = Marshal.ReadByte(recordAddr, 2) != 0;
+            Reserved = Marshal.ReadByte(recordAddr, 3);
+
+            if (Reserved != 0) {
+                WarnOutput($"{nameof(Reserved)} is non-zero.", SectionType.Name);
+            }
+
+            SourceGuid = Marshal.PtrToStructure<Guid>(recordAddr + 4);
+            LogTag = (ushort)Marshal.ReadInt16(recordAddr, 20);
+            Reserved2 = (ushort)Marshal.ReadInt16(recordAddr, 22);
+
+            if (Reserved2 != 0) {
+                WarnOutput($"{nameof(Reserved2)} is non-zero.", SectionType.Name);
+            }
+
+            PacketLength = (uint)Marshal.ReadInt32(recordAddr, 24);
+            PacketCount = (uint)Marshal.ReadInt32(recordAddr, 28);
+            PacketBuffer = Marshal.ReadIntPtr(PacketBuffer);
+            Config = Marshal.PtrToStructure<WHEA_ERROR_SOURCE_CONFIGURATION_DD>(recordAddr + (isPtrSize64 ? 36 : 32));
+            _CreatorId = Marshal.PtrToStructure<Guid>(recordAddr + (isPtrSize64 ? 60 : 44));
+            PartitionId = Marshal.PtrToStructure<Guid>(recordAddr + (isPtrSize64 ? 76 : 60));
+            MaxSectionDataLength = (uint)Marshal.ReadInt32(recordAddr, isPtrSize64 ? 92 : 76);
+            MaxSectionsPerRecord = (uint)Marshal.ReadInt32(recordAddr, isPtrSize64 ? 96 : 80);
+            PacketStateBuffer = Marshal.ReadIntPtr(recordAddr, isPtrSize64 ? 100 : 84);
+            OpenHandles = Marshal.ReadInt32(recordAddr, isPtrSize64 ? 108 : 88);
+
+            _StructSize = GetStructSize();
+            FinalizeRecord(recordAddr, _StructSize);
         }
+
+        private static uint GetStructSize() => IntPtr.Size == 8 ? StructSizePtr64 : StructSizePtr32;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved() => Reserved != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved2() => Reserved2 != 0;
     }
 
+    // Structure size: 12 bytes (32-bit pointers) / 24 bytes (64-bit pointers)
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ERROR_SOURCE_CONFIGURATION_DD {
-        // Callback
+        // Callback function pointer
         // NTSTATUS WHEA_ERROR_SOURCE_INITIALIZE_DEVICE_DRIVER(PVOID Context, ULONG ErrorSourceId)
         [JsonConverter(typeof(HexStringJsonConverter))]
         public IntPtr Initialize;
 
-        // Callback
+        // Callback function pointer
         // VOID WHEA_ERROR_SOURCE_UNINITIALIZE_DEVICE_DRIVER(PVOID Context)
         [JsonConverter(typeof(HexStringJsonConverter))]
         public IntPtr Uninitialize;
 
-        // Callback
+        // Callback function pointer
         // NTSTATUS WHEA_ERROR_SOURCE_CORRECT_DEVICE_DRIVER(PVOID ErrorSourceDesc, PULONG MaximumSectionLength)
         [JsonConverter(typeof(HexStringJsonConverter))]
         public IntPtr Correct;

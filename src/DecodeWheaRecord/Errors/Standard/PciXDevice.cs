@@ -61,7 +61,6 @@ namespace DecodeWheaRecord.Errors.Standard {
             IdInfo = Marshal.PtrToStructure<WHEA_PCIXDEVICE_ID>(sectionAddr + 16);
             MemoryNumber = (uint)Marshal.ReadInt32(sectionAddr, 32);
             IoNumber = (uint)Marshal.ReadInt32(sectionAddr, 36);
-
             var offset = MinStructSize;
 
             uint NumRegisterDataPairs = 0;
@@ -87,10 +86,11 @@ same array. Distinguishing between the two types of data may not be possible.";
                 RegisterDataPairs = new WHEA_PCIXDEVICE_REGISTER_PAIR[NumRegisterDataPairs];
 
                 if (ShouldSerializeMemoryNumber() || ShouldSerializeIoNumber()) {
-                    var elementSize = Marshal.SizeOf<WHEA_PCIXDEVICE_REGISTER_PAIR>();
+                    var elementSize = (uint)Marshal.SizeOf<WHEA_PCIXDEVICE_REGISTER_PAIR>();
 
                     for (var i = 0; i < RegisterDataPairs.Length; i++) {
-                        RegisterDataPairs[i] = Marshal.PtrToStructure<WHEA_PCIXDEVICE_REGISTER_PAIR>(sectionAddr + (int)offset + i * elementSize);
+                        RegisterDataPairs[i] = Marshal.PtrToStructure<WHEA_PCIXDEVICE_REGISTER_PAIR>(sectionAddr + (int)offset);
+                        offset += elementSize;
                     }
 
                     offset += (uint)(RegisterDataPairs.Length * elementSize);

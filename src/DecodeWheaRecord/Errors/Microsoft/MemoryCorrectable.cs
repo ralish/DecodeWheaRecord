@@ -37,7 +37,6 @@ namespace DecodeWheaRecord.Errors.Microsoft {
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
             Header = new WHEA_MEMORY_CORRECTABLE_ERROR_HEADER(recordAddr, sectionDsc.SectionOffset, bytesRemaining);
-
             var offset = MinStructSize;
 
             if (Header.Count != 0) {

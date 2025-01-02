@@ -39,7 +39,6 @@ namespace DecodeWheaRecord.Errors.Microsoft {
             var sectionAddr = recordAddr + (int)sectionDsc.SectionOffset;
 
             Header = new WHEA_PCIE_CORRECTABLE_ERROR_SECTION_HEADER(recordAddr, sectionDsc.SectionOffset, bytesRemaining);
-
             var offset = MinStructSize;
 
             if (Header.Count != 0) {
@@ -107,7 +106,7 @@ namespace DecodeWheaRecord.Errors.Microsoft {
         private const uint StructSize = 156;
         public override uint GetNativeSize() => StructSize;
 
-        // Size of the CorrectableErrorCount array
+        // Count of elements in the CorrectableErrorCount array
         private const ushort WHEA_PCIE_CORRECTABLE_ERROR_SECTION_COUNT_SIZE = 32;
 
         private WHEA_PCIE_CORRECTABLE_ERROR_DEVICES_VALIDBITS _ValidBits;

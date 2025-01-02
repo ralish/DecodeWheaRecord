@@ -199,28 +199,28 @@ namespace DecodeWheaRecord.Errors.Microsoft {
 
             bytesRemaining -= 64;
             const uint errorStructOffset = 64;
-            var errorStructAddr = sectionAddr + (int)errorStructOffset;
+
             switch (_ErrorType) {
                 case WHEA_ERROR_TYPE.Processor:
-                    ProcessorError = new WHEA_PROCESSOR_GENERIC_ERROR_SECTION(errorStructAddr, errorStructOffset, bytesRemaining);
+                    ProcessorError = new WHEA_PROCESSOR_GENERIC_ERROR_SECTION(recordAddr, errorStructOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_TYPE.Memory:
-                    MemoryError = new WHEA_MEMORY_ERROR_SECTION(sectionAddr + 64, errorStructOffset, bytesRemaining);
+                    MemoryError = new WHEA_MEMORY_ERROR_SECTION(sectionAddr, errorStructOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_TYPE.NMI:
-                    NmiError = Marshal.PtrToStructure<WHEA_NMI_ERROR_SECTION>(errorStructAddr);
+                    NmiError = Marshal.PtrToStructure<WHEA_NMI_ERROR_SECTION>(recordAddr + (int)errorStructOffset);
                     break;
                 case WHEA_ERROR_TYPE.PCIExpress:
-                    PciExpressError = new WHEA_PCIEXPRESS_ERROR_SECTION(errorStructAddr, errorStructOffset, bytesRemaining);
+                    PciExpressError = new WHEA_PCIEXPRESS_ERROR_SECTION(recordAddr, errorStructOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_TYPE.PCIXBus:
-                    PciXBusError = Marshal.PtrToStructure<WHEA_PCIXBUS_ERROR_SECTION>(errorStructAddr);
+                    PciXBusError = Marshal.PtrToStructure<WHEA_PCIXBUS_ERROR_SECTION>(recordAddr + (int)errorStructOffset);
                     break;
                 case WHEA_ERROR_TYPE.PCIXDevice:
-                    PciXDeviceError = new WHEA_PCIXDEVICE_ERROR_SECTION(errorStructAddr, errorStructOffset, bytesRemaining);
+                    PciXDeviceError = new WHEA_PCIXDEVICE_ERROR_SECTION(recordAddr, errorStructOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_TYPE.Pmem:
-                    PmemError = new WHEA_PMEM_ERROR_SECTION(errorStructAddr, errorStructOffset, bytesRemaining);
+                    PmemError = new WHEA_PMEM_ERROR_SECTION(recordAddr, errorStructOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_TYPE.Generic: // TODO: No associated error section?
                     break;
