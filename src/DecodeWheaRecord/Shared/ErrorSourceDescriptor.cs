@@ -22,7 +22,7 @@ namespace DecodeWheaRecord.Shared {
         public override uint GetNativeSize() => Length;
 
         // Structure size is static
-        private const byte ExpectedLength = 32;
+        private const uint ExpectedLength = 972;
 
         /*
          * The Windows headers also define a version 11 but it's not clear if
@@ -159,42 +159,42 @@ namespace DecodeWheaRecord.Shared {
             PlatformErrorSourceId = (uint)Marshal.ReadInt32(structAddr, 32);
             _Flags = (WHEA_ERROR_SOURCE_FLAGS)Marshal.ReadInt32(structAddr, 36);
 
+            structOffset += 40;
             bytesRemaining -= 40;
-            const uint descriptorStructOffset = 40;
 
             // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
             switch (_Type) {
                 case WHEA_ERROR_SOURCE_TYPE.MCE:
-                    XpfMceDescriptor = new WHEA_XPF_MCE_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
+                    XpfMceDescriptor = new WHEA_XPF_MCE_DESCRIPTOR(recordAddr, structOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.CMC:
-                    XpfCmcDescriptor = new WHEA_XPF_CMC_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
+                    XpfCmcDescriptor = new WHEA_XPF_CMC_DESCRIPTOR(recordAddr, structOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.NMI:
-                    XpfNmiDescriptor = new WHEA_XPF_NMI_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
+                    XpfNmiDescriptor = new WHEA_XPF_NMI_DESCRIPTOR(recordAddr, structOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.IPFMCA:
-                    IpfMcaDescriptor = new WHEA_IPF_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
+                    IpfMcaDescriptor = new WHEA_IPF_DESCRIPTOR(recordAddr, structOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.IPFCMC:
-                    IpfCmcDescriptor = new WHEA_IPF_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
+                    IpfCmcDescriptor = new WHEA_IPF_DESCRIPTOR(recordAddr, structOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.IPFCPE:
-                    IpfCpeDescriptor = new WHEA_IPF_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
+                    IpfCpeDescriptor = new WHEA_IPF_DESCRIPTOR(recordAddr, structOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.PCIe:
-                    _DescriptorType = (WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE)Marshal.ReadInt16(recordAddr, (int)descriptorStructOffset);
+                    _DescriptorType = (WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE)Marshal.ReadInt16(recordAddr, (int)structOffset);
 
                     // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
                     switch (_DescriptorType) {
                         case WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerRootPort:
-                            AerRootportDescriptor = new WHEA_AER_ROOTPORT_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
+                            AerRootportDescriptor = new WHEA_AER_ROOTPORT_DESCRIPTOR(recordAddr, structOffset, bytesRemaining);
                             break;
                         case WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerEndpoint:
-                            AerEndpointDescriptor = new WHEA_AER_ENDPOINT_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
+                            AerEndpointDescriptor = new WHEA_AER_ENDPOINT_DESCRIPTOR(recordAddr, structOffset, bytesRemaining);
                             break;
                         case WHEA_ERROR_SOURCE_DESCRIPTOR_TYPE.AerBridge:
-                            AerBridgeDescriptor = new WHEA_AER_BRIDGE_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
+                            AerBridgeDescriptor = new WHEA_AER_BRIDGE_DESCRIPTOR(recordAddr, structOffset, bytesRemaining);
                             break;
                         default:
                             throw new InvalidDataException($"{Type} is PCIe but error source descriptor type is not a valid PCIe type: {DescriptorType}");
@@ -202,13 +202,13 @@ namespace DecodeWheaRecord.Shared {
 
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.Generic:
-                    GenErrDescriptor = new WHEA_GENERIC_ERROR_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
+                    GenErrDescriptor = new WHEA_GENERIC_ERROR_DESCRIPTOR(recordAddr, structOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.GenericV2:
-                    GenErrDescriptorV2 = new WHEA_GENERIC_ERROR_DESCRIPTOR_V2(recordAddr, descriptorStructOffset, bytesRemaining);
+                    GenErrDescriptorV2 = new WHEA_GENERIC_ERROR_DESCRIPTOR_V2(recordAddr, structOffset, bytesRemaining);
                     break;
                 case WHEA_ERROR_SOURCE_TYPE.DeviceDriver:
-                    DeviceDriverDescriptor = new WHEA_DEVICE_DRIVER_DESCRIPTOR(recordAddr, descriptorStructOffset, bytesRemaining);
+                    DeviceDriverDescriptor = new WHEA_DEVICE_DRIVER_DESCRIPTOR(recordAddr, structOffset, bytesRemaining);
                     break;
                 default:
                     throw new InvalidDataException($"{nameof(Type)} is unknown or invalid: {Type}");
@@ -990,10 +990,10 @@ namespace DecodeWheaRecord.Shared {
         private uint _StructSize;
         public override uint GetNativeSize() => _StructSize;
 
-        // Size of the entire structure assuming 32-bit pointer size
+        // Structure size with 32-bit pointers
         private const uint StructSizePtr32 = 92;
 
-        // Size of the entire structure assuming 64-bit pointer size
+        // Structure size with 64-bit pointers
         private const uint StructSizePtr64 = 112;
 
         // Switched to an enumeration

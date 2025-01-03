@@ -1,14 +1,11 @@
 using System;
 using System.Diagnostics;
-using System.Numerics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 
 using DecodeWheaRecord.Errors;
 using DecodeWheaRecord.Events;
-using DecodeWheaRecord.Hardware;
-using DecodeWheaRecord.Internal;
 
 using Newtonsoft.Json;
 
@@ -35,7 +32,7 @@ namespace DecodeWheaRecord {
             switch (signature) {
                 case WHEA_EVENT_LOG_ENTRY_HEADER.WHEA_ERROR_LOG_ENTRY_SIGNATURE:
                     DebugOutput($"Found signature: {signature}");
-                    var eventLogEntry = new WHEA_EVENT_LOG_ENTRY(recordBytes);
+                    var eventLogEntry = new WHEA_EVENT_LOG_ENTRY(recordAddr, (uint)recordBytes.Length);
                     Console.Out.WriteLine(JsonConvert.SerializeObject(eventLogEntry, Formatting.Indented));
                     break;
                 case WHEA_ERROR_RECORD_HEADER.WHEA_ERROR_RECORD_SIGNATURE:
@@ -48,7 +45,7 @@ namespace DecodeWheaRecord {
                     break;
             }
 
-            //_recordHandle.Free();
+            recordHandle.Free();
 
             /*
             var remainingBytes = _recordBytes.Length - _recordOffset;

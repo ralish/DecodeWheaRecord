@@ -8,15 +8,15 @@ using System.Runtime.InteropServices;
 
 using Newtonsoft.Json;
 
-namespace DecodeWheaRecord.Events {
+namespace DecodeWheaRecord.Events.Software {
     /*
      * Module:          AzPshedPi.sys
      * Version:         11.0.2404.15001
      * Function(s):     PshedPipLogRegistryKeyNotificationFailedEvent
+     * Notes:           No payload
      */
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_REGISTER_KEY_NOTIFICATION_FAILED_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_REGISTER_KEY_NOTIFICATION_FAILED_EVENT>(); // 0 bytes
+    internal sealed class WHEA_REGISTER_KEY_NOTIFICATION_FAILED_EVENT : IWheaRecord {
+        public uint GetNativeSize() => 0;
     }
 
     /*
@@ -25,8 +25,8 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     WheapOpenPolicyRegistryKey
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_REGISTRY_ERROR_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_REGISTRY_ERROR_EVENT>(); // 8 bytes
+    internal sealed class WHEA_REGISTRY_ERROR_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_REGISTRY_ERROR_EVENT>(); // 8 bytes
 
         private WHEA_REGISTRY_ERRORS _RegErr;
 
@@ -34,7 +34,7 @@ namespace DecodeWheaRecord.Events {
         public string RegErr => Enum.GetName(typeof(WHEA_REGISTRY_ERRORS), _RegErr);
 
         [JsonProperty(Order = 2)]
-        public uint Status;
+        public uint Status; // TODO: Probably NTSTATUS?
     }
 
     /*
@@ -43,8 +43,8 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     WheaRegChangeNotifyCallback
      */
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    internal sealed class WHEA_REGNOTIFY_POLICY_CHANGE_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_REGNOTIFY_POLICY_CHANGE_EVENT>(); // 40 bytes
+    internal sealed class WHEA_REGNOTIFY_POLICY_CHANGE_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_REGNOTIFY_POLICY_CHANGE_EVENT>(); // 40 bytes
 
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
         public string PolicyName;
@@ -59,8 +59,8 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     PshedPipLogThrottlingRegistryDataBeingIgnoredEvent
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_THROTTLE_REG_DATA_IGNORED_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_THROTTLE_REG_DATA_IGNORED_EVENT>(); // 4 bytes
+    internal sealed class WHEA_THROTTLE_REG_DATA_IGNORED_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_THROTTLE_REG_DATA_IGNORED_EVENT>(); // 4 bytes
 
         private WHEA_THROTTLE_TYPE _ThrottleType;
 
@@ -74,12 +74,28 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     PshedPipLogThrottlingRegistryCorruptEvent
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_THROTTLE_REGISTRY_CORRUPT_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_THROTTLE_REGISTRY_CORRUPT_EVENT>(); // 4 bytes
+    internal sealed class WHEA_THROTTLE_REGISTRY_CORRUPT_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_THROTTLE_REGISTRY_CORRUPT_EVENT>(); // 4 bytes
 
         private WHEA_THROTTLE_TYPE _ThrottleType;
 
         [JsonProperty(Order = 1)]
         public string ThrottleType => Enum.GetName(typeof(WHEA_THROTTLE_TYPE), _ThrottleType);
     }
+
+    // @formatter:int_align_fields true
+
+    internal enum WHEA_REGISTRY_ERRORS : uint {
+        None            = 0,
+        CreateWheaKey   = 1,
+        CreatePolicyKey = 2,
+        OpenHandle      = 3
+    }
+
+    internal enum WHEA_THROTTLE_TYPE : uint {
+        Pcie   = 0,
+        Memory = 1
+    }
+
+    // @formatter:int_align_fields false
 }

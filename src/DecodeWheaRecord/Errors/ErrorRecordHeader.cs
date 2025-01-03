@@ -175,7 +175,7 @@ namespace DecodeWheaRecord.Errors {
                 }
 
                 WarnOutput(msg, SectionType.Name);
-                WarnOutput("Error record may be incorrectly and/or partially decoded.", SectionType.Name);
+                WarnOutput("Error record may be corrupt or incorrectly and/or partially decoded.", SectionType.Name);
             }
 
             _Timestamp = Marshal.PtrToStructure<WHEA_TIMESTAMP>(recordAddr + 24);

@@ -4,6 +4,8 @@
 // ReSharper disable InconsistentNaming
 
 using System;
+using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 using DecodeWheaRecord.Hardware;
@@ -14,17 +16,16 @@ using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.Utilities;
-
-namespace DecodeWheaRecord.Events {
+namespace DecodeWheaRecord.Events.Hardware {
     /*
      * Module:          AzPshedPi.sys
      * Version:         11.0.2404.15001
      * Function(s):     PshedPipLogAddPcieDeviceFilterEvent
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_THROTTLE_PCIE_ADD_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_THROTTLE_PCIE_ADD_EVENT>(); // 25 bytes
+    internal sealed class WHEA_THROTTLE_PCIE_ADD_EVENT : WheaRecord {
+        private const uint StructSize = 25;
+        public override uint GetNativeSize() => StructSize;
 
         [JsonProperty(Order = 1)]
         public WHEA_PCIE_ADDRESS Address;
@@ -34,13 +35,24 @@ namespace DecodeWheaRecord.Events {
         public uint Mask;
 
         [JsonProperty(Order = 3)]
-        [MarshalAs(UnmanagedType.U1)]
         public bool Updated;
 
-        private NtStatus _Status;
+        private readonly NtStatus _Status;
 
         [JsonProperty(Order = 4)]
         public string Status => Enum.GetName(typeof(NtStatus), _Status);
+
+        public WHEA_THROTTLE_PCIE_ADD_EVENT(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEA_THROTTLE_PCIE_ADD_EVENT), structOffset, StructSize, bytesRemaining) {
+            var structAddr = recordAddr + (int)structOffset;
+
+            Address = new WHEA_PCIE_ADDRESS(recordAddr, structOffset, bytesRemaining);
+            Mask = (uint)Marshal.ReadInt32(structAddr, 16);
+            Updated = Marshal.ReadByte(structAddr, 20) != 0;
+            _Status = (NtStatus)Marshal.ReadInt32(structAddr, 21);
+
+            FinalizeRecord(recordAddr, StructSize);
+        }
     }
 
     /*
@@ -49,11 +61,24 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     PshedPipLogRemovePcieDeviceFilterEvent
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_THROTTLE_PCIE_REMOVE_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_THROTTLE_PCIE_REMOVE_EVENT>(); // 20 bytes
+    internal sealed class WHEA_THROTTLE_PCIE_REMOVE_EVENT : WheaRecord {
+        private const uint StructSize = 20;
+        public override uint GetNativeSize() => StructSize;
+
+        public WHEA_PCIE_ADDRESS Address;
 
         [JsonConverter(typeof(HexStringJsonConverter))]
         public uint Mask;
+
+        public WHEA_THROTTLE_PCIE_REMOVE_EVENT(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEA_THROTTLE_PCIE_REMOVE_EVENT), structOffset, StructSize, bytesRemaining) {
+            var structAddr = recordAddr + (int)structOffset;
+
+            Address = new WHEA_PCIE_ADDRESS(recordAddr, structOffset, bytesRemaining);
+            Mask = (uint)Marshal.ReadInt32(structAddr, 16);
+
+            FinalizeRecord(recordAddr, StructSize);
+        }
     }
 
     /*
@@ -62,8 +87,8 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     ExpressRootPortRecoveryReset
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_DPC_ERROR_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_DPC_ERROR_EVENT>(); // 20 bytes
+    internal sealed class WHEAP_DPC_ERROR_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_DPC_ERROR_EVENT>(); // 20 bytes
 
         private WHEAP_DPC_ERROR_EVENT_TYPE _ErrType;
 
@@ -92,8 +117,8 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     PciGetSystemWideHackFlagsFromRegistry
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_EDPC_ENABLED_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_EDPC_ENABLED_EVENT>(); // 2 bytes
+    internal sealed class WHEAP_EDPC_ENABLED_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_EDPC_ENABLED_EVENT>(); // 2 bytes
 
         [MarshalAs(UnmanagedType.U1)]
         public bool eDPCEnabled;
@@ -108,8 +133,8 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     PshedPipDoPcieConfig
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_PCIE_CONFIG_INFO : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_PCIE_CONFIG_INFO>(); // 36 bytes
+    internal sealed class WHEAP_PCIE_CONFIG_INFO : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PCIE_CONFIG_INFO>(); // 36 bytes
 
         public uint Segment;
         public uint Bus;
@@ -122,14 +147,14 @@ namespace DecodeWheaRecord.Events {
         public ulong Value;
 
         [MarshalAs(UnmanagedType.U1)]
-        public bool Succeeded; // Changed from byte
+        public bool Succeeded; // UINT8
 
         [JsonConverter(typeof(HexStringJsonConverter))]
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
         public byte[] Reserved;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public bool ShouldSerializeReserved() => Reserved.Any(element => element != 0);
     }
 
     /*
@@ -138,8 +163,8 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     PshedPipReadPcieAerOverrides
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_PCIE_OVERRIDE_INFO : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_PCIE_OVERRIDE_INFO>(); // 36 bytes
+    internal sealed class WHEAP_PCIE_OVERRIDE_INFO : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PCIE_OVERRIDE_INFO>(); // 36 bytes
 
         public uint Segment;
         public uint Bus;
@@ -162,7 +187,7 @@ namespace DecodeWheaRecord.Events {
         public uint CapAndControl;
 
         [UsedImplicitly]
-        public static bool ShouldSerializeReserved() => IsDebugBuild();
+        public bool ShouldSerializeReserved() => Reserved.Any(element => element != 0);
     }
 
     /*
@@ -171,8 +196,8 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     PshedPipReadPcieAerOverrides
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_PCIE_READ_OVERRIDES_ERR : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_PCIE_READ_OVERRIDES_ERR>(); // 8 bytes
+    internal sealed class WHEAP_PCIE_READ_OVERRIDES_ERR : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PCIE_READ_OVERRIDES_ERR>(); // 8 bytes
 
         private PSHED_PI_ERR_READING_PCIE_OVERRIDES _FailureReason;
 
@@ -191,8 +216,8 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     PciPromoteAerError
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_PROMOTED_AER_ERROR_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_PROMOTED_AER_ERROR_EVENT>(); // 24 bytes
+    internal sealed class WHEAP_PROMOTED_AER_ERROR_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PROMOTED_AER_ERROR_EVENT>(); // 24 bytes
 
         private WHEA_ERROR_SEVERITY _ErrorSeverity;
 
@@ -222,15 +247,17 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     PciWheaReportSpuriousError
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_SPURIOUS_AER_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_SPURIOUS_AER_EVENT>(); // 24 bytes
+    internal sealed class WHEAP_SPURIOUS_AER_EVENT : WheaRecord {
+        private const uint StructSize = 24;
+        public override uint GetNativeSize() => StructSize;
 
-        private WHEA_ERROR_SEVERITY _ErrorSeverity;
+        private readonly WHEA_ERROR_SEVERITY _ErrorSeverity;
 
         [JsonProperty(Order = 1)]
         public string ErrorSeverity => Enum.GetName(typeof(WHEA_ERROR_SEVERITY), _ErrorSeverity);
 
-        private PCI_EXPRESS_DEVICE_TYPE _ErrorHandlerType; // WHEA_PCIEXPRESS_DEVICE_TYPE
+        // Switched to an enumeration
+        private readonly PCI_EXPRESS_DEVICE_TYPE _ErrorHandlerType; // WHEA_PCIEXPRESS_DEVICE_TYPE
 
         [JsonProperty(Order = 2)]
         public string ErrorHandlerType => Enum.GetName(typeof(PCI_EXPRESS_DEVICE_TYPE), _ErrorHandlerType);
@@ -248,14 +275,29 @@ namespace DecodeWheaRecord.Events {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public uint DeviceAssociationBitmap;
 
-        // TODO: Do this in a constructor?
-        public override void Validate() {
+        public WHEAP_SPURIOUS_AER_EVENT(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEAP_SPURIOUS_AER_EVENT), structOffset, StructSize, bytesRemaining) {
+            var structAddr = recordAddr + (int)structOffset;
+
+            _ErrorSeverity = (WHEA_ERROR_SEVERITY)Marshal.ReadInt32(structAddr);
+            _ErrorHandlerType = (PCI_EXPRESS_DEVICE_TYPE)Marshal.ReadInt32(structAddr, 4);
+
             if (_ErrorHandlerType != PCI_EXPRESS_DEVICE_TYPE.RootPort &&
                 _ErrorHandlerType != PCI_EXPRESS_DEVICE_TYPE.DownstreamSwitchPort &&
                 _ErrorHandlerType != PCI_EXPRESS_DEVICE_TYPE.RootComplexEventCollector) {
-                var cat = $"{nameof(WHEAP_SPURIOUS_AER_EVENT)}.{nameof(ErrorHandlerType)}";
-                DebugOutput("Not RootPort, DownstreamSwitchPort, or RootComplexEventCollector.", cat);
+                var devTypeRp = Enum.GetName(typeof(PCI_EXPRESS_DEVICE_TYPE), PCI_EXPRESS_DEVICE_TYPE.RootPort);
+                var devTypeDsp = Enum.GetName(typeof(PCI_EXPRESS_DEVICE_TYPE), PCI_EXPRESS_DEVICE_TYPE.DownstreamSwitchPort);
+                var devTypeRcec = Enum.GetName(typeof(PCI_EXPRESS_DEVICE_TYPE), PCI_EXPRESS_DEVICE_TYPE.RootComplexEventCollector);
+                var msg = $"{nameof(ErrorHandlerType)} is not valid for the event: {ErrorHandlerType} != ({devTypeRp} || {devTypeDsp} || {devTypeRcec})";
+                throw new InvalidDataException(msg);
             }
+
+            SpuriousErrorSourceId = (uint)Marshal.ReadInt32(structAddr, 8);
+            RootErrorCommand = (uint)Marshal.ReadInt32(structAddr, 12);
+            RootErrorStatus = (uint)Marshal.ReadInt32(structAddr, 16);
+            DeviceAssociationBitmap = (uint)Marshal.ReadInt32(structAddr, 20);
+
+            FinalizeRecord(recordAddr, StructSize);
         }
     }
 

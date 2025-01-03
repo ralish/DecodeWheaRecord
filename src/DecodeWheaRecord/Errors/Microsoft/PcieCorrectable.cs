@@ -51,7 +51,6 @@ namespace DecodeWheaRecord.Errors.Microsoft {
                 }
 
                 Devices = new WHEA_PCIE_CORRECTABLE_ERROR_DEVICES[Header.Count];
-
                 for (var i = 0; i < Header.Count; i++) {
                     Devices[i] = Marshal.PtrToStructure<WHEA_PCIE_CORRECTABLE_ERROR_DEVICES>(sectionAddr + (int)offset);
                     offset += elementSize;

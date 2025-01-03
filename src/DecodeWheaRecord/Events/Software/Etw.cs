@@ -8,10 +8,10 @@ using DecodeWheaRecord.Internal;
 
 using Newtonsoft.Json;
 
-namespace DecodeWheaRecord.Events {
+namespace DecodeWheaRecord.Events.Software {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_ETW_OVERFLOW_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_ETW_OVERFLOW_EVENT>();
+    internal sealed class WHEA_ETW_OVERFLOW_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_ETW_OVERFLOW_EVENT>(); // 8 bytes
 
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong RecordId;

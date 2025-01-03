@@ -13,15 +13,12 @@ using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 
-using static DecodeWheaRecord.Utilities;
-
 namespace DecodeWheaRecord.Events.Hardware {
     /*
      * Module:          pshed.dll
      * Version:         10.0.26100.1150
      * Function(s):     PshedpLogGasErrorEvent
      */
-    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_GAS_ERROR_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_GAS_ERROR_EVENT>(); // 4 bytes
@@ -39,7 +36,6 @@ namespace DecodeWheaRecord.Events.Hardware {
      *                  PshedpInjectErrorEINJ
      *                  PshedpReadErrorRecordERST
      */
-    // TODO
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
     internal sealed class WHEAP_ACPI_TIMEOUT_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_ACPI_TIMEOUT_EVENT>(); // 64 bytes
@@ -62,7 +58,6 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.1150
      * Function(s):     PshedpInitXPFCMCErrorSource
      */
-    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_BAD_HEST_NOTIFY_DATA_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_BAD_HEST_NOTIFY_DATA_EVENT>(); // 32 bytes
@@ -83,7 +78,6 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.1150
      * Function(s):     PshedpValidateErrorSourceArray
      */
-    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_ERR_SRC_ARRAY_INVALID_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_ERR_SRC_ARRAY_INVALID_EVENT>(); // 12 bytes
@@ -98,32 +92,22 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.1150
      * Function(s):     PshedpValidateErrorSource
      */
-    // TODO
-    internal sealed class WHEAP_ERR_SRC_INVALID_EVENT : WheaStruct {
-        private readonly int _NativeSize;
-        internal override int GetNativeSize() => _NativeSize; // TODO: Static 1004 bytes?
+    internal sealed class WHEAP_ERR_SRC_INVALID_EVENT : WheaRecord {
+        private const uint StructSize = 1004;
+        public override uint GetNativeSize() => StructSize;
 
-        [JsonProperty(Order = 1)]
         public WHEA_ERROR_SOURCE_DESCRIPTOR ErrDescriptor;
-
-        [JsonProperty(Order = 2)]
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
         public string Error;
 
-        /*
-        public WHEAP_ERR_SRC_INVALID_EVENT(IntPtr recordAddr, int initialOffset) {
-            DebugBeforeDecode(typeof(WHEAP_ERR_SRC_INVALID_EVENT), initialOffset);
+        public WHEAP_ERR_SRC_INVALID_EVENT(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEAP_ERR_SRC_INVALID_EVENT), structOffset, StructSize, bytesRemaining) {
+            var structAddr = recordAddr + (int)structOffset;
 
-            ErrDescriptor = new WHEA_ERROR_SOURCE_DESCRIPTOR(recordAddr, 0);
-            var offset = ErrDescriptor.GetNativeSize();
+            ErrDescriptor = new WHEA_ERROR_SOURCE_DESCRIPTOR(recordAddr, structOffset, bytesRemaining);
+            Error = Marshal.PtrToStringAnsi(structAddr + 972, Shared.WHEA_ERROR_TEXT_LEN);
 
-            Error = Marshal.PtrToStringAnsi(recordAddr + offset, Shared.WHEA_ERROR_TEXT_LEN);
-            offset += Shared.WHEA_ERROR_TEXT_LEN;
-
-            _NativeSize = offset;
-            DebugAfterDecode(typeof(WHEAP_ERR_SRC_INVALID_EVENT), offset, _NativeSize);
+            FinalizeRecord(recordAddr, StructSize);
         }
-        */
     }
 
     /*
@@ -131,7 +115,6 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.1150
      * Function(s):     PshedpIsWheaOscImplemented
      */
-    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_OSC_IMPLEMENTED : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_OSC_IMPLEMENTED>(); // 2 bytes
@@ -148,7 +131,6 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.1150
      * Function(s):     PshedpProcessEINJ
      */
-    // TODO
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
     internal sealed class WHEAP_PROCESS_EINJ_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PROCESS_EINJ_EVENT>(); // 73 bytes
@@ -199,7 +181,6 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.1150
      * Function(s):     PshedpProcessHEST
      */
-    // TODO
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
     internal sealed class WHEAP_PROCESS_HEST_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PROCESS_HEST_EVENT>(); // 101 bytes
@@ -251,10 +232,10 @@ namespace DecodeWheaRecord.Events.Hardware {
     // @formatter:int_align_fields true
 
     internal enum WHEA_GAS_ERRORS : uint {
-        None = 0,
+        None                     = 0,
         UnexpectedAddressSpaceId = 1,
-        InvalidStructFields = 2,
-        InvalidAccessSize = 3
+        InvalidStructFields      = 2,
+        InvalidAccessSize        = 3
     }
 
     // @formatter:int_align_fields false

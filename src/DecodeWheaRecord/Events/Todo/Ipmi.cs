@@ -6,9 +6,10 @@
 using System;
 using System.Runtime.InteropServices;
 
-using DecodeWheaRecord.Events.Hardware;
 using DecodeWheaRecord.Internal;
 using DecodeWheaRecord.Shared;
+using DecodeWheaRecord.Events.Hardware;
+using DecodeWheaRecord.Events.Software;
 
 using JetBrains.Annotations;
 
@@ -16,7 +17,7 @@ using Newtonsoft.Json;
 
 using static DecodeWheaRecord.Utilities;
 
-namespace DecodeWheaRecord.Events {
+namespace DecodeWheaRecord.Events.Todo {
     /*
      * Module:          crashdmp.sys
      * Version:         10.0.26100.1882
@@ -45,19 +46,6 @@ namespace DecodeWheaRecord.Events {
 
         [JsonProperty(Order = 2)]
         public string Status => Enum.GetName(typeof(NtStatus), _Status);
-    }
-
-    /*
-     * Module:          ntoskrnl.exe
-     * Version:         10.0.26100.2314
-     * Function(s):     IoSaveBugCheckProgress
-     */
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_SEL_BUGCHECK_PROGRESS : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_SEL_BUGCHECK_PROGRESS>(); // 8 bytes
-
-        public uint BugCheckCode;
-        public uint BugCheckProgressSummary;
     }
 
     /*

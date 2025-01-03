@@ -198,7 +198,7 @@ namespace DecodeWheaRecord.Errors.Microsoft {
             Cpu = (ulong)Marshal.ReadInt64(sectionAddr, 56);
 
             bytesRemaining -= 64;
-            const uint errorStructOffset = 64;
+            var errorStructOffset = sectionDsc.SectionOffset + 64;
 
             switch (_ErrorType) {
                 case WHEA_ERROR_TYPE.Processor:

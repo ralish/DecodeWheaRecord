@@ -11,33 +11,15 @@ using DecodeWheaRecord.Shared;
 
 using Newtonsoft.Json;
 
-namespace DecodeWheaRecord.Events {
-    /*
-     * TODO
-     * PshedpLogRegistrationCollision (PshedCallbackCollision, 64 byte payload)
-     */
-
-
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    internal sealed class WHEA_PSHED_PI_TRACE_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_PSHED_PI_TRACE_EVENT>();
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
-        private string _Buffer;
-
-        [JsonProperty(Order = 1)]
-        public string Buffer => _Buffer.Trim('\0');
-    }
-
+namespace DecodeWheaRecord.Events.Software {
     /*
      * Module:          AzPshedPi.sys
      * Version:         11.0.2404.15001
      * Function(s):     PshedPipLogEnableRegistryKeyNotifyFailedEvent
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_PSHED_PLUGIN_ENABLE_NOTIFY_FAILED_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_PSHED_PLUGIN_ENABLE_NOTIFY_FAILED_EVENT>(); // 4 bytes
+    internal sealed class WHEA_PSHED_PLUGIN_ENABLE_NOTIFY_FAILED_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_PSHED_PLUGIN_ENABLE_NOTIFY_FAILED_EVENT>(); // 4 bytes
 
         private WHEA_PSHED_PLUGIN_ENABLE_NOTIFY_ERRORS _EnableError;
 
@@ -49,11 +31,9 @@ namespace DecodeWheaRecord.Events {
      * Module:          AzPshedPi.sys
      * Version:         11.0.2404.15001
      * Function(s):     PshedPipHeartbeatDeferredRoutine
+     * Notes:           No payload
      */
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_PSHED_PLUGIN_HEARTBEAT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_PSHED_PLUGIN_HEARTBEAT>(); // 0 bytes
-    }
+    internal sealed class WHEA_PSHED_PLUGIN_HEARTBEAT { }
 
     /*
      * Module:          AzPshedPi.sys
@@ -61,8 +41,8 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     PshedPipLogInitFailedEvent
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_PSHED_PLUGIN_INIT_FAILED_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_PSHED_PLUGIN_INIT_FAILED_EVENT>(); // 4 bytes
+    internal sealed class WHEA_PSHED_PLUGIN_INIT_FAILED_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_PSHED_PLUGIN_INIT_FAILED_EVENT>(); // 4 bytes
 
         private NtStatus _Status;
 
@@ -76,8 +56,8 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     PshedPipLogLoadEvent
      */
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode, Pack = 1)]
-    internal sealed class WHEA_PSHED_PLUGIN_LOAD_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_PSHED_PLUGIN_LOAD_EVENT>(); // 72 bytes
+    internal sealed class WHEA_PSHED_PLUGIN_LOAD_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_PSHED_PLUGIN_LOAD_EVENT>(); // 72 bytes
 
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
         private string _PluginName;
@@ -98,8 +78,8 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     PshedPipLogPlatformSupportedEvent
      */
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode, Pack = 1)]
-    internal sealed class WHEA_PSHED_PLUGIN_PLATFORM_SUPPORT_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_PSHED_PLUGIN_PLATFORM_SUPPORT_EVENT>(); // 65 bytes
+    internal sealed class WHEA_PSHED_PLUGIN_PLATFORM_SUPPORT_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_PSHED_PLUGIN_PLATFORM_SUPPORT_EVENT>(); // 65 bytes
 
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
         private string _PluginName;
@@ -118,9 +98,27 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     PshedPipLogUnloadEvent
      */
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode, Pack = 1)]
-    internal sealed class WHEA_PSHED_PLUGIN_UNLOAD_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_PSHED_PLUGIN_UNLOAD_EVENT>(); // 64 bytes
+    internal sealed class WHEA_PSHED_PLUGIN_UNLOAD_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_PSHED_PLUGIN_UNLOAD_EVENT>(); // 64 bytes
 
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
+        private string _PluginName;
+
+        [JsonProperty(Order = 1)]
+        public string PluginName => _PluginName.Trim('\0');
+    }
+
+    /*
+     * Module:          AzPshedPi.sys
+     * Version:         11.0.2404.15001
+     * Function(s):     PshedpLogRegistrationCollision
+     */
+    // TODO
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode, Pack = 1)]
+    internal sealed class WHEA_PSHED_PLUGIN_CALLBACK_COLLISION : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_PSHED_PLUGIN_CALLBACK_COLLISION>(); // 64 bytes
+
+        // 
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
         private string _PluginName;
 
@@ -134,8 +132,8 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     PshedInjectError
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_PSHED_INJECT_ERROR : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_PSHED_INJECT_ERROR>(); // 42 bytes
+    internal sealed class WHEAP_PSHED_INJECT_ERROR : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PSHED_INJECT_ERROR>(); // 42 bytes
 
         [JsonProperty(Order = 1)]
         public uint ErrorType;
@@ -176,14 +174,22 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     PshedRegisterPlugin
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_PSHED_PLUGIN_REGISTER : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_PSHED_PLUGIN_REGISTER>(); // 16 bytes
+    internal sealed class WHEAP_PSHED_PLUGIN_REGISTER : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PSHED_PLUGIN_REGISTER>(); // 16 bytes
 
+        /*
+         * Version of the WHEA_PSHED_PLUGIN_REGISTRATION_PACKET structure used
+         * to register the PSHED plugin (not the version of this structure).
+         */
         [JsonProperty(Order = 1)]
-        public uint Version; // TODO: Validate
+        public uint Version;
 
+        /*
+         * Length of the WHEA_PSHED_PLUGIN_REGISTRATION_PACKET structure used
+         * to register the PSHED plugin (not the length of this structure).
+         */
         [JsonProperty(Order = 2)]
-        public uint Length; // TODO: Description & validation
+        public uint Length;
 
         [JsonProperty(Order = 3)]
         [JsonConverter(typeof(HexStringJsonConverter))]

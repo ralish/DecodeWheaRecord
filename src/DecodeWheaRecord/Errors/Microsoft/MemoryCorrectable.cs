@@ -49,7 +49,6 @@ namespace DecodeWheaRecord.Errors.Microsoft {
                 }
 
                 Data = new WHEA_MEMORY_CORRECTABLE_ERROR_DATA[Header.Count];
-
                 for (var i = 0; i < Header.Count; i++) {
                     Data[i] = Marshal.PtrToStructure<WHEA_MEMORY_CORRECTABLE_ERROR_DATA>(sectionAddr + (int)offset);
                     offset += elementSize;

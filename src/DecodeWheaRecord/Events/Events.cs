@@ -39,7 +39,6 @@ namespace DecodeWheaRecord.Events {
      * PshedPiHsxFindRootBusNumbers -> AzccRootBusSearchErr
      * PshedPipReportAllPcieErrorSummary -> PcieSummaryFailed (25 bytes)
      * PshedPipWriteSelEvent -> ??? (16 bytes)
-     * WheapLogSRASTableBadDataEvent -> SrasTableBadData (0 bytes)
      */
 
 
@@ -61,44 +60,12 @@ namespace DecodeWheaRecord.Events {
     #region WHEA Event Log Entry: Constants
 
     internal static class Shared {
-        internal const int WCS_RAS_REGISTER_NAME_MAX_LENGTH = 32;
         internal const int WHEA_ERROR_TEXT_LEN = 32;
     }
 
     #endregion
 
-    #region WHEA Event Log Entry: Enumerations
-
-    // @formatter:int_align_fields true
-
-    internal enum WHEA_REGISTRY_ERRORS : uint {
-        None                    = 0,
-        FailedToCreateWheaKey   = 1,
-        FailedToCreatePolicyKey = 2,
-        FailedToOpenHandle      = 3
-    }
-
-    internal enum WHEA_THROTTLE_TYPE : uint {
-        Pcie   = 0,
-        Memory = 1
-    }
-
-    // @formatter:int_align_fields false
-
-    #endregion
-
     #region WHEA Event Log Entry: Structures
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_AZCC_ROOT_BUS_ERR_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_AZCC_ROOT_BUS_ERR_EVENT>();
-
-        [MarshalAs(UnmanagedType.U1)]
-        public bool MaxBusCountPassed;
-
-        [MarshalAs(UnmanagedType.U1)]
-        public bool InvalidBusMSR;
-    }
 
     /*
      * Module:          ntoskrnl.exe
@@ -126,138 +93,6 @@ namespace DecodeWheaRecord.Events {
         public bool KernelConsumerError;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_ACPI_HEADER {
-        public uint Signature;
-        public uint Length;
-        public byte Revision;
-        public byte Checksum;
-
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
-        public byte[] OemId;
-
-        public ulong OemTableId;
-        public uint OemRevision;
-        public uint CreatorId;
-        public uint CreatorRevision;
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class SIGNAL_REG_VALUE {
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = Shared.WCS_RAS_REGISTER_NAME_MAX_LENGTH)]
-        public byte[] RegName;
-
-        [JsonConverter(typeof(HexStringJsonConverter))]
-        public uint MsrAddr;
-
-        [JsonConverter(typeof(HexStringJsonConverter))]
-        public ulong Value;
-    }
-
-    /*
-     * Cannot be directly marshalled as a structure due to non-static size
-     * resulting from the variable length array member.
-     */
-    internal sealed class EFI_ACPI_RAS_SIGNAL_TABLE : WheaStruct {
-        private int _NativeSize;
-        internal override int GetNativeSize() => _NativeSize;
-
-        [JsonProperty(Order = 1)]
-        public WHEA_ACPI_HEADER Header;
-
-        [JsonProperty(Order = 2)]
-        public uint NumberRecord;
-
-        [JsonProperty(Order = 3)]
-        public SIGNAL_REG_VALUE[] Entries;
-
-        public EFI_ACPI_RAS_SIGNAL_TABLE(IntPtr recordAddr) {
-            Header = Marshal.PtrToStructure<WHEA_ACPI_HEADER>(recordAddr);
-            var offset = Marshal.SizeOf<WHEA_ACPI_HEADER>();
-
-            NumberRecord = (uint)Marshal.ReadInt32(recordAddr, offset);
-            offset += 4;
-
-            if (NumberRecord > 0) {
-                Entries = new SIGNAL_REG_VALUE[NumberRecord];
-                for (var i = 0; i < NumberRecord; i++) {
-                    Entries[i] = Marshal.PtrToStructure<SIGNAL_REG_VALUE>(recordAddr + offset);
-                    offset += Marshal.SizeOf<SIGNAL_REG_VALUE>();
-                }
-            }
-
-            _NativeSize = offset;
-        }
-    }
-
-    /*
-     * Module:          AzPshedPi.sys
-     * Version:         11.0.2404.15001
-     * Function(s):     WheapLogSRASTable
-     *
-     * Cannot be directly marshalled as a structure due to non-static size
-     * resulting from the variable length array member.
-     */
-    internal sealed class WHEA_SRAS_TABLE_ENTRIES_EVENT : WheaStruct {
-        private int _NativeSize;
-        internal override int GetNativeSize() => _NativeSize;
-
-        [JsonProperty(Order = 1)]
-        public uint LogNumber;
-
-        [JsonProperty(Order = 2)]
-        public uint NumberSignals;
-
-        [JsonProperty(Order = 1)]
-        public EFI_ACPI_RAS_SIGNAL_TABLE[] Data;
-
-        public WHEA_SRAS_TABLE_ENTRIES_EVENT(IntPtr recordAddr) {
-            LogNumber = (uint)Marshal.ReadInt32(recordAddr);
-            NumberSignals = (uint)Marshal.ReadInt32(recordAddr, 4);
-            var offset = 8;
-
-            if (NumberSignals > 0) {
-                Data = new EFI_ACPI_RAS_SIGNAL_TABLE[NumberSignals];
-                for (var i = 0; i < NumberSignals; i++) {
-                    Data[i] = new EFI_ACPI_RAS_SIGNAL_TABLE(recordAddr + offset);
-                    offset += Data[i].GetNativeSize();
-                }
-            }
-
-            _NativeSize = offset;
-        }
-    }
-
-    /*
-     * Module:          AzPshedPi.sys
-     * Version:         11.0.2404.15001
-     * Function(s):     WheapLogSRASTableErrorEvent
-     */
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_SRAS_TABLE_ERROR : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_SRAS_TABLE_ERROR>(); // 0 bytes
-    }
-
-    /*
-     * Module:          AzPshedPi.sys
-     * Version:         11.0.2404.15001
-     * Function(s):     WheapLogSRASTableNotFound
-     */
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_SRAS_TABLE_NOT_FOUND : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_SRAS_TABLE_NOT_FOUND>(); // 0 bytes
-    }
-
-    /*
-     * Module:          AzPshedPi.sys
-     * Version:         11.0.2404.15001
-     * Function(s):     PshedPipLogAddErrorSourceFailedEvent
-     */
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_THROTTLE_ADD_ERR_SRC_FAILED_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_THROTTLE_ADD_ERR_SRC_FAILED_EVENT>(); // 0 bytes
-    }
-
     /*
      * Module:          ntoskrnl.exe
      * Version:         10.0.26100.2314
@@ -278,6 +113,7 @@ namespace DecodeWheaRecord.Events {
         [JsonProperty(Order = 3)]
         public bool IsRemove;
 
+        /*
         public WHEAP_ADD_REMOVE_ERROR_SOURCE_EVENT(IntPtr recordAddr, int initialOffset) {
             DebugBeforeDecode(typeof(WHEAP_ADD_REMOVE_ERROR_SOURCE_EVENT), initialOffset);
 
@@ -290,6 +126,7 @@ namespace DecodeWheaRecord.Events {
 
             //DebugAfterDecode(typeof(WHEAP_ADD_REMOVE_ERROR_SOURCE_EVENT), offset, _NativeSize);
         }
+        */
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]

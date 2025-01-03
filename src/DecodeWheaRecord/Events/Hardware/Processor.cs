@@ -10,15 +10,15 @@ using DecodeWheaRecord.Shared;
 
 using Newtonsoft.Json;
 
-namespace DecodeWheaRecord.Events {
+namespace DecodeWheaRecord.Events.Hardware {
     /*
      * Module:          AzPshedPi.sys
      * Version:         11.0.2404.15001
      * Function(s):     PshedPipLogCpuBusesInitFailedEvent
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_PSHED_PI_CPU_BUSES_INIT_FAILED_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_PSHED_PI_CPU_BUSES_INIT_FAILED_EVENT>(); // 4 bytes
+    internal sealed class WHEA_PSHED_PI_CPU_BUSES_INIT_FAILED_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_PSHED_PI_CPU_BUSES_INIT_FAILED_EVENT>(); // 4 bytes
 
         private NtStatus _Status;
 
@@ -32,8 +32,8 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     PshedPipIsRunningInGuest
      */
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_PSHED_PI_CPUID : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_PSHED_PI_CPUID>(); // 20 bytes
+    internal sealed class WHEA_PSHED_PI_CPUID : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_PSHED_PI_CPUID>(); // 20 bytes
 
         public uint CpuVendor;
         public uint CpuFamily;
