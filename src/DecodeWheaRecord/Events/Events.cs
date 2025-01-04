@@ -36,15 +36,19 @@ namespace DecodeWheaRecord.Events {
      * WheapLogInitEvent -> WheaInit
      *
      * AzPshedPi.sys
-     * PshedPiHsxFindRootBusNumbers -> AzccRootBusSearchErr
      * PshedPipReportAllPcieErrorSummary -> PcieSummaryFailed (25 bytes)
      * PshedPipWriteSelEvent -> ??? (16 bytes)
      */
 
 
+    internal static class Shared {
+        internal const int WHEA_ERROR_TEXT_LEN = 32;
+    }
+
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_FOUND_ERROR_IN_BANK_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_FOUND_ERROR_IN_BANK_EVENT>();
+    internal sealed class WHEAP_FOUND_ERROR_IN_BANK_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_FOUND_ERROR_IN_BANK_EVENT>(); // 20 bytes
 
         public uint EpIndex;
         public uint Bank;
@@ -55,26 +59,15 @@ namespace DecodeWheaRecord.Events {
         public uint ErrorType;
     }
 
-
-
-    #region WHEA Event Log Entry: Constants
-
-    internal static class Shared {
-        internal const int WHEA_ERROR_TEXT_LEN = 32;
-    }
-
-    #endregion
-
-    #region WHEA Event Log Entry: Structures
-
     /*
      * Module:          ntoskrnl.exe
      * Version:         10.0.26100.2314
      * Function(s):     KiMcheckAlternateReturn
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEA_SRAR_DETAIL_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEA_SRAR_DETAIL_EVENT>(); // 17 bytes
+    internal sealed class WHEA_SRAR_DETAIL_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_SRAR_DETAIL_EVENT>(); // 17 bytes
 
         [JsonProperty(Order = 1)]
         public uint RecoveryContextFlags;
@@ -93,74 +86,19 @@ namespace DecodeWheaRecord.Events {
         public bool KernelConsumerError;
     }
 
-    /*
-     * Module:          ntoskrnl.exe
-     * Version:         10.0.26100.2314
-     * Function(s):     WheaAddErrorSource
-     *                  WheaRemoveErrorSource
-     */
-    internal sealed class WHEAP_ADD_REMOVE_ERROR_SOURCE_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_ADD_REMOVE_ERROR_SOURCE_EVENT>(); // 977 bytes
-
-        [JsonProperty(Order = 1)]
-        public WHEA_ERROR_SOURCE_DESCRIPTOR Descriptor;
-
-        private NtStatus _Status;
-
-        [JsonProperty(Order = 2)]
-        public string Status => Enum.GetName(typeof(NtStatus), _Status);
-
-        [JsonProperty(Order = 3)]
-        public bool IsRemove;
-
-        /*
-        public WHEAP_ADD_REMOVE_ERROR_SOURCE_EVENT(IntPtr recordAddr, int initialOffset) {
-            DebugBeforeDecode(typeof(WHEAP_ADD_REMOVE_ERROR_SOURCE_EVENT), initialOffset);
-
-            Descriptor = new WHEA_ERROR_SOURCE_DESCRIPTOR(recordAddr, 0);
-            var offset = Descriptor.GetNativeSize();
-
-            _Status = (NtStatus)Marshal.ReadInt32(recordAddr, offset);
-            IsRemove = Marshal.ReadByte(recordAddr, offset + 4) != 0;
-            offset += 5;
-
-            //DebugAfterDecode(typeof(WHEAP_ADD_REMOVE_ERROR_SOURCE_EVENT), offset, _NativeSize);
-        }
-        */
-    }
-
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_ATTEMPT_RECOVERY_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_ATTEMPT_RECOVERY_EVENT>();
-
-        [JsonProperty(Order = 1)]
-        public WHEA_ERROR_RECORD_HEADER ErrorHeader; // TODO: Verify
-
-        [JsonProperty(Order = 2)]
-        [MarshalAs(UnmanagedType.U1)]
-        public bool ArchitecturalRecovery;
-
-        [JsonProperty(Order = 3)]
-        [MarshalAs(UnmanagedType.U1)]
-        public bool PshedRecovery;
-
-        private NtStatus _Status;
-
-        [JsonProperty(Order = 4)]
-        public string Status => Enum.GetName(typeof(NtStatus), _Status);
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_CMCI_IMPLEMENTED_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_CMCI_IMPLEMENTED_EVENT>();
+    internal sealed class WHEAP_CMCI_IMPLEMENTED_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_CMCI_IMPLEMENTED_EVENT>(); // 1 byte
 
         [MarshalAs(UnmanagedType.U1)]
         public bool CmciAvailable;
     }
 
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_CMCI_INITERR_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_CMCI_INITERR_EVENT>();
+    internal sealed class WHEAP_CMCI_INITERR_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_CMCI_INITERR_EVENT>(); // 20 bytes
 
         [JsonConverter(typeof(HexStringJsonConverter))]
         public ulong Msr;
@@ -170,9 +108,10 @@ namespace DecodeWheaRecord.Events {
         public uint EpIndex;
     }
 
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_CMCI_RESTART_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_CMCI_RESTART_EVENT>();
+    internal sealed class WHEAP_CMCI_RESTART_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_CMCI_RESTART_EVENT>(); // 16 bytes
 
         public uint CmciRestoreAttempts;
         public uint MaxCmciRestoreLimit;
@@ -180,9 +119,10 @@ namespace DecodeWheaRecord.Events {
         public uint MaxCorrectedErrorLimit;
     }
 
+    // TODO
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    internal sealed class WHEAP_CREATE_GENERIC_RECORD_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_CREATE_GENERIC_RECORD_EVENT>();
+    internal sealed class WHEAP_CREATE_GENERIC_RECORD_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_CREATE_GENERIC_RECORD_EVENT>(); // 40 bytes
 
         [JsonProperty(Order = 1)]
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
@@ -202,10 +142,11 @@ namespace DecodeWheaRecord.Events {
      * Version:         11.0.2404.15001
      * Function(s):     PshedPipWriteDeviceDriverSelEntry
      */
+    // TODO
     // TODO: Missing 4 bytes?
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    internal sealed class WHEAP_DEVICE_DRV_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_DEVICE_DRV_EVENT>();
+    internal sealed class WHEAP_DEVICE_DRV_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_DEVICE_DRV_EVENT>(); // 32 bytes
 
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
         public string Function;
@@ -216,9 +157,10 @@ namespace DecodeWheaRecord.Events {
      * Version:         10.0.26100.2314
      * Function(s):     WheaReportHwError
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_DROPPED_CORRECTED_ERROR_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_DROPPED_CORRECTED_ERROR_EVENT>(); // 8bytes
+    internal sealed class WHEAP_DROPPED_CORRECTED_ERROR_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_DROPPED_CORRECTED_ERROR_EVENT>(); // 8 bytes
 
         private WHEA_ERROR_SOURCE_TYPE _ErrorSourceType;
 
@@ -229,24 +171,26 @@ namespace DecodeWheaRecord.Events {
         public uint ErrorSourceId;
     }
 
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_ERROR_CLEARED_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_ERROR_CLEARED_EVENT>();
+    internal sealed class WHEAP_ERROR_CLEARED_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_ERROR_CLEARED_EVENT>(); // 8 bytes
 
         public uint EpIndex;
         public uint Bank;
     }
 
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_ERROR_RECORD_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_ERROR_RECORD_EVENT>();
+    internal sealed class WHEAP_ERROR_RECORD_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_ERROR_RECORD_EVENT>();
 
         /*
          * TODO
          * How is this a pointer to an error record in the context of a
          * hex-encoded serialized record? Need a sample record to inspect.
          */
-        //PWHEA_ERROR_RECORD Record;
+        public IntPtr Record; // PWHEA_ERROR_RECORD
     }
 
     /*
@@ -255,10 +199,11 @@ namespace DecodeWheaRecord.Events {
      * Function(s):     HalpInitGenericErrorSourceEntry
      *                  HalpInitGenericErrorSourceEntryV2
      */
+    // TODO
     // TODO: Alongside MCE, CMC, and NMI (processor?)
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-    internal sealed class WHEAP_GENERIC_ERR_MEM_MAP_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_GENERIC_ERR_MEM_MAP_EVENT>(); // 48 bytes
+    internal sealed class WHEAP_GENERIC_ERR_MEM_MAP_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_GENERIC_ERR_MEM_MAP_EVENT>(); // 48 bytes
 
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Shared.WHEA_ERROR_TEXT_LEN)]
         public string MapReason;
@@ -269,26 +214,26 @@ namespace DecodeWheaRecord.Events {
         public ulong Length;
     }
 
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_STARTED_REPORT_HW_ERROR : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_STARTED_REPORT_HW_ERROR>();
+    internal sealed class WHEAP_STARTED_REPORT_HW_ERROR : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_STARTED_REPORT_HW_ERROR>();
 
         /*
          * TODO
          * How is this a pointer to an error record in the context of a
          * hex-encoded serialized record? Need a sample record to inspect.
          */
-        //PWHEA_ERROR_PACKET ErrorPacket;
+        public IntPtr ErrorPacket; // PWHEA_ERROR_PACKET
     }
 
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal sealed class WHEAP_STUCK_ERROR_EVENT : WheaStruct {
-        internal override int GetNativeSize() => Marshal.SizeOf<WHEAP_STUCK_ERROR_EVENT>();
+    internal sealed class WHEAP_STUCK_ERROR_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_STUCK_ERROR_EVENT>(); // 16 bytes
 
         public uint EpIndex;
         public uint Bank;
         public ulong MciStatus;
     }
-
-    #endregion
 }

@@ -16,6 +16,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         11.0.2404.15001
      * Function(s):     PshedPipLogCpuBusesInitFailedEvent
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PSHED_PI_CPU_BUSES_INIT_FAILED_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_PSHED_PI_CPU_BUSES_INIT_FAILED_EVENT>(); // 4 bytes
@@ -31,6 +32,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         11.0.2404.15001
      * Function(s):     PshedPipIsRunningInGuest
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PSHED_PI_CPUID : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_PSHED_PI_CPUID>(); // 20 bytes

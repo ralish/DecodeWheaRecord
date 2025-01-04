@@ -10,6 +10,7 @@ namespace DecodeWheaRecord.Events.Software {
      * Version:         11.0.2404.15001
      * Function(s):     PshedPiHsxFindRootBusNumbers
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_AZCC_ROOT_BUS_ERR_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_AZCC_ROOT_BUS_ERR_EVENT>(); // 2 bytes
@@ -26,6 +27,7 @@ namespace DecodeWheaRecord.Events.Software {
      * Version:         11.0.2404.15001
      * Function(s):     PshedPiHsxFindRootBusNumbers
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_AZCC_ROOT_BUS_LIST_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_AZCC_ROOT_BUS_LIST_EVENT>(); // 36 bytes
@@ -42,6 +44,7 @@ namespace DecodeWheaRecord.Events.Software {
      * Function(s):     PshedPiHsxSetPoisonSev
      *                  PshedPiHsxUnsetPoisonSev
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_AZCC_SET_POISON_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_AZCC_SET_POISON_EVENT>(); // 7 bytes

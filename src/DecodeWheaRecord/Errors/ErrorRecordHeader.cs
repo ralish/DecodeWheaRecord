@@ -126,15 +126,17 @@ namespace DecodeWheaRecord.Errors {
         [JsonConverter(typeof(HexStringJsonConverter))]
         public byte[] Reserved = new byte[8];
 
-        public WHEA_ERROR_RECORD_HEADER(IntPtr recordAddr, uint recordSize) :
-            base(typeof(WHEA_ERROR_RECORD_HEADER), 0, StructSize, recordSize) {
-            _Signature = (uint)Marshal.ReadInt32(recordAddr);
+        public WHEA_ERROR_RECORD_HEADER(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
+            base(typeof(WHEA_ERROR_RECORD_HEADER), structOffset, StructSize, bytesRemaining) {
+            var structAddr = recordAddr + (int)structOffset;
+
+            _Signature = (uint)Marshal.ReadInt32(structAddr);
 
             if (Signature != WHEA_ERROR_RECORD_SIGNATURE) {
                 throw new InvalidDataException($"Expected {nameof(Signature)} to be \"{WHEA_ERROR_RECORD_SIGNATURE}\" but found: {Signature}");
             }
 
-            _Revision = Marshal.PtrToStructure<WHEA_REVISION>(recordAddr + 4);
+            _Revision = Marshal.PtrToStructure<WHEA_REVISION>(structAddr + 4);
 
             var hdrRevision = new Version(_Revision.MajorRevision, _Revision.MinorRevision);
             var supRevision = new Version(WHEA_ERROR_RECORD_REVISION >> 8, WHEA_ERROR_RECORD_REVISION & 0xFF);
@@ -148,7 +150,7 @@ namespace DecodeWheaRecord.Errors {
                 WarnOutput($"{nameof(Revision)} minor version is greater than latest supported: {hdrRevision.ToString(2)} > {supRevision.ToString(2)}");
             }
 
-            SignatureEnd = (uint)Marshal.ReadInt32(recordAddr, 6);
+            SignatureEnd = (uint)Marshal.ReadInt32(structAddr, 6);
 
             if (SignatureEnd != WHEA_ERROR_RECORD_SIGNATURE_END) {
                 var hdrSigEnd = Convert.ToString(SignatureEnd, 16);
@@ -156,19 +158,20 @@ namespace DecodeWheaRecord.Errors {
                 throw new InvalidDataException($"Expected {nameof(SignatureEnd)} to be \"{expSigEnd}\" but found: {hdrSigEnd}");
             }
 
-            SectionCount = (ushort)Marshal.ReadInt16(recordAddr, 10);
+            SectionCount = (ushort)Marshal.ReadInt16(structAddr, 10);
 
             if (SectionCount == 0) {
                 throw new InvalidDataException($"{nameof(SectionCount)} is zero (expected at least one error section).");
             }
 
-            _Severity = (WHEA_ERROR_SEVERITY)Marshal.ReadInt32(recordAddr, 12);
-            _ValidBits = (WHEA_ERROR_RECORD_HEADER_VALIDBITS)Marshal.ReadInt32(recordAddr, 16);
-            Length = (uint)Marshal.ReadInt32(recordAddr, 20);
+            _Severity = (WHEA_ERROR_SEVERITY)Marshal.ReadInt32(structAddr, 12);
+            _ValidBits = (WHEA_ERROR_RECORD_HEADER_VALIDBITS)Marshal.ReadInt32(structAddr, 16);
+            Length = (uint)Marshal.ReadInt32(structAddr, 20);
 
-            if (Length != recordSize) {
-                var isMore = Length > recordSize;
-                var msg = $"{nameof(Length)} in header is {(isMore ? "more" : "less")} than record size: {Length} {(isMore ? ">" : "<")} {recordSize}";
+            // todo w.r.t. wheap_attempt_recovery_event
+            if (structOffset == 0 && Length != bytesRemaining) {
+                var isMore = Length > bytesRemaining;
+                var msg = $"{nameof(Length)} in header is {(isMore ? "more" : "less")} than record size: {Length} {(isMore ? ">" : "<")} {bytesRemaining}";
 
                 if (isMore) {
                     throw new InvalidDataException(msg);
@@ -178,16 +181,16 @@ namespace DecodeWheaRecord.Errors {
                 WarnOutput("Error record may be corrupt or incorrectly and/or partially decoded.", SectionType.Name);
             }
 
-            _Timestamp = Marshal.PtrToStructure<WHEA_TIMESTAMP>(recordAddr + 24);
-            PlatformId = Marshal.PtrToStructure<Guid>(recordAddr + 32);
-            PartitionId = Marshal.PtrToStructure<Guid>(recordAddr + 48);
-            _CreatorId = Marshal.PtrToStructure<Guid>(recordAddr + 64);
-            _NotifyType = Marshal.PtrToStructure<Guid>(recordAddr + 80);
-            RecordId = (ulong)Marshal.ReadInt64(recordAddr, 96);
-            _Flags = (WHEA_ERROR_RECORD_HEADER_FLAGS)Marshal.ReadInt32(recordAddr, 104);
-            PersistenceInfo = new WHEA_PERSISTENCE_INFO(recordAddr, 108, recordSize - 108);
-            OsBuildNumber = (uint)Marshal.ReadInt32(recordAddr, 112);
-            Marshal.Copy(recordAddr, Reserved, 116, 8);
+            _Timestamp = Marshal.PtrToStructure<WHEA_TIMESTAMP>(structAddr + 24);
+            PlatformId = Marshal.PtrToStructure<Guid>(structAddr + 32);
+            PartitionId = Marshal.PtrToStructure<Guid>(structAddr + 48);
+            _CreatorId = Marshal.PtrToStructure<Guid>(structAddr + 64);
+            _NotifyType = Marshal.PtrToStructure<Guid>(structAddr + 80);
+            RecordId = (ulong)Marshal.ReadInt64(structAddr, 96);
+            _Flags = (WHEA_ERROR_RECORD_HEADER_FLAGS)Marshal.ReadInt32(structAddr, 104);
+            PersistenceInfo = new WHEA_PERSISTENCE_INFO(structAddr, 108, bytesRemaining - 108);
+            OsBuildNumber = (uint)Marshal.ReadInt32(structAddr, 112);
+            Marshal.Copy(structAddr, Reserved, 116, 8);
 
             FinalizeRecord(recordAddr, StructSize);
         }

@@ -9,6 +9,7 @@ using DecodeWheaRecord.Internal;
 using Newtonsoft.Json;
 
 namespace DecodeWheaRecord.Events.Software {
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_ETW_OVERFLOW_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_ETW_OVERFLOW_EVENT>(); // 8 bytes

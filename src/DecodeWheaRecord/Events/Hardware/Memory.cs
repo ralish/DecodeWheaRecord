@@ -19,6 +19,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Function(s):     PshedAddToDefectList
      * Notes:           No payload
      */
+    // TODO
     internal sealed class WHEA_FAILED_ADD_DEFECT_LIST_EVENT : IWheaRecord {
         public uint GetNativeSize() => 0;
     }
@@ -28,6 +29,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         11.0.2404.15001
      * Function(s):     PshedPipReportAllMemoryErrorSummary
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_MEMORY_THROTTLE_SUMMARY_FAILED_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_MEMORY_THROTTLE_SUMMARY_FAILED_EVENT>(); // 4 bytes
@@ -43,6 +45,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.2314
      * Function(s):     WheapProcessOfflineList
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_OFFLINE_DONE_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_OFFLINE_DONE_EVENT>(); // 8 bytes
@@ -58,6 +61,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      *                  PshedPiIcxFinalizeErrorRec
      *                  PshedPISkxFinalizeErrorRec
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_PSHED_PLUGIN_DIMM_MISMATCH : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_PSHED_PLUGIN_DIMM_MISMATCH>(); // 18 bytes
@@ -79,6 +83,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Function(s):     PshedPipLogAddMemoryDeviceFilterEvent
      *                  PshedPipLogRemoveMemoryDeviceFilterEvent
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_THROTTLE_MEMORY_ADD_OR_REMOVE_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEA_THROTTLE_MEMORY_ADD_OR_REMOVE_EVENT>(); // 12 bytes
@@ -93,6 +98,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.2314
      * Function(s):     WheapOfflinePage
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_BIT_OFFLINE_EVENT : WheaRecord {
         private uint _StructSize;
@@ -139,6 +145,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.2314
      * Function(s):     WheapClearPoison
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_CLEARED_POISON_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_CLEARED_POISON_EVENT>(); // 8 bytes
@@ -153,6 +160,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Function(s):     WheaAttemptRowOffline
      *                  WheapAttemptPhysicalPageOffline
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_PFA_MEMORY_OFFLINED : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PFA_MEMORY_OFFLINED>(); // 10 bytes
@@ -180,6 +188,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.2314
      * Function(s):     WheapCallInUsePageNotificationCallbacks
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_PFA_MEMORY_OFFLINED_NOTIFY_CALLBACK_ACTION : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PFA_MEMORY_OFFLINED_NOTIFY_CALLBACK_ACTION>(); // 24 bytes
@@ -212,6 +221,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.2314
      * Function(s):     TODO
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_PFA_MEMORY_POLICY : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PFA_MEMORY_POLICY>(); // 19 bytes
@@ -237,6 +247,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.2314
      * Function(s):     WheapPfaLogPageMonitorRemoval
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_PFA_MEMORY_REMOVE_MONITOR : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PFA_MEMORY_REMOVE_MONITOR>(); // 16 bytes
@@ -263,6 +274,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Function(s):     PshedPipLogDefectListCorrupt
      * Notes:           No payload
      */
+    // TODO
     internal sealed class WHEAP_PLUGIN_DEFECT_LIST_CORRUPT : IWheaRecord {
         public uint GetNativeSize() => 0;
     }
@@ -273,6 +285,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Function(s):     PshedPipLogDefectListFull
      * Notes:           No payload
      */
+    // TODO
     internal sealed class WHEAP_PLUGIN_DEFECT_LIST_FULL_EVENT : IWheaRecord {
         public uint GetNativeSize() => 0;
     }
@@ -283,9 +296,19 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Function(s):     PshedPipLogDefectListUEFIVarFailed
      * Notes:           No payload
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_PLUGIN_DEFECT_LIST_UEFI_VAR_FAILED : IWheaRecord {
         public uint GetNativeSize() => 0;
+    }
+
+    // TODO
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    internal sealed class WHEAP_PLUGIN_PFA_EVENT : IWheaRecord {
+        public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PLUGIN_PFA_EVENT>(); // 1 byte
+
+        [MarshalAs(UnmanagedType.U1)]
+        public bool NoFurtherPfa;
     }
 
     /*
@@ -293,6 +316,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.2314
      * Function(s):     WheapExecuteRowFailureCheck
      */
+    // TODO
     internal sealed class WHEAP_ROW_FAILURE_EVENT : WheaRecord {
         private uint _StructSize;
         public override uint GetNativeSize() => _StructSize;
@@ -331,6 +355,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.2314
      * Function(s):     WheapOfflineRow
      */
+    // TODO
     internal sealed class WHEAP_ROW_OFFLINE_EVENT : WheaRecord {
         private uint _StructSize;
         public override uint GetNativeSize() => _StructSize;

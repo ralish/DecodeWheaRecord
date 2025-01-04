@@ -20,6 +20,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Function(s):     WheapLogSRASTableBadDataEvent
      * Notes:           No payload, class name derived from event name
      */
+    // TODO
     internal sealed class WHEA_SRAS_TABLE_BAD_DATA : IWheaRecord {
         public uint GetNativeSize() => 0;
     }
@@ -29,6 +30,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         11.0.2404.15001
      * Function(s):     WheapLogSRASTable
      */
+    // TODO
     internal sealed class WHEA_SRAS_TABLE_ENTRIES_EVENT : WheaRecord {
         private uint _StructSize;
         public override uint GetNativeSize() => _StructSize;
@@ -152,6 +154,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Function(s):     WheapLogSRASTableErrorEvent
      * Notes:           No payload
      */
+    // TODO
     internal sealed class WHEA_SRAS_TABLE_ERROR : IWheaRecord {
         public uint GetNativeSize() => 0;
     }
@@ -162,6 +165,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Function(s):     WheapLogSRASTableNotFound
      * Notes:           No payload
      */
+    // TODO
     internal sealed class WHEA_SRAS_TABLE_NOT_FOUND : IWheaRecord {
         public uint GetNativeSize() => 0;
     }

@@ -22,6 +22,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         11.0.2404.15001
      * Function(s):     PshedPipLogAddPcieDeviceFilterEvent
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_THROTTLE_PCIE_ADD_EVENT : WheaRecord {
         private const uint StructSize = 25;
@@ -60,6 +61,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         11.0.2404.15001
      * Function(s):     PshedPipLogRemovePcieDeviceFilterEvent
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEA_THROTTLE_PCIE_REMOVE_EVENT : WheaRecord {
         private const uint StructSize = 20;
@@ -86,6 +88,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.2161
      * Function(s):     ExpressRootPortRecoveryReset
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_DPC_ERROR_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_DPC_ERROR_EVENT>(); // 20 bytes
@@ -116,6 +119,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.2161
      * Function(s):     PciGetSystemWideHackFlagsFromRegistry
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_EDPC_ENABLED_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_EDPC_ENABLED_EVENT>(); // 2 bytes
@@ -132,6 +136,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         11.0.2404.15001
      * Function(s):     PshedPipDoPcieConfig
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_PCIE_CONFIG_INFO : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PCIE_CONFIG_INFO>(); // 36 bytes
@@ -162,6 +167,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         11.0.2404.15001
      * Function(s):     PshedPipReadPcieAerOverrides
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_PCIE_OVERRIDE_INFO : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PCIE_OVERRIDE_INFO>(); // 36 bytes
@@ -195,6 +201,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         11.0.2404.15001
      * Function(s):     PshedPipReadPcieAerOverrides
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_PCIE_READ_OVERRIDES_ERR : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PCIE_READ_OVERRIDES_ERR>(); // 8 bytes
@@ -215,6 +222,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.2161
      * Function(s):     PciPromoteAerError
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_PROMOTED_AER_ERROR_EVENT : IWheaRecord {
         public uint GetNativeSize() => (uint)Marshal.SizeOf<WHEAP_PROMOTED_AER_ERROR_EVENT>(); // 24 bytes
@@ -246,6 +254,7 @@ namespace DecodeWheaRecord.Events.Hardware {
      * Version:         10.0.26100.2161
      * Function(s):     PciWheaReportSpuriousError
      */
+    // TODO
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal sealed class WHEAP_SPURIOUS_AER_EVENT : WheaRecord {
         private const uint StructSize = 24;

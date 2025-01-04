@@ -76,10 +76,12 @@ namespace DecodeWheaRecord.Events {
                 case "PshedPluginRegister":
                     break;
                 case "AddRemoveErrorSource":
+                    eventEntry = new WHEAP_ADD_REMOVE_ERROR_SOURCE_EVENT(recordAddr, headerSize, bytesRemaining);
                     break;
                 case "WorkQueueItem":
                     break;
                 case "AttemptErrorRecovery":
+                    eventEntry = new WHEAP_ATTEMPT_RECOVERY_EVENT(recordAddr, headerSize, bytesRemaining);
                     break;
                 case "McaFoundErrorInBank":
                     break;
