@@ -41,7 +41,7 @@ namespace DecodeWheaRecord.Errors.Microsoft {
 
         [JsonProperty(Order = 4)]
         [JsonConverter(typeof(HexStringJsonConverter))]
-        public byte[] Reserved;
+        public byte[] Reserved = new byte[40];
 
         public WHEA_MEMORY_ERROR_EXT_SECTION_INTEL(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
             base(typeof(WHEA_MEMORY_ERROR_EXT_SECTION_INTEL), structOffset, StructSize, bytesRemaining) {
