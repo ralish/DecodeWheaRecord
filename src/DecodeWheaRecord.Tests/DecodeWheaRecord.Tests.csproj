@@ -3,7 +3,7 @@
   <PropertyGroup>
     <!-- Build configuration -->
     <IsTestProject>true</IsTestProject>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -11,9 +11,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DecodeWheaRecord\DecodeWheaRecord.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="NUnit" Version="4.3.2" />
     <PackageReference Include="NUnit.Analyzers" Version="4.6.0">

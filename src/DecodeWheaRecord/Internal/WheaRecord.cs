@@ -66,7 +66,7 @@ namespace DecodeWheaRecord.Internal {
         }
 
         protected WheaRecord(Type structType, uint structOffset, uint bytesMinimum, uint bytesRemaining) {
-            if (structType == null) throw new ArgumentNullException(nameof(structType));
+            ArgumentNullException.ThrowIfNull(structType);
 
             if (bytesRemaining < bytesMinimum) {
                 var msg = $"Structure requires {bytesMinimum} bytes but only {bytesRemaining} bytes remaining.";
@@ -147,7 +147,7 @@ namespace DecodeWheaRecord.Internal {
         }
 
         private static uint GetSectionOffset(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc) {
-            if (sectionDsc == null) throw new ArgumentNullException(nameof(sectionDsc));
+            ArgumentNullException.ThrowIfNull(sectionDsc);
             return sectionDsc.SectionOffset;
         }
     }

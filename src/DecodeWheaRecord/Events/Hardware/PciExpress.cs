@@ -311,9 +311,9 @@ namespace DecodeWheaRecord.Events.Hardware {
             if (_ErrorHandlerType != PCI_EXPRESS_DEVICE_TYPE.RootPort &&
                 _ErrorHandlerType != PCI_EXPRESS_DEVICE_TYPE.DownstreamSwitchPort &&
                 _ErrorHandlerType != PCI_EXPRESS_DEVICE_TYPE.RootComplexEventCollector) {
-                var devTypeRp = Enum.GetName(typeof(PCI_EXPRESS_DEVICE_TYPE), PCI_EXPRESS_DEVICE_TYPE.RootPort);
-                var devTypeDsp = Enum.GetName(typeof(PCI_EXPRESS_DEVICE_TYPE), PCI_EXPRESS_DEVICE_TYPE.DownstreamSwitchPort);
-                var devTypeRcec = Enum.GetName(typeof(PCI_EXPRESS_DEVICE_TYPE), PCI_EXPRESS_DEVICE_TYPE.RootComplexEventCollector);
+                var devTypeRp = Enum.GetName(PCI_EXPRESS_DEVICE_TYPE.RootPort);
+                var devTypeDsp = Enum.GetName(PCI_EXPRESS_DEVICE_TYPE.DownstreamSwitchPort);
+                var devTypeRcec = Enum.GetName(PCI_EXPRESS_DEVICE_TYPE.RootComplexEventCollector);
                 var checkCalc = $"{ErrorHandlerType} != ({devTypeRp} || {devTypeDsp} || {devTypeRcec})";
                 throw new InvalidDataException($"{nameof(ErrorHandlerType)} is not valid for the event: {checkCalc}");
             }
