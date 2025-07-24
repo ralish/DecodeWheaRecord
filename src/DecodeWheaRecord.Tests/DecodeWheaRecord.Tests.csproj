@@ -3,8 +3,7 @@
   <PropertyGroup>
     <!-- Build configuration -->
     <IsTestProject>true</IsTestProject>
-    <TargetFramework>net8.0</TargetFramework>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <TargetFrameworks>net8.0;net472</TargetFrameworks>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>

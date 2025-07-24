@@ -2,8 +2,7 @@
 
   <PropertyGroup>
     <!-- Build configuration -->
-    <TargetFramework>net8.0</TargetFramework>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <TargetFrameworks>net8.0;net472</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <StartupObject>DecodeWheaRecord.Program</StartupObject>
@@ -11,7 +10,7 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <!-- AssemblyInfo metadata -->
     <AssemblyTitle>Decode WHEA Record</AssemblyTitle>
-    <Version>0.4.1</Version>
+    <Version>0.4.2</Version>
     <NeutralLanguage>en-AU</NeutralLanguage>
     <Product>Decode WHEA Record</Product>
     <Description>Decodes Windows Hardware Event Architecture records</Description>

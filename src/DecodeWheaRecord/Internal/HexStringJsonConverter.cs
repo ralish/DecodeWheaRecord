@@ -44,7 +44,7 @@ namespace DecodeWheaRecord.Internal {
                     writer.WriteValue($"0x{value:X16}");
                     break;
                 case byte[] bytes:
-                    writer.WriteValue(Convert.ToHexString(bytes));
+                    writer.WriteValue(BitConverter.ToString(bytes).Replace("-", null));
                     break;
                 case BigInteger bigInt:
                     if (bigInt.Sign == -1) {
