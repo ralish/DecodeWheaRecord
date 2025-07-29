@@ -36,8 +36,7 @@ While the the records WHEA emits can be seen through its event log channels, the
 Requirements
 ------------
 
-- .NET Framework 4.7.2 (or newer)  
-  *Built-in since Windows 10 1803 and Server 2019*
+- .NET 8 Runtime - you can install it with winget, `winget install Microsoft.DotNet.Runtime.8`
 
 Usage
 -----
