@@ -60,3 +60,13 @@ dotnet_diagnostic.CA1305.severity = none
 
 # CA1812: Avoid uninstantiated internal classes
 dotnet_diagnostic.CA1812.severity = none
+
+# Requires .NET Core 2.0+ / .NET 5+ / .NET Standard 2.1
+dotnet_diagnostic.CA1307.severity = none
+
+# Requires .NET 5+
+dotnet_diagnostic.CA1872.severity = none
+dotnet_diagnostic.CA2263.severity = none
+
+# Requires .NET 6+
+dotnet_diagnostic.CA1510.severity = none
