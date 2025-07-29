@@ -2,19 +2,36 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch",
+            "name": "Launch (.NET Framework 4.7.2)",
             "type": "clr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/bin/DecodeWheaRecord/Debug/DecodeWheaRecord.exe",
+            "program": "${workspaceFolder}/bin/DecodeWheaRecord/Debug/net472/DecodeWheaRecord.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
             "console": "internalConsole"
         },
         {
-            "name": "Attach",
+            "name": "Launch (.NET 8.0)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/bin/DecodeWheaRecord/Debug/net8.0/DecodeWheaRecord.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
+            "name": "Attach (.NET Framework)",
             "type": "clr",
+            "request": "attach",
+            "processId": "${command:pickProcess}"
+        },
+        {
+            "name": "Attach (.NET Core)",
+            "type": "coreclr",
             "request": "attach",
             "processId": "${command:pickProcess}"
         }
