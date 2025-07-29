@@ -35,12 +35,24 @@ steps:
 
 - task: PublishPipelineArtifact@1
   inputs:
-    targetPath: bin/DecodeWheaRecord/Release
-    artifact: DecodeWheaRecord-$(build.SourceVersion)
+    targetPath: bin/DecodeWheaRecord/Release/net472
+    artifact: DecodeWheaRecord-$(build.SourceVersion)-net472
     publishLocation: pipeline
 
 - task: PublishPipelineArtifact@1
   inputs:
-    targetPath: bin/DecodeWheaRecord/Debug
-    artifact: DecodeWheaRecord-$(build.SourceVersion)-dbg
+    targetPath: bin/DecodeWheaRecord/Debug/net472
+    artifact: DecodeWheaRecord-$(build.SourceVersion)-net472-dbg
+    publishLocation: pipeline
+
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: bin/DecodeWheaRecord/Release/net8.0
+    artifact: DecodeWheaRecord-$(build.SourceVersion)-net80
+    publishLocation: pipeline
+
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: bin/DecodeWheaRecord/Debug/net8.0
+    artifact: DecodeWheaRecord-$(build.SourceVersion)-net80-dbg
     publishLocation: pipeline
