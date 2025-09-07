@@ -40,7 +40,7 @@ namespace DecodeWheaRecord.Errors.UEFI {
         internal const uint MinStructSize = 73;
 
         // Size up to and including the ModuleHandle field
-        private const uint StructSizeWin1803 = 80;
+        private const uint ExtendedStructSize = 80;
 
         private WHEA_MEMORY_ERROR_SECTION_VALIDBITS _ValidBits;
 
@@ -70,11 +70,11 @@ namespace DecodeWheaRecord.Errors.UEFI {
         [JsonProperty(Order = 8)]
         public ushort Bank;
 
-        // From Windows 10, version 1803
+        // Only with extended structure
         [JsonProperty(Order = 8)]
         public byte BankAddress => (byte)Bank;
 
-        // From Windows 10, version 1803
+        // Only with extended structure
         [JsonProperty(Order = 9)]
         public byte BankGroup => (byte)(Bank >> 8);
 
@@ -84,7 +84,7 @@ namespace DecodeWheaRecord.Errors.UEFI {
         [JsonProperty(Order = 11)]
         public ushort Row;
 
-        // From Windows 10, version 1803
+        // Only with extended structure
         [JsonProperty(Order = 11)]
         public uint ExtendedRow => ((Extended & (uint)0x3) << 16) + Row;
 
@@ -113,8 +113,10 @@ namespace DecodeWheaRecord.Errors.UEFI {
         public string ErrorType => GetEnumFlagsAsString(_ErrorType);
 
         /*
-         * From Windows 10, version 1803
-         *
+         * Extended fields
+         */
+
+        /*
          * This field contains bits which are either interpreted as stand-alone
          * new fields or are added as high-order bits to existing fields. There
          * is no corresponding ShouldSerialize method as multiple new flags are
@@ -123,19 +125,15 @@ namespace DecodeWheaRecord.Errors.UEFI {
          */
         private byte Extended;
 
-        // From Windows 10, version 1803
         [JsonProperty(Order = 18)]
         public uint ChipIdentification => (uint)(Extended >> 5);
 
-        // From Windows 10, version 1803
         [JsonProperty(Order = 19)]
         public ushort RankNumber;
 
-        // From Windows 10, version 1803
         [JsonProperty(Order = 20)]
         public ushort CardHandle;
 
-        // From Windows 10, version 1803
         [JsonProperty(Order = 21)]
         public ushort ModuleHandle;
 
@@ -152,16 +150,10 @@ namespace DecodeWheaRecord.Errors.UEFI {
         private void WheaMemoryErrorSection(IntPtr recordAddr, uint structOffset, uint bytesRemaining) {
             var structAddr = recordAddr + (int)structOffset;
 
-            // TODO: May be overly conservative?
-            if (bytesRemaining != MinStructSize && bytesRemaining != StructSizeWin1803) {
-                throw new InvalidDataException($"Unexpected structure size: {bytesRemaining}");
-            }
-
-            _StructSize = bytesRemaining;
-
+            _StructSize = bytesRemaining >= ExtendedStructSize ? ExtendedStructSize : MinStructSize;
             _ValidBits = (WHEA_MEMORY_ERROR_SECTION_VALIDBITS)Marshal.ReadInt64(structAddr);
 
-            if (HasWin1803Fields()) {
+            if (HasExtendedFields()) {
                 if (ShouldSerializeRow() && ShouldSerializeExtendedRow()) {
                     throw new InvalidDataException($"The {nameof(Row)} and {nameof(ExtendedRow)} flags in {nameof(ValidBits)} cannot both be set.");
                 }
@@ -194,7 +186,7 @@ namespace DecodeWheaRecord.Errors.UEFI {
             TargetId = (ulong)Marshal.ReadInt64(structAddr, 64);
             _ErrorType = (WHEA_MEMORY_ERROR_TYPE)Marshal.ReadByte(structAddr, 72);
 
-            if (_StructSize >= StructSizeWin1803) {
+            if (HasExtendedFields()) {
                 Extended = Marshal.ReadByte(structAddr, 73);
                 RankNumber = (ushort)Marshal.ReadInt16(structAddr, 74);
                 CardHandle = (ushort)Marshal.ReadInt16(structAddr, 76);
@@ -204,7 +196,7 @@ namespace DecodeWheaRecord.Errors.UEFI {
             FinalizeRecord(recordAddr, _StructSize);
         }
 
-        private bool HasWin1803Fields() => _StructSize >= StructSizeWin1803;
+        private bool HasExtendedFields() => _StructSize >= ExtendedStructSize;
 
         [UsedImplicitly]
         public bool ShouldSerializeErrorStatus() => (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ErrorStatus) != 0;
@@ -228,10 +220,10 @@ namespace DecodeWheaRecord.Errors.UEFI {
         public bool ShouldSerializeBank() => (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Bank) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeBankAddress() => HasWin1803Fields() && (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.BankAddress) != 0;
+        public bool ShouldSerializeBankAddress() => HasExtendedFields() && (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.BankAddress) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeBankGroup() => HasWin1803Fields() && (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.BankGroup) != 0;
+        public bool ShouldSerializeBankGroup() => HasExtendedFields() && (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.BankGroup) != 0;
 
         [UsedImplicitly]
         public bool ShouldSerializeDevice() => (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Device) != 0;
@@ -240,7 +232,7 @@ namespace DecodeWheaRecord.Errors.UEFI {
         public bool ShouldSerializeRow() => (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Row) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeExtendedRow() => HasWin1803Fields() && (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ExtendedRow) != 0;
+        public bool ShouldSerializeExtendedRow() => HasExtendedFields() && (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ExtendedRow) != 0;
 
         [UsedImplicitly]
         public bool ShouldSerializeColumn() => (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.Column) != 0;
@@ -261,16 +253,16 @@ namespace DecodeWheaRecord.Errors.UEFI {
         public bool ShouldSerializeErrorType() => (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ErrorType) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeChipIdentification() => HasWin1803Fields() && (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ChipIdentification) != 0;
+        public bool ShouldSerializeChipIdentification() => HasExtendedFields() && (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ChipIdentification) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeRankNumber() => HasWin1803Fields() && (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.RankNumber) != 0;
+        public bool ShouldSerializeRankNumber() => HasExtendedFields() && (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.RankNumber) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeCardHandle() => HasWin1803Fields() && (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.CardHandle) != 0;
+        public bool ShouldSerializeCardHandle() => HasExtendedFields() && (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.CardHandle) != 0;
 
         [UsedImplicitly]
-        public bool ShouldSerializeModuleHandle() => HasWin1803Fields() && (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ModuleHandle) != 0;
+        public bool ShouldSerializeModuleHandle() => HasExtendedFields() && (_ValidBits & WHEA_MEMORY_ERROR_SECTION_VALIDBITS.ModuleHandle) != 0;
     }
 
     // @formatter:int_align_fields true
