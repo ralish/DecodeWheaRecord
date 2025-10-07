@@ -1,7 +1,6 @@
 {
     "recommendations": [
         "davidanson.vscode-markdownlint",
-        "dotjoshjohnson.xml",
         "editorconfig.editorconfig",
         "ms-dotnettools.csharp",
         "yzhang.markdown-all-in-one"
