@@ -56,3 +56,15 @@ steps:
     targetPath: bin/DecodeWheaRecord/Debug/net8.0
     artifact: DecodeWheaRecord-$(build.SourceVersion)-net80-dbg
     publishLocation: pipeline
+
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: bin/DecodeWheaRecord/Release/net10.0
+    artifact: DecodeWheaRecord-$(build.SourceVersion)-net100
+    publishLocation: pipeline
+
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: bin/DecodeWheaRecord/Debug/net10.0
+    artifact: DecodeWheaRecord-$(build.SourceVersion)-net100-dbg
+    publishLocation: pipeline
