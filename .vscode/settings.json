@@ -17,11 +17,54 @@
     // See: https://github.com/editorconfig/editorconfig-vscode/issues/153
     "files.trimTrailingWhitespace": false,
 
+    // JSON code formatting
+    "json.format.keepLines": true,
+
     // Markdown table of contents generation
     "markdown.extension.toc.levels": "2..3",
     "markdown.extension.toc.slugifyMode": "github",
 
+    // XML code formatting
+    "xml.format.maxLineWidth": 0,
+
+    // YAML code formatting
+    "yaml.format.singleQuote": true,
+
+    "[azure-pipelines]": {
+        "editor.rulers": [79],
+    },
+
     "[csharp]": {
         "editor.rulers": [159]
+    },
+
+    "[json][jsonc]": {
+        "editor.rulers": [79],
+
+        "editor.defaultFormatter": "vscode.json-language-features"
+    },
+
+    "[markdown]": {
+        "editor.defaultFormatter": "yzhang.markdown-all-in-one",
+        "editor.formatOnSave": true,
+
+        "editor.codeActionsOnSave": {
+            "source.fixAll.markdownlint": "explicit"
+        },
+
+        // Trailing whitespace has special meaning
+        "files.trimTrailingWhitespace": false
+    },
+
+    "[xml]": {
+        "editor.rulers": [79],
+
+        "editor.defaultFormatter": "redhat.vscode-xml"
+    },
+
+    "[yaml]": {
+        "editor.rulers": [79],
+
+        "editor.defaultFormatter": "redhat.vscode-yaml"
     }
 }

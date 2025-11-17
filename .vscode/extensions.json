@@ -2,7 +2,10 @@
     "recommendations": [
         "davidanson.vscode-markdownlint",
         "editorconfig.editorconfig",
-        "ms-dotnettools.csharp",
+        "ms-azure-devops.azure-pipelines",
+        "ms-dotnettools.csdevkit",
+        "redhat.vscode-xml",
+        "redhat.vscode-yaml",
         "yzhang.markdown-all-in-one"
     ]
 }
