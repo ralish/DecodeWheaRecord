@@ -5,7 +5,7 @@
         "*.DotSettings": "xml",
         "*.DotSettings.user": "xml",
         // Visual Studio
-        "*.sln": "properties"
+        "*.slnx": "xml"
     },
 
     // Files to hide in Explorer tree

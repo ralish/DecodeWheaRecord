@@ -10,7 +10,7 @@ IF %ERRORLEVEL% GEQ 1 (
 PUSHD "%~dp0\.."
 
 @REM Default MSBuild arguments (via dotnet build)
-SET MSBuildSln=DecodeWheaRecord.sln
+SET MSBuildSln=DecodeWheaRecord.slnx
 SET MSBuildArgs=-noLogo -verbosity:minimal -maxCpuCount
 SET MSBuildTarget=Build
 

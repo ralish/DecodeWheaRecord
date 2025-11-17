@@ -5,7 +5,7 @@ pool:
   vmImage: windows-latest
 
 variables:
-  solution: DecodeWheaRecord.sln
+  solution: DecodeWheaRecord.slnx
   buildPlatform: Any CPU
 
 steps:

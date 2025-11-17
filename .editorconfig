@@ -41,9 +41,8 @@ indent_size = 2
 insert_final_newline = false
 
 # Visual Studio solutions
-[*.sln]
-charset = utf-8-bom
-indent_style = tab
+[*.slnx]
+indent_size = 2
 
 # YAML
 [*.yml]
