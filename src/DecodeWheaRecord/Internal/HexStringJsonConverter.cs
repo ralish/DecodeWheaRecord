@@ -10,7 +10,7 @@ namespace DecodeWheaRecord.Internal {
      * Credit to Dmitry Shectman for initial implementation
      * https://stackoverflow.com/a/43494134
      */
-#pragma warning disable CA1515
+#pragma warning disable CA1515 // Make public types internal
     public class HexStringJsonConverter : JsonConverter {
 #pragma warning restore CA1515
         public override bool CanConvert(Type objectType) {
