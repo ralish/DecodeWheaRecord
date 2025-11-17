@@ -24,6 +24,17 @@
             "console": "internalConsole"
         },
         {
+            "name": "Launch (.NET 10.0)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/bin/DecodeWheaRecord/Debug/net10.0/DecodeWheaRecord.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
             "name": "Attach (.NET Framework)",
             "type": "clr",
             "request": "attach",
