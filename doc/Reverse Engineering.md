@@ -22,7 +22,7 @@ There are many magic numbers specific to WHEA. This is a curated set of some of 
   The string `WHEA` as a 32-bit integer. Signature value in hardware error packets (v2).
 - `0x674c6857`
   The string `WhLg` as a 32-bit integer. Signature value in event log entry headers.
-- All of the GUIDs in [src/DecodeWheaRecord/Shared/WheaGuids.cs]  
+- All of the GUIDs in [src/DecodeWheaRecord/Shared/WheaGuids.cs](../src/DecodeWheaRecord/Shared/WheaGuids.cs)  
   If you have debug symbols you can easily find these as global symbols.
 
 PSHED
