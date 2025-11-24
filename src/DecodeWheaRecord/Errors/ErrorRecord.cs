@@ -60,7 +60,8 @@ namespace DecodeWheaRecord.Errors {
 
             var bytesRemaining = recordSize - sectionDsc.SectionOffset; // TODO: Factor in adjacent sections
 
-            switch (sectionDsc.SectionTypeGuid) {
+            try {
+                switch (sectionDsc.SectionTypeGuid) {
                 /*
                  * Standard sections
                  */
@@ -157,6 +158,11 @@ namespace DecodeWheaRecord.Errors {
                     WarnOutput($"Unsupported section: {sectionDsc.SectionTypeGuid}", StructType.Name);
                     section = new UnsupportedError(sectionDsc, recordAddr, bytesRemaining);
                     break;
+                }
+            } catch (Exception ex) {
+                // Warn and treat as unsupported if section parsing fails.
+                WarnOutput($"Exception while decoding section {sectionDsc.SectionTypeGuid}: {ex.Message}", StructType.Name);
+                section = new UnsupportedError(sectionDsc, recordAddr, bytesRemaining);
             }
 
             return section;
