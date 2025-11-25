@@ -62,102 +62,102 @@ namespace DecodeWheaRecord.Errors {
 
             try {
                 switch (sectionDsc.SectionTypeGuid) {
-                /*
-                 * Standard sections
-                 */
+                    /*
+                     * Standard sections
+                     */
 
-                case var sectionGuid when sectionGuid == WheaGuids.ARM_PROCESSOR_ERROR_SECTION_GUID:
-                    section = new WHEA_ARM_PROCESSOR_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.FIRMWARE_ERROR_RECORD_REFERENCE_GUID:
-                    section = new WHEA_FIRMWARE_ERROR_RECORD_REFERENCE(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.IPF_PROCESSOR_ERROR_SECTION_GUID:
-                    section = new UnsupportedError(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.MEMORY_ERROR_SECTION_GUID:
-                    section = new WHEA_MEMORY_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.PCIEXPRESS_ERROR_SECTION_GUID:
-                    section = new WHEA_PCIEXPRESS_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.PCIXBUS_ERROR_SECTION_GUID:
-                    section = new WHEA_PCIXBUS_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.PCIXDEVICE_ERROR_SECTION_GUID:
-                    section = new WHEA_PCIXDEVICE_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.PROCESSOR_GENERIC_ERROR_SECTION_GUID:
-                    section = new WHEA_PROCESSOR_GENERIC_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.XPF_PROCESSOR_ERROR_SECTION_GUID:
-                    section = new WHEA_XPF_PROCESSOR_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
+                    case var sectionGuid when sectionGuid == WheaGuids.ARM_PROCESSOR_ERROR_SECTION_GUID:
+                        section = new WHEA_ARM_PROCESSOR_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.FIRMWARE_ERROR_RECORD_REFERENCE_GUID:
+                        section = new WHEA_FIRMWARE_ERROR_RECORD_REFERENCE(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.IPF_PROCESSOR_ERROR_SECTION_GUID:
+                        section = new UnsupportedError(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.MEMORY_ERROR_SECTION_GUID:
+                        section = new WHEA_MEMORY_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.PCIEXPRESS_ERROR_SECTION_GUID:
+                        section = new WHEA_PCIEXPRESS_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.PCIXBUS_ERROR_SECTION_GUID:
+                        section = new WHEA_PCIXBUS_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.PCIXDEVICE_ERROR_SECTION_GUID:
+                        section = new WHEA_PCIXDEVICE_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.PROCESSOR_GENERIC_ERROR_SECTION_GUID:
+                        section = new WHEA_PROCESSOR_GENERIC_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.XPF_PROCESSOR_ERROR_SECTION_GUID:
+                        section = new WHEA_XPF_PROCESSOR_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
 
-                /*
-                 * Microsoft sections
-                 */
+                    /*
+                     * Microsoft sections
+                     */
 
-                case var sectionGuid when sectionGuid == WheaGuids.ARM_RAS_NODE_SECTION_GUID:
-                    section = new WHEA_ARM_RAS_NODE_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.GENERIC_SECTION_GUID:
-                    section = new WHEA_GENERIC_ERROR(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.IPF_SAL_RECORD_SECTION_GUID:
-                    section = new UnsupportedError(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.IPMI_MSR_DUMP_SECTION_GUID:
-                    section = new WHEA_MSR_DUMP_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.MEMORY_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID:
-                    section = new WHEA_MEMORY_CORRECTABLE_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.MEMORY_ERROR_EXT_SECTION_INTEL_GUID:
-                    section = new WHEA_MEMORY_ERROR_EXT_SECTION_INTEL(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.MU_TELEMETRY_SECTION_GUID:
-                    section = new MU_TELEMETRY_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.NMI_SECTION_GUID:
-                    section = new WHEA_NMI_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.PCI_RECOVERY_SECTION_GUID:
-                    section = new WHEA_PCI_RECOVERY_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.PCIE_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID:
-                    section = new WHEA_PCIE_CORRECTABLE_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.PMEM_ERROR_SECTION_GUID:
-                    section = new WHEA_PMEM_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.RECOVERY_INFO_SECTION_GUID:
-                    section = new WHEA_ERROR_RECOVERY_INFO_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.SEA_SECTION_GUID:
-                    section = new WHEA_SEA_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.SEI_SECTION_GUID:
-                    section = new WHEA_SEI_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.WHEA_DPC_CAPABILITY_SECTION_GUID:
-                    section = new WHEA_PCI_DPC_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.WHEA_ERROR_PACKET_SECTION_GUID:
-                    section = WHEA_ERROR_PACKET.CreateBySignature(sectionDsc, recordAddr, bytesRemaining);
-                    break;
-                case var sectionGuid when sectionGuid == WheaGuids.XPF_MCA_SECTION_GUID:
-                    section = new WHEA_XPF_MCA_SECTION(sectionDsc, recordAddr, bytesRemaining);
-                    break;
+                    case var sectionGuid when sectionGuid == WheaGuids.ARM_RAS_NODE_SECTION_GUID:
+                        section = new WHEA_ARM_RAS_NODE_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.GENERIC_SECTION_GUID:
+                        section = new WHEA_GENERIC_ERROR(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.IPF_SAL_RECORD_SECTION_GUID:
+                        section = new UnsupportedError(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.IPMI_MSR_DUMP_SECTION_GUID:
+                        section = new WHEA_MSR_DUMP_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.MEMORY_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID:
+                        section = new WHEA_MEMORY_CORRECTABLE_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.MEMORY_ERROR_EXT_SECTION_INTEL_GUID:
+                        section = new WHEA_MEMORY_ERROR_EXT_SECTION_INTEL(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.MU_TELEMETRY_SECTION_GUID:
+                        section = new MU_TELEMETRY_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.NMI_SECTION_GUID:
+                        section = new WHEA_NMI_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.PCI_RECOVERY_SECTION_GUID:
+                        section = new WHEA_PCI_RECOVERY_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.PCIE_CORRECTABLE_ERROR_SUMMARY_SECTION_GUID:
+                        section = new WHEA_PCIE_CORRECTABLE_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.PMEM_ERROR_SECTION_GUID:
+                        section = new WHEA_PMEM_ERROR_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.RECOVERY_INFO_SECTION_GUID:
+                        section = new WHEA_ERROR_RECOVERY_INFO_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.SEA_SECTION_GUID:
+                        section = new WHEA_SEA_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.SEI_SECTION_GUID:
+                        section = new WHEA_SEI_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.WHEA_DPC_CAPABILITY_SECTION_GUID:
+                        section = new WHEA_PCI_DPC_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.WHEA_ERROR_PACKET_SECTION_GUID:
+                        section = WHEA_ERROR_PACKET.CreateBySignature(sectionDsc, recordAddr, bytesRemaining);
+                        break;
+                    case var sectionGuid when sectionGuid == WheaGuids.XPF_MCA_SECTION_GUID:
+                        section = new WHEA_XPF_MCA_SECTION(sectionDsc, recordAddr, bytesRemaining);
+                        break;
 
-                /*
-                 * Unsupported section
-                 */
+                    /*
+                     * Unsupported section
+                     */
 
-                default:
-                    WarnOutput($"Unsupported section: {sectionDsc.SectionTypeGuid}", StructType.Name);
-                    section = new UnsupportedError(sectionDsc, recordAddr, bytesRemaining);
-                    break;
+                    default:
+                        WarnOutput($"Unsupported section: {sectionDsc.SectionTypeGuid}", StructType.Name);
+                        section = new UnsupportedError(sectionDsc, recordAddr, bytesRemaining);
+                        break;
                 }
             } catch (Exception ex) {
                 // Warn and treat as unsupported if section parsing fails.
