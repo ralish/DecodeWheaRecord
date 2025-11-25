@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 
 using DecodeWheaRecord.Descriptors;
 using DecodeWheaRecord.Errors.Microsoft;
@@ -159,9 +160,9 @@ namespace DecodeWheaRecord.Errors {
                         section = new UnsupportedError(sectionDsc, recordAddr, bytesRemaining);
                         break;
                 }
-            } catch (Exception ex) {
-                // Warn and treat as unsupported if section parsing fails.
-                WarnOutput($"Exception while decoding section {sectionDsc.SectionTypeGuid}: {ex.Message}", StructType.Name);
+            } catch (Exception ex) when (ex is ArgumentOutOfRangeException || ex is InvalidDataException) {
+                // Warn and treat as unsupported if section parsing fails
+                WarnOutput($"Exception decoding section: {sectionDsc.SectionTypeGuid}\n{ex.Message}", StructType.Name);
                 section = new UnsupportedError(sectionDsc, recordAddr, bytesRemaining);
             }
 
