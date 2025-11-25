@@ -37,8 +37,22 @@ namespace DecodeWheaRecord.Errors.Microsoft {
         private uint _StructSize;
         public override uint GetNativeSize() => _StructSize;
 
-        // Size up to and including the GlobalCapability field
-        private const uint StructSizeV2 = 272;
+        // Size up to and including the ExtendedRegisters field
+        private const uint StructSizeV1 = 264;
+
+        /*
+         * Size up to and including the ExtendedRegisters field. This is the
+         * original v2 structure where the only difference is the Reserved2
+         * field was replaced with the ApicId field.
+         */
+        private const uint StructSizeV2R1 = 264;
+
+        /*
+         * Size up to and including the GlobalCapability field. This is a later
+         * "revision" of the v2 structure which added the AMD-specific variant
+         * of the ExtendedRegisters field *and* the GlobalCapability field.
+         */
+        private const uint StructSizeV2R2 = 272;
 
         // Size up to and including the RecoveryInfo field
         private const uint StructSizeV3 = 292;
@@ -108,14 +122,27 @@ namespace DecodeWheaRecord.Errors.Microsoft {
         [JsonProperty(Order = 11)]
         public uint ExtendedRegisterCount;
 
+        // Version 1 only
+        [JsonProperty(Order = 12)]
+        public uint Reserved2;
+
+        // Version 2 and later
         [JsonProperty(Order = 12)]
         public uint ApicId;
 
         /*
-         * The next two fields were originally part of a union in the structure
-         * which contains either a vendor-agnostic array of extended register
-         * values or an AMD-specific variant. As per the earlier comment, we
-         * directly embed the the different types and marshal the correct one.
+         * The v1 and original v2 structures only support the vendor-agnostic
+         * array of extended register values. The later "revision" of the v2
+         * structure added an AMD-specific variant of the extended registers
+         * field as part of a union, along with the GlobalCapability field.
+         *
+         * This means we have to rely on the structure size provided in the
+         * section descriptor to determine if the AMD-specific variant of the
+         * extended register values may be present, which also implies the
+         * presence of the GlobalCapability field (for Intel or AMD).
+         *
+         * As with the MCI_STATUS union above, we directly embed both fields
+         * and marshal the correct one.
          */
 
         [JsonProperty(Order = 13, ItemConverterType = typeof(HexStringJsonConverter))]
@@ -123,6 +150,14 @@ namespace DecodeWheaRecord.Errors.Microsoft {
 
         [JsonProperty(Order = 13)]
         public WHEA_AMD_EXTENDED_REGISTERS AMDExtendedRegisters;
+
+        /*
+         * Version 2 fields (rev2 only)
+         *
+         * The GlobalCapability field was added in a later "revision" of the v2
+         * structure. See the earlier comment on the ExtendedRegisters union
+         * for more details.
+         */
 
         [JsonProperty(Order = 14)]
         public MCG_CAP GlobalCapability;
@@ -166,12 +201,12 @@ namespace DecodeWheaRecord.Errors.Microsoft {
         public ulong[] MiscEx;
 
         public WHEA_XPF_MCA_SECTION(IntPtr recordAddr, uint structOffset, uint bytesRemaining) :
-            base(typeof(WHEA_XPF_MCA_SECTION), structOffset, StructSizeV2, bytesRemaining) {
+            base(typeof(WHEA_XPF_MCA_SECTION), structOffset, StructSizeV1, bytesRemaining) {
             WheaXpfMcaSection(recordAddr, structOffset, bytesRemaining);
         }
 
         public WHEA_XPF_MCA_SECTION(WHEA_ERROR_RECORD_SECTION_DESCRIPTOR sectionDsc, IntPtr recordAddr, uint bytesRemaining) :
-            base(typeof(WHEA_XPF_MCA_SECTION), sectionDsc, StructSizeV2, bytesRemaining) {
+            base(typeof(WHEA_XPF_MCA_SECTION), sectionDsc, StructSizeV1, bytesRemaining) {
             WheaXpfMcaSection(recordAddr, sectionDsc.SectionOffset, sectionDsc.SectionLength);
         }
 
@@ -181,8 +216,11 @@ namespace DecodeWheaRecord.Errors.Microsoft {
             VersionNumber = (uint)Marshal.ReadInt32(structAddr);
 
             switch (VersionNumber) {
+                case 1:
+                    _StructSize = StructSizeV1;
+                    break;
                 case 2:
-                    _StructSize = StructSizeV2;
+                    _StructSize = bytesRemaining >= StructSizeV2R2 ? StructSizeV2R2 : StructSizeV2R1;
                     break;
                 case 3:
                     _StructSize = StructSizeV3;
@@ -227,39 +265,38 @@ namespace DecodeWheaRecord.Errors.Microsoft {
             Address = (ulong)Marshal.ReadInt64(structAddr, 48);
             Misc = (ulong)Marshal.ReadInt64(structAddr, 56);
             ExtendedRegisterCount = (uint)Marshal.ReadInt32(structAddr, 64);
-            ApicId = (uint)Marshal.ReadInt32(structAddr, 68);
 
-            // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
-            switch (_CpuVendor) {
-                case WHEA_CPU_VENDOR.Amd:
-                    if (ExtendedRegisterCount > WHEA_AMD_EXTENDED_REGISTERS.WHEA_AMD_EXT_REG_NUM) {
-                        var checkCalc = $"{ExtendedRegisterCount} > {WHEA_AMD_EXTENDED_REGISTERS.WHEA_AMD_EXT_REG_NUM}";
-                        throw new InvalidDataException($"{nameof(ExtendedRegisterCount)} is invalid for AMD CPU: {checkCalc}");
-                    }
-
-                    AMDExtendedRegisters = PtrToStructure<WHEA_AMD_EXTENDED_REGISTERS>(structAddr + 72);
-                    break;
-                case WHEA_CPU_VENDOR.Intel:
-                    if (ExtendedRegisterCount > WHEA_XPF_MCA_EXTREG_MAX_COUNT) {
-                        var checkCalc = $"{ExtendedRegisterCount} > {WHEA_XPF_MCA_EXTREG_MAX_COUNT}";
-                        throw new InvalidDataException($"{nameof(ExtendedRegisterCount)} is greater than maximum allowed for Intel CPU: {checkCalc}");
-                    }
-
-                    var extendedRegistersSigned = new long[ExtendedRegisterCount];
-                    Marshal.Copy(structAddr + 72, extendedRegistersSigned, 0, (int)ExtendedRegisterCount);
-                    ExtendedRegisters = new ulong[ExtendedRegisterCount];
-                    for (var i = 0; i < ExtendedRegisterCount; i++) {
-                        ExtendedRegisters[i] = (ulong)extendedRegistersSigned[i];
-                    }
-
-                    break;
-                case WHEA_CPU_VENDOR.Other:
-                    // TODO: Should ExtendedRegisters be populated?
-                    ExtendedRegisters = Array.Empty<ulong>();
-                    break;
+            if (VersionNumber >= 2) {
+                ApicId = (uint)Marshal.ReadInt32(structAddr, 68);
+            } else {
+                Reserved2 = (uint)Marshal.ReadInt32(structAddr, 68);
             }
 
-            GlobalCapability = PtrToStructure<MCG_CAP>(structAddr + 264);
+            var serializeAmdExtRegs = _CpuVendor == WHEA_CPU_VENDOR.Amd && _StructSize >= StructSizeV2R2;
+            if (serializeAmdExtRegs) {
+                if (ExtendedRegisterCount > WHEA_AMD_EXTENDED_REGISTERS.WHEA_AMD_EXT_REG_NUM) {
+                    var checkCalc = $"{ExtendedRegisterCount} > {WHEA_AMD_EXTENDED_REGISTERS.WHEA_AMD_EXT_REG_NUM}";
+                    throw new InvalidDataException($"{nameof(ExtendedRegisterCount)} is invalid for AMD CPU: {checkCalc}");
+                }
+
+                AMDExtendedRegisters = PtrToStructure<WHEA_AMD_EXTENDED_REGISTERS>(structAddr + 72);
+            } else {
+                if (ExtendedRegisterCount > WHEA_XPF_MCA_EXTREG_MAX_COUNT) {
+                    var checkCalc = $"{ExtendedRegisterCount} > {WHEA_XPF_MCA_EXTREG_MAX_COUNT}";
+                    throw new InvalidDataException($"{nameof(ExtendedRegisterCount)} is greater than maximum allowed for Intel CPU: {checkCalc}");
+                }
+
+                var extendedRegistersSigned = new long[ExtendedRegisterCount];
+                Marshal.Copy(structAddr + 72, extendedRegistersSigned, 0, (int)ExtendedRegisterCount);
+                ExtendedRegisters = new ulong[ExtendedRegisterCount];
+                for (var i = 0; i < ExtendedRegisterCount; i++) {
+                    ExtendedRegisters[i] = (ulong)extendedRegistersSigned[i];
+                }
+            }
+
+            if (_StructSize >= StructSizeV2R2) {
+                GlobalCapability = PtrToStructure<MCG_CAP>(structAddr + 264);
+            }
 
             if (VersionNumber >= 3) {
                 RecoveryInfo = PtrToStructure<XPF_RECOVERY_INFO>(structAddr + 272);
@@ -318,6 +355,15 @@ namespace DecodeWheaRecord.Errors.Microsoft {
 
             FinalizeRecord(recordAddr, _StructSize);
         }
+
+        [UsedImplicitly]
+        public bool ShouldSerializeReserved2() => VersionNumber == 1 && Reserved2 != 0;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeApicId() => VersionNumber >= 2;
+
+        [UsedImplicitly]
+        public bool ShouldSerializeGlobalCapability() => _StructSize >= StructSizeV2R2;
 
         [UsedImplicitly]
         public bool ShouldSerializeRecoveryInfo() => VersionNumber >= 3;
