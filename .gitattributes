@@ -1,0 +1,2 @@
+# Exclude vendored code from Linguist language detection
+sdk/**                          linguist-vendored
