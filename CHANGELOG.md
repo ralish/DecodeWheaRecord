@@ -1,6 +1,16 @@
 Changelog
 =========
 
+v0.5.0
+------
+
+- Improved error handling decoding `WHEA_ERROR_RECORD` structures (thanks @Romboter!)
+- Improved decoding support for `WHEA_XPF_MCA_SECTION` errors records & added test case
+- Added a Changelog and backfilled it with details on all prior releases
+- Another large batch of code quality & tooling improvements
+- Add tests for memory error sections
+- Updated NuGet dependencies
+
 v0.4.3
 ------
 
