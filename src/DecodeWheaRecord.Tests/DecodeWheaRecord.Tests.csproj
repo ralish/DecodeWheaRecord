@@ -3,7 +3,7 @@
   <PropertyGroup>
     <!-- Build configuration -->
     <IsTestProject>true</IsTestProject>
-    <TargetFrameworks>net472;net8.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(TargetFrameworks)' == '' ">net472;net8.0</TargetFrameworks>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
