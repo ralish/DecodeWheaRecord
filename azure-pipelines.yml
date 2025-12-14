@@ -6,7 +6,8 @@ pool:
 
 variables:
   solution: DecodeWheaRecord.slnx
-  buildPlatform: Any CPU
+  platform: Any CPU
+  configuration: Release
 
 steps:
 - task: NuGetToolInstaller@1
@@ -20,39 +21,20 @@ steps:
 - task: VSBuild@1
   inputs:
     solution: $(solution)
-    platform: $(buildPlatform)
-    configuration: Debug
-    maximumCpuCount: true
-
-- task: VSBuild@1
-  inputs:
-    solution: $(solution)
-    platform: $(buildPlatform)
-    configuration: Release
+    platform: $(platform)
+    configuration: $(configuration)
     maximumCpuCount: true
 
 - task: VSTest@2
 
 - task: PublishPipelineArtifact@1
   inputs:
-    targetPath: bin/DecodeWheaRecord/Release/net472
+    targetPath: bin/DecodeWheaRecord/$(configuration)/net472
     artifact: DecodeWheaRecord-$(build.SourceVersion)-net472
     publishLocation: pipeline
 
 - task: PublishPipelineArtifact@1
   inputs:
-    targetPath: bin/DecodeWheaRecord/Debug/net472
-    artifact: DecodeWheaRecord-$(build.SourceVersion)-net472-dbg
-    publishLocation: pipeline
-
-- task: PublishPipelineArtifact@1
-  inputs:
-    targetPath: bin/DecodeWheaRecord/Release/net8.0
+    targetPath: bin/DecodeWheaRecord/$(configuration)/net8.0
     artifact: DecodeWheaRecord-$(build.SourceVersion)-net80
-    publishLocation: pipeline
-
-- task: PublishPipelineArtifact@1
-  inputs:
-    targetPath: bin/DecodeWheaRecord/Debug/net8.0
-    artifact: DecodeWheaRecord-$(build.SourceVersion)-net80-dbg
     publishLocation: pipeline
