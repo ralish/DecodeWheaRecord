@@ -27,7 +27,7 @@ Revision History:
 #if _MSC_VER < 1300
 #error Compiler version not supported by Windows DDK
 #endif
-#endif
+#endif // RC_INVOKED
 
 #define NT_INCLUDED
 #define _CTYPE_DISABLE_MACROS
@@ -51,16 +51,33 @@ Revision History:
 #include <bugcodes.h>
 #include <ntiologc.h>
 
-// X86 and ARM
-//typedef ULONG PFN_COUNT;
-//typedef LONG SPFN_NUMBER, *PSPFN_NUMBER;
-//typedef ULONG PFN_NUMBER, *PPFN_NUMBER;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-// AMD64 and ARM64
-typedef ULONG PFN_COUNT;
-typedef LONG64 SPFN_NUMBER, *PSPFN_NUMBER;
-typedef ULONG64 PFN_NUMBER, *PPFN_NUMBER;
+#if (NTDDI_VERSION >= NTDDI_WIN7)
 
+typedef struct _WHEA_ERROR_SOURCE_DESCRIPTOR *PWHEA_ERROR_SOURCE_DESCRIPTOR;
+typedef struct _WHEA_ERROR_RECORD *PWHEA_ERROR_RECORD;
+
+NTHALAPI
+VOID
+HalBugCheckSystem (
+    _In_ PWHEA_ERROR_SOURCE_DESCRIPTOR ErrorSource,
+    _In_ PWHEA_ERROR_RECORD ErrorRecord
+    );
+
+#elif (NTDDI_VERSION >= NTDDI_VISTA)
+
+typedef struct _WHEA_ERROR_RECORD *PWHEA_ERROR_RECORD;
+
+NTHALAPI
+VOID
+HalBugCheckSystem (
+    _In_ PWHEA_ERROR_RECORD ErrorRecord
+    );
+
+#endif
 
 //------------------------------------------------------ WHEA_ERROR_SOURCE_TYPE
 
@@ -115,16 +132,6 @@ typedef enum _WHEA_ERROR_SOURCE_STATE {
 #define WHEA_ERROR_SOURCE_FLAG_GLOBAL                    0x00000002
 #define WHEA_ERROR_SOURCE_FLAG_GHES_ASSIST               0x00000004
 #define WHEA_ERROR_SOURCE_FLAG_DEFAULTSOURCE             0x80000000
-
-//
-// This flag is added to an error source descriptor to indicate this source
-// is an override, and not a normal error source.
-//
-// Some error sources such as PCI populate the HEST flags into their OS
-// error source flags, so this bit is defined to not conflict with them.
-//
-
-#define WHEA_ERR_SRC_OVERRIDE_FLAG 0x40000000
 
 //
 // The definition of invalid related source comes from the ACPI spec
@@ -236,7 +243,6 @@ typedef struct _WHEA_DRIVER_BUFFER_SET {
         PUCHAR SectionFriendlyName;
     PUCHAR Flags;
 } WHEA_DRIVER_BUFFER_SET, *PWHEA_DRIVER_BUFFER_SET;
-
 
 #define WHEA_DEVICE_DRIVER_CONFIG_V1 1
 #define WHEA_DEVICE_DRIVER_CONFIG_V2 2
@@ -769,28 +775,26 @@ Return Value:
 // WHEA PFA Policy Type
 //
 
-#define    WHEA_DISABLE_OFFLINE                 0
-#define    WHEA_MEM_PERSISTOFFLINE              1
-#define    WHEA_MEM_PFA_DISABLE                 2
-#define    WHEA_MEM_PFA_PAGECOUNT               3
-#define    WHEA_MEM_PFA_THRESHOLD               4
-#define    WHEA_MEM_PFA_TIMEOUT                 5
-#define    WHEA_DISABLE_DUMMY_WRITE             6
-#define    WHEA_RESTORE_CMCI_ENABLED            7
-#define    WHEA_RESTORE_CMCI_ATTEMPTS           8
-#define    WHEA_RESTORE_CMCI_ERR_LIMIT          9
-#define    WHEA_CMCI_THRESHOLD_COUNT            10
-#define    WHEA_CMCI_THRESHOLD_TIME             11
-#define    WHEA_CMCI_THRESHOLD_POLL_COUNT       12
-#define    WHEA_PENDING_PAGE_LIST_SZ            13
-#define    WHEA_BAD_PAGE_LIST_MAX_SIZE          14
-#define    WHEA_BAD_PAGE_LIST_LOCATION          15
-#define    WHEA_NOTIFY_ALL_OFFLINES             16
-#define    WHEA_ROW_FAIL_CHECK_EXTENT           17
-#define    WHEA_ROW_FAIL_CHECK_ENABLE           18
-#define    WHEA_ROW_FAIL_CHECK_THRESHOLD        19
-#define    WHEA_DISABLE_PRM_ADDRESS_TRANSLATION 20
-#define    WHEA_ENABLE_BATCHED_ROW_OFFLINE      21
+#define    WHEA_DISABLE_OFFLINE            0
+#define    WHEA_MEM_PERSISTOFFLINE         1
+#define    WHEA_MEM_PFA_DISABLE            2
+#define    WHEA_MEM_PFA_PAGECOUNT          3
+#define    WHEA_MEM_PFA_THRESHOLD          4
+#define    WHEA_MEM_PFA_TIMEOUT            5
+#define    WHEA_DISABLE_DUMMY_WRITE        6
+#define    WHEA_RESTORE_CMCI_ENABLED       7
+#define    WHEA_RESTORE_CMCI_ATTEMPTS      8
+#define    WHEA_RESTORE_CMCI_ERR_LIMIT     9
+#define    WHEA_CMCI_THRESHOLD_COUNT       10
+#define    WHEA_CMCI_THRESHOLD_TIME        11
+#define    WHEA_CMCI_THRESHOLD_POLL_COUNT  12
+#define    WHEA_PENDING_PAGE_LIST_SZ       13
+#define    WHEA_BAD_PAGE_LIST_MAX_SIZE     14
+#define    WHEA_BAD_PAGE_LIST_LOCATION     15
+#define    WHEA_NOTIFY_ALL_OFFLINES        16
+#define    WHEA_ROW_FAIL_CHECK_EXTENT      17
+#define    WHEA_ROW_FAIL_CHECK_ENABLE      18
+#define    WHEA_ROW_FAIL_CHECK_THRESHOLD   19
 
 #define IPMI_OS_SEL_RECORD_SIGNATURE 'RSSO'
 #define IPMI_OS_SEL_RECORD_VERSION_1 1
@@ -840,6 +844,8 @@ typedef struct _IPMI_OS_SEL_RECORD {
     UCHAR Data[ANYSIZE_ARRAY];
 } IPMI_OS_SEL_RECORD, *PIPMI_OS_SEL_RECORD;
 
+#include <poppack.h>
+
 #define IPMI_OS_SEL_RECORD_SIGNATURE 'RSSO'
 #define IPMI_OS_SEL_RECORD_VERSION_1 1
 #define IPMI_OS_SEL_RECORD_VERSION IPMI_OS_SEL_RECORD_VERSION_1
@@ -850,120 +856,6 @@ typedef struct _IPMI_OS_SEL_RECORD {
                                                        IPMI_IOCTL_INDEX + 0, \
                                                        METHOD_BUFFERED,      \
                                                        FILE_ANY_ACCESS)
-
-typedef union _DIMM_ADDRESS {
-
-    //
-    // DDR4 Address
-    //
-
-    struct {
-        UINT64 SocketId : 4;            // 16 Sockets
-        UINT64 MemoryControllerId : 2;  // 4 Memory Controllers
-        UINT64 ChannelId : 2;           // 4 Channels
-        UINT64 DimmSlot : 2;            // 3 DIMMs
-        UINT64 DimmRank : 2;            // 4 Ranks
-        UINT64 Device : 5;              // 18 Devices
-        UINT64 ChipSelect : 3;          // 8 Chip IDs
-        UINT64 Bank : 8;                // 16 Banks-includes BankGroup and Bank
-        UINT64 Dq : 4;                  // 16 DQs
-        UINT64 Reserved : 32;
-        UINT32 Row;
-        UINT32 Column;
-        UINT64 Info;
-    } Ddr4;
-
-    //
-    // DDR5 Address
-    //
-
-    struct {
-        UINT64 SocketId : 5;            // Up to 32 Sockets
-        UINT64 MemoryControllerId : 4;  // Up to 16 Memory Controllers/Socket
-        UINT64 ChannelId : 3;           // Up to 8 Channels/Memory Controller
-        UINT64 SubChannelId : 2;        // 4 Subchannels/Channel
-        UINT64 DimmSlot : 2;            // Up to 4 DIMMs/(Subchannel/Channel)
-        UINT64 DimmRank : 4;            // Up to 16 Electrical ranks/DIMM
-        UINT64 Device : 6;              // Up to 64 Devices/Electrical rank
-        UINT64 ChipId : 4;              // Up to 16 Chip IDs/DRAM Device
-        UINT64 Bank : 8;                // 256 Banks-includes BankGroup and Bank
-        UINT64 Dq : 5;                  // 32 DQs
-        UINT64 Reserved : 21;
-        UINT32 Row;                     // Up to 18 Row Bits
-        UINT32 Column;                  // Up to 11 Column Bits
-        UINT64 Info;
-    } Ddr5;
-} DIMM_ADDRESS, *PDIMM_ADDRESS;
-
-typedef enum _PAGE_OFFLINE_ERROR_TYPES {
-    BitErrorDdr4,
-    RowErrorDdr4,
-    BitErrorDdr5,
-    RowErrorDdr5
-} PAGE_OFFLINE_ERROR_TYPES, *PPAGE_OFFLINE_ERROR_TYPES;
-
-typedef union _PAGE_OFFLINE_VALID_BITS {
-    struct {
-        UINT8 PhysicalAddress: 1;
-        UINT8 MemDefect: 1;
-        UINT8 Reserved: 6;
-    };
-
-    UINT8 AsUINT8;
-} PAGE_OFFLINE_VALID_BITS, *PPAGE_OFFLINE_VALID_BITS;
-
-typedef struct _DIMM_ADDR_VALID_BITS_DDR4 {
-    UINT32 SocketId: 1;
-    UINT32 MemoryControllerId: 1;
-    UINT32 ChannelId: 1;
-    UINT32 DimmSlot: 1;
-    UINT32 DimmRank: 1;
-    UINT32 Device: 1;
-    UINT32 ChipSelect: 1;
-    UINT32 Bank: 1;
-    UINT32 Dq: 1;
-    UINT32 Row: 1;
-    UINT32 Column: 1;
-    UINT32 Info: 1;
-    UINT32 Reserved: 20;
-} DIMM_ADDR_VALID_BITS_DDR4, *PDIMM_ADDR_VALID_BITS_DDR4;
-
-typedef struct _DIMM_ADDR_VALID_BITS_DDR5 {
-    UINT32 SocketId : 1;
-    UINT32 MemoryControllerId : 1;
-    UINT32 ChannelId : 1;
-    UINT32 SubChannelId : 1;
-    UINT32 DimmSlot : 1;
-    UINT32 DimmRank : 1;
-    UINT32 Device : 1;
-    UINT32 ChipId : 1;
-    UINT32 Bank : 1;
-    UINT32 Dq : 1;
-    UINT32 Row : 1;
-    UINT32 Column : 1;
-    UINT32 Info : 1;
-    UINT32 Reserved : 19;
-} DIMM_ADDR_VALID_BITS_DDR5, *PDIMM_ADDR_VALID_BITS_DDR5;
-
-typedef union _DIMM_ADDR_VALID_BITS {
-    DIMM_ADDR_VALID_BITS_DDR4 VB_DDR4;
-    DIMM_ADDR_VALID_BITS_DDR5 VB_DDR5;
-    UINT32 AsUINT32;
-} DIMM_ADDR_VALID_BITS, *PDIMM_ADDR_VALID_BITS;
-
-typedef struct _DIMM_INFO {
-    DIMM_ADDRESS DimmAddress;
-    DIMM_ADDR_VALID_BITS ValidBits;
-} DIMM_INFO, *PDIMM_INFO;
-
-typedef struct _MEMORY_DEFECT {
-    UINT32 Version;
-    DIMM_INFO DimmInfo;
-    PAGE_OFFLINE_ERROR_TYPES ErrType;
-} MEMORY_DEFECT, * PMEMORY_DEFECT;
-
-#include <poppack.h>
-
 
 //
 // The general format of the common platform error record is illustrated below.
@@ -1034,6 +926,22 @@ typedef struct _MEMORY_DEFECT {
               (RTL_FIELD_SIZE(type, field) == (length))))
 
 #include <pshpack1.h>
+
+//---------------------------------- Downlevel GUID variable name compatibility
+
+#if WHEA_DOWNLEVEL_TYPE_NAMES
+
+#define PROCESSOR_GENERIC_SECTION_GUID          PROCESSOR_GENERIC_ERROR_SECTION_GUID
+#define X86_PROCESSOR_SPECIFIC_SECTION_GUID     XPF_PROCESSOR_ERROR_SECTION_GUID
+#define IPF_PROCESSOR_SPECIFIC_SECTION_GUID     IPF_PROCESSOR_ERROR_SECTION_GUID
+#define ARM_PROCESSOR_SPECIFIC_SECTION_GUID     ARM_PROCESSOR_ERROR_SECTION_GUID
+#define PLATFORM_MEMORY_SECTION_GUID            MEMORY_ERROR_SECTION_GUID
+#define PCIEXPRESS_SECTION_GUID                 PCIEXPRESS_ERROR_SECTION_GUID
+#define PCIX_BUS_SECTION_GUID                   PCIXBUS_ERROR_SECTION_GUID
+#define PCIX_COMPONENT_SECTION_GUID             PCIXDEVICE_ERROR_SECTION_GUID
+#define IPF_SAL_RECORD_REFERENCE_SECTION_GUID   FIRMWARE_ERROR_RECORD_REFERENCE_GUID
+
+#endif
 
 //------------------------------------------ Common Platform Error Record types
 
@@ -1268,6 +1176,13 @@ typedef struct _WHEA_ERROR_RECORD_SECTION_DESCRIPTOR {
 
 #define WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION   0x0300
 
+#if WHEA_DOWNLEVEL_TYPE_NAMES
+
+#define WHEA_SECTION_DESCRIPTOR_REVISION \
+    WHEA_ERROR_RECORD_SECTION_DESCRIPTOR_REVISION
+
+#endif
+
 //
 // Validate the error record section descriptor structure against the
 // definitions in the UEFI specification.
@@ -1382,6 +1297,21 @@ typedef struct _WHEA_PROCESSOR_GENERIC_ERROR_SECTION {
     ULONGLONG ResponderId;
     ULONGLONG InstructionPointer;
 } WHEA_PROCESSOR_GENERIC_ERROR_SECTION, *PWHEA_PROCESSOR_GENERIC_ERROR_SECTION;
+
+//
+// Define alternate type name for downlevel source compatibility.
+//
+
+#if WHEA_DOWNLEVEL_TYPE_NAMES
+
+typedef WHEA_PROCESSOR_GENERIC_ERROR_SECTION_VALIDBITS
+    WHEA_GENERIC_PROCESSOR_ERROR_VALIDBITS,
+    *PWHEA_GENERIC_PROCESSOR_ERROR_VALIDBITS;
+
+typedef WHEA_PROCESSOR_GENERIC_ERROR_SECTION
+    WHEA_GENERIC_PROCESSOR_ERROR, *PWHEA_GENERIC_PROCESSOR_ERROR;
+
+#endif
 
 //
 // Validate the processor generic error section structure against the
@@ -1649,6 +1579,13 @@ typedef struct DECLSPEC_ALIGN(16) _WHEA128A {
     LONGLONG High;
 } WHEA128A, *PWHEA128A;
 
+#if defined(_MSC_VER)
+#if (_MSC_VER >= 1200)
+#pragma warning(push)
+#pragma warning(disable:4324) // structure padded due to __declspec(align())
+#endif
+#endif
+
 typedef struct _WHEA_X64_REGISTER_STATE {
     ULONGLONG Rax;
     ULONGLONG Rbx;
@@ -1686,6 +1623,12 @@ typedef struct _WHEA_X64_REGISTER_STATE {
     USHORT Ldtr;
     USHORT Tr;
 } WHEA_X64_REGISTER_STATE, *PWHEA_X64_REGISTER_STATE;
+
+#if defined(_MSC_VER)
+#if (_MSC_VER >= 1200)
+#pragma warning(pop)
+#endif
+#endif
 
 #define XPF_CONTEXT_INFO_UNCLASSIFIEDDATA       0
 #define XPF_CONTEXT_INFO_MSRREGISTERS           1
@@ -1736,6 +1679,20 @@ typedef struct _WHEA_XPF_PROCESSOR_ERROR_SECTION {
 
     UCHAR VariableInfo[ANYSIZE_ARRAY];
 } WHEA_XPF_PROCESSOR_ERROR_SECTION, *PWHEA_XPF_PROCESSOR_ERROR_SECTION;
+
+//
+// Define alternate type names for downlevel source compatibility.
+//
+
+#if WHEA_DOWNLEVEL_TYPE_NAMES
+
+typedef struct WHEA_XPF_PROCESSOR_ERROR_SECTION_VALIDBITS
+    WHEA_XPF_PROCESSOR_ERROR_VALIDBITS, *PWHEA_XPF_PROCESSOR_ERROR_VALIDBITS;
+
+typedef struct WHEA_XPF_PROCESSOR_ERROR_SECTION
+    WHEA_XPF_PROCESSOR_ERROR, *PWHEA_XPF_PROCESSOR_ERROR;
+
+#endif
 
 //
 // Validate the x86/x64 processor error section structures against the
@@ -1892,6 +1849,20 @@ typedef struct _WHEA_MEMORY_ERROR_SECTION {
 } WHEA_MEMORY_ERROR_SECTION, *PWHEA_MEMORY_ERROR_SECTION;
 
 //
+// Define alternate names allowing for downlevel source compatibility.
+//
+
+#if WHEA_DOWNLEVEL_TYPE_NAMES
+
+typedef WHEA_MEMORY_ERROR_SECTION_VALIDBITS
+    WHEA_MEMORY_ERROR_VALIDBITS, *PWHEA_MEMORY_ERROR_VALIDBITS;
+
+typedef WHEA_MEMORY_ERROR_SECTION
+    WHEA_MEMORY_ERROR, *PWHEA_MEMORY_ERROR;
+
+#endif
+
+//
 // Validate the memory error section structures against the definitions in the
 // UEFI  specification.
 //
@@ -1912,102 +1883,6 @@ CPER_FIELD_CHECK(WHEA_MEMORY_ERROR_SECTION, RequesterId,         48, 8);
 CPER_FIELD_CHECK(WHEA_MEMORY_ERROR_SECTION, ResponderId,         56, 8);
 CPER_FIELD_CHECK(WHEA_MEMORY_ERROR_SECTION, TargetId,            64, 8);
 CPER_FIELD_CHECK(WHEA_MEMORY_ERROR_SECTION, ErrorType,           72, 1);
-
-//----------------------------------------------- WHEA_MEMORY_ERROR_EXT_SECTION
-
-typedef enum _WHEA_MEMORY_DEFINITION {
-    WheaMemoryUndefined = 0,
-    WheaMemoryFm,
-    WheaMemoryNm,
-    WheaMemoryHbm,
-    WheaMemoryMax
-} WHEA_MEMORY_DEFINITION, *PWHEA_MEMORY_DEFINITION;
-
-typedef union _WHEA_MEMORY_ERROR_EXT_SECTION_FLAGS {
-    struct {
-        UINT64 AddressTranslationByPrmSuccess : 1;
-        UINT64 AddressTranslationByPrmFailed : 1;
-        UINT64 AddressTranslationByPrmNotSupported : 1;
-        UINT64 AddressTranslationByPluginSuccess : 1;
-        UINT64 AddressTranslationByPluginFailed : 1;
-        UINT64 AddressTranslationByPluginNotSupported : 1;
-        UINT64 Reserved : 58;
-    } DUMMYSTRUCTNAME;
-
-    UINT64 AsUINT64;
-} WHEA_MEMORY_ERROR_EXT_SECTION_FLAGS, *PWHEA_MEMORY_ERROR_EXT_SECTION_FLAGS;
-
-typedef union _WHEA_MEMORY_ERROR_EXT_SECTION_INTEL_VALIDBITS {
-    struct {
-        UINT64 MemDef : 1;
-        UINT64 SystemAddress : 1;
-        UINT64 SpareSystemAddress : 1;
-        UINT64 DevicePhysicalAddress : 1;
-        UINT64 ChannelAddress : 1;
-        UINT64 RankAddress : 1;
-        UINT64 ProcessorSocketId : 1;
-        UINT64 MemoryControllerId : 1;
-        UINT64 TargetId : 1;
-        UINT64 LogicalChannelId : 1;
-        UINT64 ChannelId : 1;
-        UINT64 SubChannelId : 1;
-        UINT64 PhysicalRankId : 1;
-        UINT64 DimmSlotId : 1;
-        UINT64 DimmRankId : 1;
-        UINT64 Bank : 1;
-        UINT64 BankGroup : 1;
-        UINT64 Row : 1;
-        UINT64 Column : 1;
-        UINT64 LockStepRank : 1;
-        UINT64 LockStepPhysicalRank : 1;
-        UINT64 LockStepBank : 1;
-        UINT64 LockStepBankGroup : 1;
-        UINT64 ChipSelect : 1;
-        UINT64 Node : 1;
-        UINT64 ChipId : 1;
-        UINT64 Reserved : 38;
-    } DUMMYSTRUCTNAME;
-
-    UINT64 ValidBits;
-} WHEA_MEMORY_ERROR_EXT_SECTION_INTEL_VALIDBITS,
-  *PWHEA_MEMORY_ERROR_EXT_SECTION_INTEL_VALIDBITS;
-
-typedef struct _WHEA_MEMORY_HARDWARE_ADDRESS_INTEL {
-    WHEA_MEMORY_DEFINITION MemDef;
-    UINT64 SystemAddress;
-    UINT64 SpareSystemAddress;
-    UINT64 DevicePhysicalAddress;
-    UINT64 ChannelAddress;
-    UINT64 RankAddress;
-    UINT8 ProcessorSocketId;
-    UINT8 MemoryControllerId;
-    UINT8 TargetId;
-    UINT8 LogicalChannelId;
-    UINT8 ChannelId;
-    UINT8 SubChannelId;
-    UINT8 PhysicalRankId;
-    UINT8 DimmSlotId;
-    UINT8 DimmRankId;
-    UINT8 Bank;
-    UINT8 BankGroup;
-    UINT32 Row;
-    UINT32 Column;
-    UINT8 LockStepRank;
-    UINT8 LockStepPhysicalRank;
-    UINT8 LockStepBank;
-    UINT8 LockStepBankGroup;
-    UINT8 ChipSelect;
-    UINT8 Node;
-    UINT8 ChipId;
-    UINT8 Reserved[40];
-} WHEA_MEMORY_HARDWARE_ADDRESS_INTEL, *PWHEA_MEMORY_HARDWARE_ADDRESS_INTEL;
-
-typedef struct _WHEA_MEMORY_ERROR_EXT_SECTION_INTEL {
-    WHEA_MEMORY_ERROR_EXT_SECTION_FLAGS Flags;
-    WHEA_MEMORY_ERROR_EXT_SECTION_INTEL_VALIDBITS ValidBits;
-    WHEA_MEMORY_HARDWARE_ADDRESS_INTEL HardwareAddress;
-    UINT8 Reserved[40];
-} WHEA_MEMORY_ERROR_EXT_SECTION_INTEL, *PWHEA_MEMORY_ERROR_EXT_SECTION_INTEL;
 
 //----------------------------------------------------- WHEA_PMEM_ERROR_SECTION
 
@@ -2221,6 +2096,17 @@ typedef struct _WHEA_PCIEXPRESS_ERROR_SECTION {
     UCHAR AerInfo[96];
 } WHEA_PCIEXPRESS_ERROR_SECTION, *PWHEA_PCIEXPRESS_ERROR_SECTION;
 
+#if WHEA_DOWNLEVEL_TYPE_NAMES
+
+typedef WHEA_PCIEXPRESS_ERROR_SECTION_VALIDBITS
+    WHEA_PCIEXPRESS_ERROR_VALIDBITS,
+    *PWHEA_PCIEXPRESS_ERROR_VALIDBITS;
+
+typedef WHEA_PCIEXPRESS_ERROR_SECTION
+    WHEA_PCIEXPRESS_ERROR, *PWHEA_PCIEXPRESS_ERROR;
+
+#endif
+
 //
 // Validate the PCI Express error section structures against the definitions
 // in the UEFI  specification.
@@ -2295,6 +2181,17 @@ typedef struct _WHEA_PCIXBUS_ERROR_SECTION {
     ULONGLONG TargetId;
 } WHEA_PCIXBUS_ERROR_SECTION, *PWHEA_PCIXBUS_ERROR_SECTION;
 
+#if WHEA_DOWNLEVEL_TYPE_NAMES
+
+typedef WHEA_PCIXBUS_ERROR_SECTION_VALIDBITS
+    WHEA_PCIXBUS_ERROR_VALIDBITS,
+    *PWHEA_PCIXBUS_ERROR_VALIDBITS;
+
+typedef WHEA_PCIXBUS_ERROR_SECTION
+    WHEA_PCIXBUS_ERROR, *PWHEA_PCIXBUS_ERROR;
+
+#endif
+
 CPER_FIELD_CHECK(WHEA_PCIXBUS_ERROR_SECTION, ValidBits,    0, 8);
 CPER_FIELD_CHECK(WHEA_PCIXBUS_ERROR_SECTION, ErrorStatus,  8, 8);
 CPER_FIELD_CHECK(WHEA_PCIXBUS_ERROR_SECTION, ErrorType,   16, 2);
@@ -2348,6 +2245,16 @@ typedef struct _WHEA_PCIXDEVICE_ERROR_SECTION {
     WHEA_PCIXDEVICE_REGISTER_PAIR RegisterDataPairs[ANYSIZE_ARRAY];
 } WHEA_PCIXDEVICE_ERROR_SECTION, *PWHEA_PCIXDEVICE_ERROR_SECTION;
 
+#if WHEA_DOWNLEVEL_TYPE_NAMES
+
+typedef WHEA_PCIXDEVICE_ERROR_SECTION_VALIDBITS
+    WHEA_PCIXDEVICE_ERROR_VALIDBITS, *PWHEA_PCIXDEVICE_ERROR_VALIDBITS;
+
+typedef WHEA_PCIXDEVICE_ERROR_SECTION
+    WHEA_PCIXDEVICE_ERROR, *PWHEA_PCIXDEVICE_ERROR;
+
+#endif
+
 CPER_FIELD_CHECK(WHEA_PCIXDEVICE_ERROR_SECTION, ValidBits,          0,  8);
 CPER_FIELD_CHECK(WHEA_PCIXDEVICE_ERROR_SECTION, ErrorStatus,        8,  8);
 CPER_FIELD_CHECK(WHEA_PCIXDEVICE_ERROR_SECTION, IdInfo,            16, 16);
@@ -2364,6 +2271,13 @@ typedef struct _WHEA_FIRMWARE_ERROR_RECORD_REFERENCE {
     UCHAR Reserved[7];
     ULONGLONG FirmwareRecordId;
 } WHEA_FIRMWARE_ERROR_RECORD_REFERENCE, *PWHEA_FIRMWARE_ERROR_RECORD_REFERENCE;
+
+#if WHEA_DOWNLEVEL_TYPE_NAMES
+
+typedef WHEA_FIRMWARE_ERROR_RECORD_REFERENCE
+    WHEA_FIRMWARE_RECORD, *PWHEA_FIRMWARE_RECORD;
+
+#endif
 
 CPER_FIELD_CHECK(WHEA_FIRMWARE_ERROR_RECORD_REFERENCE, Type,             0,  1);
 CPER_FIELD_CHECK(WHEA_FIRMWARE_ERROR_RECORD_REFERENCE, Reserved,         1,  7);
@@ -2473,7 +2387,6 @@ typedef struct _MCI_STATUS_INTEL_BITS {
         ULONG64 Valid : 1;
 } MCI_STATUS_INTEL_BITS, *PMCI_STATUS_INTEL_BITS;
 
-
 typedef union _MCI_STATUS {
     MCI_STATUS_BITS_COMMON CommonBits;
     MCI_STATUS_AMD_BITS AmdBits;
@@ -2490,10 +2403,8 @@ typedef enum _WHEA_CPU_VENDOR {
 #define WHEA_XPF_MCA_EXTREG_MAX_COUNT            24
 #define WHEA_XPF_MCA_SECTION_VERSION_2           2
 #define WHEA_XPF_MCA_SECTION_VERSION_3           3
-#define WHEA_XPF_MCA_SECTION_VERSION_4           4
-#define WHEA_XPF_MCA_SECTION_VERSION             WHEA_XPF_MCA_SECTION_VERSION_4
+#define WHEA_XPF_MCA_SECTION_VERSION             WHEA_XPF_MCA_SECTION_VERSION_3
 #define WHEA_AMD_EXT_REG_NUM                     10
-#define WHEA_XPF_MCA_EXBANK_COUNT                32
 
 //
 // NOTE: You must update WHEA_AMD_EXT_REG_NUM if you add additional registers
@@ -2569,16 +2480,6 @@ typedef struct _WHEA_XPF_MCA_SECTION {
     //
 
     XPF_RECOVERY_INFO RecoveryInfo;
-
-    //
-    // Version 4 Fields follow.
-    //
-
-    ULONG ExBankCount;
-    ULONG BankNumberEx[WHEA_XPF_MCA_EXBANK_COUNT];
-    MCI_STATUS StatusEx[WHEA_XPF_MCA_EXBANK_COUNT];
-    ULONGLONG AddressEx[WHEA_XPF_MCA_EXBANK_COUNT];
-    ULONGLONG MiscEx[WHEA_XPF_MCA_EXBANK_COUNT];
 } WHEA_XPF_MCA_SECTION, *PWHEA_XPF_MCA_SECTION;
 
 //------------------------------------------------------ WHEA_NMI_ERROR_SECTION
@@ -2665,15 +2566,15 @@ typedef enum _WHEA_RECOVERY_TYPE {
 
 typedef union _WHEA_RECOVERY_ACTION {
     struct {
-        UINT64 NoneAttempted : 1;
-        UINT64 TerminateProcess : 1;
-        UINT64 ForwardedToVm : 1;
-        UINT64 MarkPageBad : 1;
-        UINT64 PoisonNotPresent :1;
-        UINT64 Reserved : 59;
+        ULONG NoneAttempted : 1;
+        ULONG TerminateProcess : 1;
+        ULONG ForwardedToVm : 1;
+        ULONG MarkPageBad : 1;
+        ULONG PoisonNotPresent :1;
+        ULONG Reserved : 28;
     } DUMMYSTRUCTNAME;
 
-    UINT64 AsUINT64;
+    ULONG AsULONG;
 } WHEA_RECOVERY_ACTION, *PWHEA_RECOVERY_ACTION;
 
 typedef enum _WHEA_RECOVERY_FAILURE_REASON {
@@ -3025,7 +2926,6 @@ CPER_FIELD_CHECK(WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER, Version,  
 CPER_FIELD_CHECK(WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER, RegisterContextType,   2,    2);
 CPER_FIELD_CHECK(WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER, RegisterArraySize,     4,    4);
 CPER_FIELD_CHECK(WHEA_ARM_PROCESSOR_ERROR_CONTEXT_INFORMATION_HEADER, RegisterArray,         8,    1);
-
 // ----------------------------------------------------------------- SEA Section
 
 typedef struct _WHEA_SEA_SECTION {
@@ -3039,45 +2939,6 @@ typedef struct _WHEA_SEI_SECTION {
     ULONG Esr;
     ULONG64 Far;
 } WHEA_SEI_SECTION, *PWHEA_SEI_SECTION;
-
-// -------------------------------------------------------- Arm RAS Node Section
-
-typedef struct _WHEA_ARM_RAS_NODE_SECTION {
-    UINT32 NodeFieldCount;
-    UINT32 NodeIndex;
-    UINT8 InterfaceType;
-    UINT8 AestNodeType;
-    UINT8 Reserved[6];
-    // Fields as defined in the Arm RAS extensions version 8.6  (ARM DDI 0587)
-    UINT64 ErrFr;
-    UINT64 ErrCtlr;
-    UINT64 ErrStatus;
-    UINT64 ErrAddr;
-    UINT64 ErrMisc0;
-    UINT64 ErrMisc1;
-    UINT64 ErrMisc2;
-    UINT64 ErrMisc3;
-} WHEA_ARM_RAS_NODE_SECTION, *PWHEA_ARM_RAS_NODE_SECTION;
-
-//
-// To make ensure backwards compatability in the future the number of node field's
-// is recorded. This allows expanding the section on new machines without breaking
-// parsing for older generations.
-//
-
-#define WHEA_ARM_RAS_NODE_FIELD_COUNT 8
-
-//
-// Interface types possible for Arm Ras Nodes, as defined in the AEST ACPI table
-// definition in "ACPI for the Armv8 RAS Extenstions"  (Document Number DEN0085)
-//
-
-typedef enum _WHEA_ARM_RAS_NODE_INTERFACES {
-    WheaArmRasNodeInterfaceSystemRegister = 0,
-    WheaArmRasNodeInterfaceMmio = 1
-} WHEA_ARM_RAS_NODE_INTERFACES, *PWHEA_ARM_RAS_NODE_INTERFACES;
-
-// -------------------------------------------------------- PCI Recovery Section
 
 typedef enum _WHEA_PCI_RECOVERY_SIGNAL {
     WheaPciRecoverySignalUnknown = 0,
@@ -3093,9 +2954,6 @@ typedef enum _WHEA_PCI_RECOVERY_STATUS {
     WheaPciRecoveryStatusRpBusyTimeout,
     WheaPciRecoveryStatusComplexTree,
     WheaPciRecoveryStatusBusNotFound,
-    WheaPciRecoveryStatusDeviceNotFound,
-    WheaPciRecoveryStatusDdaAerNotRecoverable,
-    WheaPciRecoveryStatusFailedRecovery,
 }WHEA_PCI_RECOVERY_STATUS,  *PWHEA_PCI_RECOVERY_STATUS;
 
 typedef struct _WHEA_PCI_RECOVERY_SECTION {
@@ -3105,7 +2963,6 @@ typedef struct _WHEA_PCI_RECOVERY_SECTION {
 } WHEA_PCI_RECOVERY_SECTION, *PWHEA_PCI_RECOVERY_SECTION;
 
 #include <poppack.h>
-
 
 //-------------------------------------- Standard Error Notification Type GUIDs
 
@@ -3382,17 +3239,6 @@ DEFINE_GUID(PCI_RECOVERY_SECTION_GUID,
             0xdd060800, 0xf6e1, 0x4204, 0xac, 0x27,
             0xc4, 0xbc, 0xa9, 0x56, 0x84, 0x02);
 
-/* e3ebf4a2-df50-4708-b2d7-0b29ec2f7aa9 */
-DEFINE_GUID(ARM_RAS_NODE_SECTION_GUID,
-            0xe3ebf4a2, 0xdf50, 0x4708, 0xb2, 0xd7,
-            0x0b, 0x29, 0xec, 0x2f, 0x7a, 0xa9);
-
-/* e16edb28-6113-4263-a41d-e53f8de78751 */
-DEFINE_GUID(MEMORY_ERROR_EXT_SECTION_INTEL_GUID,
-            0xe16edb28, 0x6113, 0x4263, 0xa4, 0x1d,
-            0xe5, 0x3f, 0x8d, 0xe7, 0x87, 0x51);
-
-
 #if defined(_NTPSHEDDLL_)
 
 #define NTPSHEDAPI
@@ -3561,6 +3407,8 @@ typedef struct _WHEA_ERROR_PACKET_V1    WHEA_ERROR_PACKET, *PWHEA_ERROR_PACKET;
 #define WHEA_ERROR_LOG_ENTRY_PSHED  'DHSP'
 #define WHEA_ERROR_LOG_ENTRY_PSHED_PI 'IPSP'
 
+typedef PCI_EXPRESS_DPC_CAPABILITY WHEA_PCI_DPC_SECTION, *PWHEA_PCI_DPC_SECTION;
+
 typedef enum _WHEA_EVENT_LOG_ENTRY_TYPE {
     WheaEventLogEntryTypeInformational = 0,
     WheaEventLogEntryTypeWarning,
@@ -3645,28 +3493,12 @@ typedef enum _WHEA_EVENT_LOG_ENTRY_ID {
     WheaEventLogEntryIdDefectListUEFIVarFailed = 0x80000051,
     WheaEventLogEntryIdDefectListCorrupt       = 0x80000052,
     WheaEventLogEntryIdBadHestNotifyData       = 0x80000053,
-    WheaEventLogEntryIdRowFailure              = 0x80000054,
-    WheaEventLogEntryIdSrasTableNotFound       = 0x80000055,
-    WheaEventLogEntryIdSrasTableError          = 0x80000056,
-    WheaEventLogEntryIdSrasTableEntries        = 0x80000057,
-    WheaEventLogEntryIdPFANotifyCallbackAction = 0x80000058,
-    WheaEventLogEntryIdSELBugCheckCpusQuiesced = 0x80000059,
-    WheaEventLogEntryIdPshedPiCpuid            = 0x8000005a,
-    WheaEventLogEntryIdSrasTableBadData        = 0x8000005b,
-    WheaEventLogEntryIdDriFsStatus             = 0x8000005c,
+    WheaEventLogEntryIdSrasTableNotFound       = 0x80000054,
+    WheaEventLogEntryIdSrasTableError          = 0x80000055,
+    WheaEventLogEntryIdSrasTableEntries        = 0x80000056,
+    WheaEventLogEntryIdRowFailure              = 0x80000057,
     WheaEventLogEntryIdCpusFrozen              = 0x80000060,
     WheaEventLogEntryIdCpusFrozenNoCrashDump   = 0x80000061,
-    WheaEventLogEntryIdRegNotifyPolicyChange   = 0x80000062,
-    WheaEventLogEntryIdRegError                = 0x80000063,
-    WheaEventLogEntryIdRowOfflineEvent         = 0x80000064,
-    WheaEventLogEntryIdBitOfflineEvent         = 0x80000065,
-    WheaEventLogEntryIdBadGasFields            = 0x80000066,
-    WheaEventLogEntryIdCrashDumpError                   = 0x80000067,
-    WheaEventLogEntryIdCrashDumpCheckpoint              = 0x80000068,
-    WheaEventLogEntryIdCrashDumpProgressPercent         = 0x80000069,
-    WheaEventLogEntryIdPreviousCrashBugCheckProgress    = 0x8000006a,
-    WheaEventLogEntryIdSELBugCheckStackDump             = 0x8000006b,
-    WheaEventLogEntryIdPciePromotedAerErr      = 0x8000006c,
     WheaEventLogEntryIdPshedPiTraceLog         = 0x80040010
 } WHEA_EVENT_LOG_ENTRY_ID, *PWHEA_EVENT_LOG_ENTRY_ID;
 
@@ -3722,23 +3554,6 @@ typedef struct _WHEAP_STARTED_REPORT_HW_ERROR {
 } WHEAP_STARTED_REPORT_HW_ERROR,
   *PWHEAP_STARTED_REPORT_HW_ERROR;
 
-typedef enum _WHEA_RECOVERY_CONTEXT_ACTION_TAKEN {
-    WheaRecoveryContextActionTakenNone = 0,
-    WheaRecoveryContextActionTakenOfflineDemotion,
-    WheaRecoveryContextActionTakenPageNotReplaced,
-    WheaRecoveryContextActionTakenPageReplaced,
-    WheaRecoveryContextActionTakenMax
-} WHEA_RECOVERY_CONTEXT_ACTION_TAKEN, *PWHEA_RECOVERY_CONTEXT_ACTION_TAKEN;
-
-typedef union _WHEA_RECOVERY_CONTEXT_ACTION_TAKEN_ADDITIONAL_INFO {
-    struct {
-        ULONG64 Reserved: 64;
-    } Bits;
-
-    ULONG64 AsULONG64;
-} WHEA_RECOVERY_CONTEXT_ACTION_TAKEN_ADDITIONAL_INFO,
-  *PWHEA_RECOVERY_CONTEXT_ACTION_TAKEN_ADDITIONAL_INFO;
-
 typedef enum _WHEAP_PFA_OFFLINE_DECISION_TYPE {
     WheapPfaOfflinePredictiveFailure = 1,
     WheapPfaOfflineUncorrectedError = 2
@@ -3749,19 +3564,8 @@ typedef struct _WHEAP_PFA_MEMORY_OFFLINED {
     WHEAP_PFA_OFFLINE_DECISION_TYPE DecisionType;
     BOOLEAN ImmediateSuccess;
     ULONG Page;
-    BOOLEAN NotifyVid;
 } WHEAP_PFA_MEMORY_OFFLINED,
   *PWHEAP_PFA_MEMORY_OFFLINED;
-
-typedef struct _WHEAP_PFA_MEMORY_OFFLINED_NOTIFY_CALLBACK_ACTION {
-    WHEA_EVENT_LOG_ENTRY WheaEventLogEntry;
-    ULONG Page;
-    ULONG ComponentTag;
-    NTSTATUS Status;
-    WHEA_RECOVERY_CONTEXT_ACTION_TAKEN ActionTaken;
-    WHEA_RECOVERY_CONTEXT_ACTION_TAKEN_ADDITIONAL_INFO ActionTakenAdditionalInfo;
-} WHEAP_PFA_MEMORY_OFFLINED_NOTIFY_CALLBACK_ACTION,
-  *PWHEAP_PFA_MEMORY_OFFLINED_NOTIFY_CALLBACK_ACTION;
 
 typedef struct _WHEAP_PSHED_INJECT_ERROR {
     WHEA_EVENT_LOG_ENTRY WheaEventLogEntry;
@@ -4156,16 +3960,6 @@ typedef struct _WHEAP_SPURIOUS_AER_EVENT {
     ULONG DeviceAssociationBitmap;
 } WHEAP_SPURIOUS_AER_EVENT, *PWHEAP_SPURIOUS_AER_EVENT;
 
-typedef struct _WHEAP_PROMOTED_AER_ERROR_EVENT {
-    WHEA_EVENT_LOG_ENTRY WheaEventLogEntry;
-    WHEA_ERROR_SEVERITY ErrorSeverity;
-    ULONG ErrorHandlerType;
-    ULONG ErrorSourceId;
-    ULONG RootErrorCommand;
-    ULONG RootErrorStatus;
-    ULONG DeviceAssociationBitmap;
-} WHEAP_PROMOTED_AER_ERROR_EVENT, *PWHEAP_PROMOTED_AER_ERROR_EVENT;
-
 typedef enum _WHEAP_DPC_ERROR_EVENT_TYPE {
     WheapDpcErrNoErr = 0,
     WheapDpcErrBusNotFound,
@@ -4302,15 +4096,6 @@ typedef struct _WHEA_SRAS_TABLE_ERROR {
     WHEA_EVENT_LOG_ENTRY WheaEventLogEntry;
 } WHEA_SRAS_TABLE_ERROR, *PWHEA_SRAS_TABLE_ERROR;
 
-typedef struct _WHEA_PSHED_PI_CPUID {
-    WHEA_EVENT_LOG_ENTRY WheaEventLogEntry;
-    UINT32 CpuVendor;
-    UINT32 CpuFamily;
-    UINT32 CpuModel;
-    UINT32 CpuStepping;
-    UINT32 NumBanks;
-} WHEA_PSHED_PI_CPUID, *PWHEA_PSHED_PI_CPUID;
-
 #define WCS_RAS_REGISTER_NAME_MAX_LENGTH 32
 
 typedef struct _WHEA_ACPI_HEADER {
@@ -4348,120 +4133,7 @@ typedef struct _WHEAP_ROW_FAILURE_EVENT {
     WHEA_EVENT_LOG_ENTRY WheaEventLogEntry;
     PFN_NUMBER LowOrderPage;
     PFN_NUMBER HighOrderPage;
-} WHEAP_ROW_FAILURE_EVENT, * PWHEAP_ROW_FAILURE_EVENT;
-
-typedef struct _PSHED_MEMORY_DETAILS_VALID_BITS {
-    UINT32 DdrVersion: 1;
-    UINT32 IsClosedPaged: 1;
-    UINT32 ColsPerRow: 1;
-    UINT32 PagesPerRow: 1;
-    UINT32 SocketCnt: 1;
-    UINT32 ChaOnSktCnt: 1;
-    UINT32 DimmSlotCnt: 1;
-    UINT32 SubchannelCnt: 1;
-    UINT32 Reserved: 24;
-} PSHED_MEMORY_DETAILS_VALID_BITS, *PPSHED_MEMORY_DETAILS_VALID_BITS;
-
-typedef struct _PSHED_MEMORY_DETAILS {
-    UINT16 Version;
-    PSHED_MEMORY_DETAILS_VALID_BITS Vb;
-    UINT16 DdrVersion;
-    BOOLEAN IsClosedPaged;
-    UINT16 ColsPerRow;
-    UINT16 PagesPerRow;
-    UINT8 SocketCnt;
-    UINT8 ChaOnSktCnt;
-    UINT8 DimmSlotCnt;
-    UINT8 SubchannelCnt;
-} PSHED_MEMORY_DETAILS, *PPSHED_MEMORY_DETAILS;
-
-typedef enum _WHEA_OFFLINE_ERRS {
-    WheaOfflineNoError = 0,
-    GetMemoryDetailsErr,
-    RatFailure,
-    RatFailureFirstCol,
-    RatFailureLastCol,
-    ClosedPage,
-    BadPageRange,
-    InvalidData,
-    NotDdr,
-    UnsupportedDdrVersion,
-    IncorrectDdrVersion,
-    NoMemoryForWrapper
-} WHEA_OFFLINE_ERRS, * PWHEA_OFFLINE_ERRS;
-
-typedef struct _WHEAP_ROW_OFFLINE_EVENT {
-    WHEA_EVENT_LOG_ENTRY WheaEventLogEntry;
-    PFN_NUMBER FirstPage;
-    PFN_NUMBER LastPage;
-    UINT32 Range;
-    NTSTATUS Status;
-    WHEA_OFFLINE_ERRS ErrorReason;
-} WHEAP_ROW_OFFLINE_EVENT, * PWHEAP_ROW_OFFLINE_EVENT;
-
-typedef struct _WHEAP_BIT_OFFLINE_EVENT {
-    WHEA_EVENT_LOG_ENTRY WheaEventLogEntry;
-    PFN_NUMBER Page;
-    NTSTATUS Status;
-    WHEA_OFFLINE_ERRS ErrorReason;
-} WHEAP_BIT_OFFLINE_EVENT, * PWHEAP_BIT_OFFLINE_EVENT;
-
-typedef struct _WHEA_REGNOTIFY_POLICY_CHANGE_EVENT {
-    WHEA_EVENT_LOG_ENTRY WheaEventLogEntry;
-    CCHAR PolicyName[WHEA_ERROR_TEXT_LEN];
-    ULONG PolicyIndex;
-    ULONG PolicyValue;
-} WHEA_REGNOTIFY_POLICY_CHANGE_EVENT, *PWHEA_REGNOTIFY_POLICY_CHANGE_EVENT;
-
-typedef enum _WHEA_REGISTRY_ERRORS {
-    WheaRegErrNone = 0,
-    WheaRegErrFailedToCreateWheaKey,
-    WheaRegErrFailedToCreatePolicyKey,
-    WheaRegErrFailedToOpenHandle
-} WHEA_REGISTRY_ERRORS, *PWHEA_REGISTRY_ERRORS;
-
-typedef struct _WHEA_REGISTRY_ERROR_EVENT {
-    WHEA_EVENT_LOG_ENTRY WheaEventLogEntry;
-    WHEA_REGISTRY_ERRORS RegErr;
-    UINT32 Status;
-} WHEA_REGISTRY_ERROR_EVENT, *PWHEA_REGISTRY_ERROR_EVENT;
-
-typedef struct _WHEA_CRASHDUMP_EVENT_LOG_ENTRY_WITH_STATUS {
-    WHEA_EVENT_LOG_ENTRY WheaEventLogEntry;
-    ULONG SourceLocationId;
-    NTSTATUS Status;
-} WHEA_CRASHDUMP_EVENT_LOG_ENTRY_WITH_STATUS, *PWHEA_CRASHDUMP_EVENT_LOG_ENTRY_WITH_STATUS;
-
-typedef struct _WHEA_CRASHDUMP_EVENT_LOG_ENTRY_ULONG1 {
-    WHEA_EVENT_LOG_ENTRY WheaEventLogEntry;
-    ULONG Value;
-} WHEA_CRASHDUMP_EVENT_LOG_ENTRY_ULONG1, *PWHEA_CRASHDUMP_EVENT_LOG_ENTRY_ULONG1;
-
-typedef enum _WHEA_GAS_ERRORS {
-    WheaGasErrNone = 0,
-    WheaGasErrUnexpectedAddressSpaceId,
-    WheaGasErrInvalidStructFields,
-    WheaGasErrInvalidAccessSize
-} WHEA_GAS_ERRORS, *PWHEA_GAS_ERRORS;
-
-typedef struct _WHEA_GAS_ERROR_EVENT {
-    WHEA_EVENT_LOG_ENTRY WheaEventLogEntry;
-    WHEA_GAS_ERRORS Error;
-} WHEA_GAS_ERROR_EVENT, *PWHEA_GAS_ERROR_EVENT;
-
-//
-// Make sure MAX_SEL_RAW_EVENT_PAYLOAD_LENGTH is kept in sync with
-// MAX_OSSELREC_LENGTH (see onecore\admin\wmi\ipmi\driver\lib\DriverEntry.c).
-//
-
-#define MAX_SEL_RAW_EVENT_PAYLOAD_LENGTH 256
-
-typedef struct _WHEA_SEL_RAW_EVENT {
-    WHEA_EVENT_LOG_ENTRY WheaEventLogEntry;
-    UCHAR Payload[MAX_SEL_RAW_EVENT_PAYLOAD_LENGTH];
-} WHEA_SEL_RAW_EVENT, *PWHEA_SEL_RAW_EVENT;
-
-C_ASSERT((FIELD_OFFSET(WHEA_SEL_RAW_EVENT, Payload) % 4) == 0);
+} WHEAP_ROW_FAILURE_EVENT, *PWHEAP_ROW_FAILURE_EVENT;
 
 __inline
 VOID
@@ -4660,11 +4332,6 @@ typedef struct _WHEA_PACKET_LOG_DATA {
     WHEA_REPORT_HW_ERROR_DEVICE_DRIVER_FLAGS Flags;
 } WHEA_PACKET_LOG_DATA, *PWHEA_PACKET_LOG_DATA;
 
-typedef struct _ERROR_SOURCE_INFO {
-    ULONG ErrorCount;
-    ULONG ErrorSourceId;
-} ERROR_SOURCE_INFO, *PERROR_SOURCE_INFO;
-
 NTKERNELAPI
 NTSTATUS
 WheaReportHwErrorDeviceDriver (
@@ -4719,7 +4386,6 @@ WheaHwErrorReportSetSectionNameDeviceDriver (
     _In_reads_bytes_(NameLength) PUCHAR Name
     );
 
-
 NTKERNELAPI
 NTSTATUS
 WheaReportHwError(
@@ -4759,10 +4425,6 @@ WheaRemoveErrorSource(
     );
 
 NTKERNELAPI
-BOOLEAN
-WheaIsLogSelHandlerInitialized();
-
-NTKERNELAPI
 VOID
 WheaLogInternalEvent (
     _In_ PWHEA_EVENT_LOG_ENTRY Entry
@@ -4789,6 +4451,13 @@ BOOLEAN
 typedef _WHEA_SIGNAL_HANDLER_OVERRIDE_CALLBACK
     *WHEA_SIGNAL_HANDLER_OVERRIDE_CALLBACK;
 
+//
+// This flag is added to an error source descriptor to indicate this source
+// is an override, and not a normal error source.
+//
+
+#define WHEA_ERR_SRC_OVERRIDE_FLAG 0x1
+
 typedef struct _WHEA_ERROR_SOURCE_OVERRIDE_SETTINGS {
     WHEA_ERROR_SOURCE_TYPE Type;
     ULONG MaxRawDataLength;
@@ -4814,16 +4483,6 @@ WheaRegisterErrorSourceOverride (
     _In_ PWHEA_ERROR_SOURCE_CONFIGURATION OverrideConfig,
     _In_ WHEA_SIGNAL_HANDLER_OVERRIDE_CALLBACK OverrideCallback
     );
-
-NTKERNELAPI
-NTSTATUS
-WheaGetErrorSourceInfo (
-    _In_ WHEA_ERROR_SOURCE_TYPE SourceType,
-    _Out_ PULONG ErrorCount,
-    _Out_ PERROR_SOURCE_INFO* SourceInfo,
-    _In_ ULONG PoolTag
-    );
-
 
 typedef
 NTSTATUS
@@ -4922,6 +4581,7 @@ Return Value:
                 Packet = (PWHEA_ERROR_PACKET)
                     (((PUCHAR)Record) + Descriptor->SectionOffset);
 
+#pragma warning(suppress: 26019)
                 if (Packet->Signature != WHEA_ERROR_PACKET_SIGNATURE) {
                     Packet = NULL;
                 }
@@ -4986,9 +4646,9 @@ typedef
 BOOLEAN
 (*PFN_IN_USE_PAGE_OFFLINE_NOTIFY) (
     _In_ PFN_NUMBER Page,
+    _In_ BOOLEAN Flags,
     _In_ BOOLEAN Poisoned,
-    _Inout_ PVOID Context,
-    _Out_ PNTSTATUS CallbackStatus
+    _In_ PVOID Context
     );
 
 NTKERNELAPI
@@ -5010,12 +4670,14 @@ WheaGetNotifyAllOfflinesPolicy (
     VOID
     );
 
+#define WHEA_IN_USE_PAGE_NOTIFY_FLAG_PLATFORMDIRECTED 0x01
+#define WHEA_IN_USE_PAGE_NOTIFY_FLAG_NOTIFYALL        0x40
+#define WHEA_IN_USE_PAGE_NOTIFY_FLAG_PAGEOFFLINED     0x80
+
 typedef union _WHEA_IN_USE_PAGE_NOTIFY_FLAGS {
     struct {
         UCHAR PlatformDirected : 1;
-        UCHAR PageSwapped : 1;
-        UCHAR PageDemoted : 1;
-        UCHAR Reserved : 3;
+        UCHAR Reserved : 5;
         UCHAR NotifyAllOfflines: 1;
         UCHAR PageOfflined : 1;
     } Bits;
@@ -5029,17 +4691,6 @@ typedef enum _WHEA_RECOVERY_CONTEXT_ERROR_TYPE {
     WheaRecoveryContextErrorTypeMax
 } WHEA_RECOVERY_CONTEXT_ERROR_TYPE,
     *PWHEA_RECOVERY_CONTEXT_ERROR_TYPE;
-
-#define WHEA_PFA_PAGE_RANGE_MAX 256
-typedef struct _WHEA_RECOVERY_CONTEXT_PAGE_INFO {
-    ULONG ComponentTag;
-    NTSTATUS PageStatus;
-    WHEA_RECOVERY_CONTEXT_ACTION_TAKEN ActionTaken;
-    WHEA_IN_USE_PAGE_NOTIFY_FLAGS NotifyFlags;
-    BOOLEAN ImmediateSuccess;
-    UINT16 Reserved;
-    WHEA_RECOVERY_CONTEXT_ACTION_TAKEN_ADDITIONAL_INFO ActionTakenAdditionalInfo;
-} WHEA_RECOVERY_CONTEXT_PAGE_INFO, *PWHEA_RECOVERY_CONTEXT_PAGE_INFO;
 
 typedef struct _WHEA_RECOVERY_CONTEXT {
     union {
@@ -5060,18 +4711,8 @@ typedef struct _WHEA_RECOVERY_CONTEXT {
     UINT64 PartitionId;  //HV_PARTITION_ID
     UINT32 VpIndex;      //HV_VP_INDEX
     WHEA_RECOVERY_CONTEXT_ERROR_TYPE ErrorType;
-    ULONG PageCount;
-    WHEA_RECOVERY_CONTEXT_PAGE_INFO PageInfo[WHEA_PFA_PAGE_RANGE_MAX];
-} WHEA_RECOVERY_CONTEXT, *PWHEA_RECOVERY_CONTEXT;
 
-NTKERNELAPI
-VOID
-WheaAttemptRowOffline (
-    _In_ PFN_NUMBER Page,
-    _In_opt_ PMEMORY_DEFECT MemDefect,
-    _In_ ULONG PageCount,
-    _In_ PWHEA_RECOVERY_CONTEXT Context
-    );
+} WHEA_RECOVERY_CONTEXT, *PWHEA_RECOVERY_CONTEXT;
 
 #if !defined(XBOX_SYSTEMOS)
 
@@ -5079,6 +4720,7 @@ typedef
 NTSTATUS
 (HVL_WHEA_ERROR_NOTIFICATION) (
     _In_ PWHEA_RECOVERY_CONTEXT RecoveryContext,
+    _In_ BOOLEAN PlatformDirected,
     _In_ BOOLEAN Poisoned
     );
 
@@ -5099,7 +4741,6 @@ HvlUnregisterWheaErrorNotification(
     );
 
 #endif
-
 
 //------------------------------------------------ PSHED Plug-in Callback Types
 
@@ -5290,7 +4931,6 @@ typedef WHEA_PSHED_PLUGIN_REGISTRATION_PACKET
 #define PshedFAErrorRecovery          0x00000010
 #define PshedFAErrorInjection         0x00000020
 
-
 //------------------------------------------------------ PSHED Plug-in services
 
 #define WHEA_WRITE_FLAG_DUMMY 0x00000001
@@ -5355,93 +4995,6 @@ PshedSynchronizeExecution (
     _In_ PVOID SynchronizeContext
     );
 #endif
-
-//-------------------------------------------------------------------- WHEA_PRM
-
-////////////////////////////////////////////////////////////////////////////////
-//                                     INTEL                                  //
-////////////////////////////////////////////////////////////////////////////////
-
-/* 1DE4055D-D2F3-4E11-B7D9-7D6C19173FEE */
-DEFINE_GUID(INTEL_ADDRESS_TRANSLATION_PRM_HANDLER_GUID,
-            0x1DE4055D,
-            0xD2F3, 0x4E11,
-            0xB7, 0xD9, 0x7D, 0x6C, 0x19, 0x17, 0x3F, 0xEE);
-
-//
-// PRM/DSM Address Translation Commands
-//
-
-#define WHEA_PRM_ADDRESS_TRANSLATION_INTEL_GET_ADDRESS_PARAMETERS    1
-#define WHEA_PRM_ADDRESS_TRANSLATION_INTEL_FORWARD_ADDRESS_TRANSLATE 2
-#define WHEA_PRM_ADDRESS_TRANSLATION_INTEL_REVERSE_ADDRESS_TRANSLATE 3
-
-//
-// Address Translation Status
-//
-
-#define WHEA_PRM_ADDRESS_TRANSLATION_INTEL_SUCCESS         0
-#define WHEA_PRM_ADDRESS_TRANSLATION_INTEL_UNKNOWN_FAILURE 1
-#define WHEA_PRM_ADDRESS_TRANSLATION_INTEL_INVALID_COMMAND 2
-#define WHEA_PRM_ADDRESS_TRANSLATION_INTEL_INTERNAL_ERROR  3
-
-#pragma pack(push, 1)
-typedef struct _WHEA_PRM_ADDRESS_TRANSLATION_BUFFER_INTEL {
-  UINT32  SwSmi;
-  UINT32  Command;
-  UINT32  Status;
-
-  UINT64  SystemAddress;
-  UINT64  NmSystemAddress;
-  UINT64  SpareSystemAddress;
-  UINT64  DevicePhysicalAddress;
-  UINT64  ProcessorSocketId;
-  UINT64  MemoryControllerId;
-  UINT64  NmMemoryControllerId;
-  UINT64  TargetId;
-  UINT64  LogicalChannelId;
-  UINT64  ChannelAddress;
-  UINT64  NmChannelAddress;
-  UINT64  ChannelId;
-  UINT64  NmChannelId;
-  UINT64  RankAddress;
-  UINT64  NmRankAddress;
-  UINT64  PhysicalRankId;
-  UINT64  NmPhysicalRankId;
-  UINT64  DimmSlotId;
-  UINT64  NmDimmSlotId;
-  UINT64  DimmRankId;
-  UINT64  Row;
-  UINT64  NmRow;
-  UINT64  Column;
-  UINT64  NmColumn;
-  UINT64  Bank;
-  UINT64  NmBank;
-  UINT64  BankGroup;
-  UINT64  NmBankGroup;
-  UINT64  LockStepRank;
-  UINT64  LockStepPhysicalRank;
-  UINT64  LockStepBank;
-  UINT64  LockStepBankGroup;
-  UINT64  ChipSelect;
-  UINT64  NmChipSelect;
-  UINT64  Node;
-  UINT64  ChipId;
-  UINT64  NmChipId;
-} WHEA_PRM_ADDRESS_TRANSLATION_BUFFER_INTEL, * PWHEA_PRM_ADDRESS_TRANSLATION_BUFFER_INTEL;
-#pragma pack(pop)
-
-NTSTATUS
-WheaPrmTranslatePhysicalAddress(
-    _In_ UINT64 PhysicalAddress,
-    _Out_ PVOID DimmAddress
-    );
-
-NTSTATUS
-WheaPrmTranslateDimmAddress(
-    _Inout_ PVOID DimmAddress,
-    _Out_ PUINT64 PhysicalAddress
-    );
 
 //----------------------------------------------- Error record access functions
 
@@ -5901,34 +5454,9 @@ cleanup:
     return Section;
 }
 
-//
-// SOC Subsystem bugcheck reporting information
-//
-typedef enum _SOC_SUBSYSTEM_TYPE {
-    SOC_SUBSYS_WIRELESS_MODEM = 0,
-    SOC_SUBSYS_AUDIO_DSP = 1,
-    SOC_SUBSYS_WIRELSS_CONNECTIVITY = 2,
-    SOC_SUBSYS_SENSORS = 3,
-    SOC_SUBSYS_COMPUTE_DSP = 4,
-    SOC_SUBSYS_SECURE_PROC = 5,
-
-
-    //
-    // Subsystem types starting from 0x10000 are reserved for SoC vendor use.
-    //
-
-    SOC_SUBSYS_VENDOR_DEFINED = 0x10000
-} SOC_SUBSYSTEM_TYPE, *PSOC_SUBSYSTEM_TYPE;
-
-
-typedef struct _SOC_SUBSYSTEM_FAILURE_DETAILS {
-    SOC_SUBSYSTEM_TYPE SubsysType;
-    ULONG64 FirmwareVersion;
-    ULONG64 HardwareVersion;
-    ULONG   UnifiedFailureRegionSize;
-    CHAR    UnifiedFailureRegion[1];
-} SOC_SUBSYSTEM_FAILURE_DETAILS, *PSOC_SUBSYSTEM_FAILURE_DETAILS;
-
+#ifdef __cplusplus
+}
+#endif
 
 #if _MSC_VER >= 1200
 #pragma warning(pop)
